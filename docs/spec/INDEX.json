@@ -1,0 +1,45 @@
+{
+  "note": "方案 PDF 抽取台账。V9 为终稿基线，其余归档备查；抽取工具 tools/extract-spec.mjs",
+  "specs": [
+    {
+      "id": "V9",
+      "source": "恐怖整合.pdf",
+      "extracted": "V9-fulltext.txt",
+      "lines": 1210,
+      "cjkChars": 16450,
+      "role": "终稿冻结基线（所有要求的唯一出处）"
+    },
+    {
+      "id": "V8",
+      "source": "恐怖多人联机游戏开发方案-V8.0-三版综合评审与混元推荐.pdf",
+      "extracted": "V8-fulltext.txt",
+      "lines": 929,
+      "cjkChars": 16133,
+      "role": "归档"
+    },
+    {
+      "id": "V7",
+      "source": "恐怖多人联机游戏开发方案-V7.0-深度分析与后端设计全量完善版.pdf",
+      "extracted": "V7-fulltext.txt",
+      "lines": 1626,
+      "cjkChars": 23184,
+      "role": "归档"
+    },
+    {
+      "id": "V6",
+      "source": "6abf455d7140e84f5fdd87f5_恐怖多人联机游戏开发方案-V6.0-深度评审与全量完善版.pdf",
+      "extracted": "V6-fulltext.txt",
+      "lines": 1137,
+      "cjkChars": 11190,
+      "role": "归档"
+    },
+    {
+      "id": "V5",
+      "source": "恐怖多人联机游戏开发方案-Android版-V5.pdf",
+      "extracted": "V5-fulltext.txt",
+      "lines": 858,
+      "cjkChars": 9366,
+      "role": "归档"
+    }
+  ]
+}

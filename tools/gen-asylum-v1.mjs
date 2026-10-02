@@ -21,7 +21,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BOXES = [
   // ── ① 入口区（安全教学）：贴主干西墙，门对开于 x=4 ──
   { id: 'entrance_safe', x0: 0, x1: 4, z0: 0, z1: 3, h: 3.5, floor: 0, kit: 'hall_main', zone: 'safe', evidence: false,
-    props: [{ kit: 'cabinet_a', pos: [1.5, 0, 0.6], rot: 180 }],
+    props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 180, pref: 'nw' }],
     doors: [{ id: 'd_east', wall: 'east', at: 1.5 }] },
 
   // ── ② 主干走廊（东西长廊 x=4..18，z=0..3）：承载三个支线的南端 ──
@@ -36,7 +36,7 @@ const BOXES = [
   { id: 'morgue_deep', x0: 20, x1: 22, z0: 3, z1: 6, h: 3.2, floor: 0, kit: 'morgue', zone: 'high-risk', evidence: false, props: [],
     doors: [{ id: 'd_south', wall: 'south', at: 21 }, { id: 'd_north', wall: 'north', at: 21 }] },
   { id: 'morgue_ante', x0: 20, x1: 22, z0: 6, z1: 9, h: 3.2, floor: 0, kit: 'morgue', zone: 'high-risk', evidence: false,
-    props: [{ kit: 'cabinet_a', pos: [0, 0, 1.0], rot: 180 }],
+    props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 180, pref: 'nw' }],
     doors: [{ id: 'd_south', wall: 'south', at: 21 }] },
 
   // ── ④ 竖向连接廊（x=4..8，门位 x=4.5；刻意与住院部走廊在 x 上错开）──
@@ -53,15 +53,15 @@ const BOXES = [
 
   // ── ⑥ 5 间病房（北侧一排，门全在南墙，与走廊北门逐一对齐）──
   { id: 'ward_01', x0: 4, x1: 7, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 5.5 }] },
+    props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 5.5 }] },
   { id: 'ward_02', x0: 7, x1: 10, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 8.5 }] },
+    props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 8.5 }] },
   { id: 'ward_03', x0: 10, x1: 13, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 11.5 }] },
+    props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 11.5 }] },
   { id: 'ward_04', x0: 13, x1: 16, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'cabinet_a', pos: [0, 0, 0.8], rot: 270 }], doors: [{ id: 'd_south', wall: 'south', at: 14.5 }] },
+    props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 270, pref: 'ne' }], doors: [{ id: 'd_south', wall: 'south', at: 14.5 }] },
   { id: 'ward_05', x0: 16, x1: 19, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 17.5 }] },
+    props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 17.5 }] },
 ];
 
 /** 走廊连接表：两端门必须贴同一条共享墙且开口对齐（几何由 BOXES 的 at 保证） */
@@ -111,6 +111,91 @@ const offsetMOf = (b, d) => {
 // 门宽先定（走廊宽度即门宽），offsetM 依赖它做夹取
 for (const box of BOXES) for (const d of box.doors) d.widthM = DOOR_WIDTH.get(`${box.id}/${d.id}`) ?? 1.2;
 
+/**
+ * 道具自动寻位：在房间内扫描候选点，挑一个满足「距四墙 ≥0.5m」且「不挡门洞通道」的位置。
+ *
+ * 为什么不让布局表写死坐标：我写死过一轮，结果是 5 张病床全部压在墙线上
+ * （本地 x=0 就是贴西墙、z=-0.6 直接伸到房间外），而当时没有任何检查发现它 ——
+ * 建模门禁 M6 才把它抓出来。自动寻位把"落位合法性"从手工计算变成生成时就保证。
+ *
+ * 偏好：从房间左上角开始扫描，优先靠墙但不贴墙（0.5m 起步），并且避开每个门洞的通道带。
+ */
+/**
+ * 套件占地尺寸（与 asset-manifest.json 的 footprint 一致；0 度放置时的 [宽x, 深z]）。
+ * 为什么必须有它：我最初只用"道具中心点"判断是否挡门洞，结果一张 0.9×2.0 的床
+ * 中心虽在门洞外、床体却压住门洞一半（建模门禁抓出的真实缺陷）。
+ */
+const FOOTPRINT = {
+  bed_b: [0.9, 2.0], cabinet_a: [0.8, 0.5],
+  hospital_ward: [3.0, 4.0], hall_main: [16.0, 3.0], morgue: [3.0, 3.0],
+};
+/** 道具按 rot 旋转后的 AABB 半尺寸 */
+function footprintHalf(kit, rotDeg) {
+  const [w, d] = FOOTPRINT[kit] ?? [0.8, 0.8];
+  const r = ((rotDeg ?? 0) % 180 + 180) % 180;
+  const swapped = r >= 45 && r < 135;          // 90 度放置 → 宽深互换
+  const sx = swapped ? d : w, sz = swapped ? w : d;
+  return [sx / 2, sz / 2];
+}
+
+function placeProp(box, pref) {
+  const CLEAR = 0.5;
+  const doors = box.doors ?? [];
+  const prop = arguments[2] ?? {};
+  const [hx, hz] = footprintHalf(prop.kit ?? 'bed_b', prop.rot ?? 0);
+  const WALL = 0.26;                       // 墙厚（与 LevelGeometry/生成器一致）
+  const blocked = (x, z) => {
+    // 距墙判据必须按**真实占地盒**：占地半尺寸 + 墙厚 + 0.05 余量。
+    // 我最初用固定 0.5m，结果一张旋转后的床（半宽 1.0m）仍会越出房间 —— 建模门禁抓出来的。
+    const needX = hx + WALL + 0.05, needZ = hz + WALL + 0.05;
+    const dx = Math.min(x - box.x0, box.x1 - x);
+    const dz = Math.min(z - box.z0, box.z1 - z);
+    if (dx < needX || dz < needZ) return true;
+    // 道具的真实占地盒（按 rot 旋转后的 AABB）
+    const px0 = x - hx, px1 = x + hx, pz0 = z - hz, pz1 = z + hz;
+    for (const d of doors) {
+      const wM = d.widthM ?? 1.2;
+      const wallLen = (d.wall === 'north' || d.wall === 'south') ? (box.x1 - box.x0) : (box.z1 - box.z0);
+      const start = (d.wall === 'north' || d.wall === 'south')
+        ? box.x0 + (d.offsetM ?? 0)
+        : box.z0 + (d.offsetM ?? 0);
+      const end = start + wM;
+      // 通道带：贴墙那侧纵深 0.96m，沿墙跨门洞宽 ±0.2m
+      if (d.wall === 'south' || d.wall === 'north') {
+        const bandZ = d.wall === 'south' ? [box.z0, box.z0 + 0.96] : [box.z1 - 0.96, box.z1];
+        const overlapZ = Math.min(pz1, bandZ[1]) - Math.max(pz0, bandZ[0]);
+        const overlapX = Math.min(px1, end + 0.2) - Math.max(px0, start - 0.2);
+        if (overlapZ > 0 && overlapX > 0) return true;
+      } else {
+        const bandX = d.wall === 'west' ? [box.x0, box.x0 + 0.96] : [box.x1 - 0.96, box.x1];
+        const overlapX = Math.min(px1, bandX[1]) - Math.max(px0, bandX[0]);
+        const overlapZ = Math.min(pz1, end + 0.2) - Math.max(pz0, start - 0.2);
+        if (overlapX > 0 && overlapZ > 0) return true;
+      }
+    }
+    return false;
+  };
+  // 候选顺序：按 pref 指定的角落/边开始，逐 0.1m 扫描
+  const needX = hx + WALL + 0.05, needZ = hz + WALL + 0.05;
+  const xs = [];
+  for (let x = box.x0 + needX; x <= box.x1 - needX + 1e-9; x += 0.1) xs.push(Math.round(x * 100) / 100);
+  const zs = [];
+  for (let z = box.z0 + needZ; z <= box.z1 - needZ + 1e-9; z += 0.1) zs.push(Math.round(z * 100) / 100);
+  if (pref === 'ne') zs.reverse();
+  if (pref === 'sw' || pref === 'se') { xs.reverse(); if (pref === 'se') zs.reverse(); }
+  for (const z of zs) for (const x of xs) if (!blocked(x, z)) return [Math.round((x - box.x0) * 100) / 100, 0, Math.round((z - box.z0) * 100) / 100];
+  return null; // 无合法位置 → 交由自检报错
+}
+
+// 先把道具落到实际位置并写回 BOXES（自检与写出都用同一份数据，避免"自检查布局表、写出用寻位结果"的错位）
+for (const b of BOXES) {
+  b.props = (b.props ?? []).map((pr) => {
+    const spot = placeProp(b, pr.pref ?? 'nw', pr);
+    if (!spot) problems.push(`道具 ${b.id}/${pr.kit} 在房间内找不到合法落位（距墙 ≥0.5m 且不挡门洞）`);
+    return spot ? { ...pr, pos: spot } : pr;
+  });
+}
+
 const rooms = BOXES.map((b) => ({
   id: b.id,
   pos: pos(b),
@@ -156,6 +241,19 @@ for (let i = 0; i < BOXES.length; i++) for (let j = i + 1; j < BOXES.length; j++
   const oz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0);
   if (ox > 0.01 && oz > 0.01) problems.push(`房间重叠：${a.id} 与 ${b.id}（${ox.toFixed(2)}×${oz.toFixed(2)}）`);
 }
+// 道具落位自检：按**真实占地盒 + 墙厚**校验（与建模门禁 M6 同一判据，避免两套口径）
+const WALL_T = 0.26;
+for (const b of BOXES) {
+  for (const pr of b.props ?? []) {
+    const [lx, , lz] = pr.pos;
+    const [hx, hz] = footprintHalf(pr.kit, pr.rot);
+    const w = b.x1 - b.x0, d = b.z1 - b.z0;
+    if (lx - hx < WALL_T - 1e-6 || lx + hx > w - WALL_T + 1e-6 || lz - hz < WALL_T - 1e-6 || lz + hz > d - WALL_T + 1e-6) {
+      problems.push(`道具 ${b.id}/${pr.kit} 占地盒侵入墙体（中心 ${lx.toFixed(2)},${lz.toFixed(2)} 半尺寸 ${hx.toFixed(2)}×${hz.toFixed(2)} 房间 ${w}×${d}）`);
+    }
+  }
+}
+
 if (problems.length) {
   console.log('[gen-asylum] 布局表自检失败，拒绝写出：');
   for (const p of problems) console.log('  ✗ ' + p);

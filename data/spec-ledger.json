@@ -1,0 +1,5560 @@
+{
+  "note": "五版方案要求台账（自动抽取）。V9 为冲突裁决基线；V5~V8 承载规格细节与理由。抽取器 tools/spec-ledger.mjs",
+  "versions": [
+    {
+      "version": "V9",
+      "role": "终稿冻结基线（冲突裁决以此为准）",
+      "source": "docs/spec/V9-fulltext.txt",
+      "lines": 1210,
+      "chapters": [
+        {
+          "num": "1",
+          "title": "版本谱系：四版各自的贡献",
+          "line": 22
+        },
+        {
+          "num": "2",
+          "title": "十一域终评",
+          "line": 73
+        },
+        {
+          "num": "36",
+          "title": "/ 16KB / UGC / 儿童安",
+          "line": 111
+        },
+        {
+          "num": "3",
+          "title": "冲突裁决终表",
+          "line": 129
+        },
+        {
+          "num": "4",
+          "title": "溢出处置：「优先匹配券立即建房」 客户端候补队列 + 券 = 插队权重，文",
+          "line": 140
+        },
+        {
+          "num": "5",
+          "title": "麦克风双采集（V7 架构图隐含） 单一采集源：优先 Vivox 本地能量回",
+          "line": 142
+        },
+        {
+          "num": "6",
+          "title": "Host 迁移后房客不能任新房主 本局结束后解散 + 30 秒宽限提示，",
+          "line": 144
+        },
+        {
+          "num": "7",
+          "title": "云备份占日写 24%（V7） EA 期移除，改手动导出码；移除后",
+          "line": 146
+        },
+        {
+          "num": "10",
+          "title": "五语本地化（V5） 四语（英日韩 + 西语 AI 翻译抽",
+          "line": 151
+        },
+        {
+          "num": "13",
+          "title": "▲ 开发角色：人写架构 + AI 写叶节 人批准架构（AI 可起草）+ AI 执行",
+          "line": 160
+        },
+        {
+          "num": "14",
+          "title": "▲ 场景搭建：编辑器可视化操作 全面代码优先：Level DSL + 运行时",
+          "line": 164
+        },
+        {
+          "num": "0",
+          "title": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 232
+        },
+        {
+          "num": "8",
+          "title": "无麦流派：语音人格包",
+          "line": 255
+        },
+        {
+          "num": "9",
+          "title": "第 0 局引导与档案残页",
+          "line": 268
+        },
+        {
+          "num": "11",
+          "title": "前端设计系统（整合稿）",
+          "line": 287
+        },
+        {
+          "num": "12",
+          "title": "零成本技术栈总表（2026-10 核验）",
+          "line": 326
+        },
+        {
+          "num": "50",
+          "title": "倍）",
+          "line": 341
+        },
+        {
+          "num": "13.1",
+          "title": "模块边界（七 ASMDEF）",
+          "line": 377
+        },
+        {
+          "num": "13.2",
+          "title": "三接口抽象层",
+          "line": 382
+        },
+        {
+          "num": "13.3",
+          "title": "配置表与远程调参",
+          "line": 386
+        },
+        {
+          "num": "13.4",
+          "title": "网络同步",
+          "line": 392
+        },
+        {
+          "num": "13.5",
+          "title": "语音链路：判定与传输解耦",
+          "line": 399
+        },
+        {
+          "num": "13.6",
+          "title": "断线重连快照",
+          "line": 411
+        },
+        {
+          "num": "13.7",
+          "title": "行为树与 NavMesh",
+          "line": 416
+        },
+        {
+          "num": "13.8",
+          "title": "性能与包体硬门禁（V8 R9）",
+          "line": 423
+        },
+        {
+          "num": "15",
+          "title": "最小后端（六能力）",
+          "line": 459
+        },
+        {
+          "num": "15.1",
+          "title": "认证与支付链路",
+          "line": 476
+        },
+        {
+          "num": "15.2",
+          "title": "数据模型与配额",
+          "line": 488
+        },
+        {
+          "num": "15.3",
+          "title": "反作弊三层防线与举报工作流",
+          "line": 505
+        },
+        {
+          "num": "16",
+          "title": "合规与上架清单（10 项）",
+          "line": 513
+        },
+        {
+          "num": "17",
+          "title": "开发范式总纲",
+          "line": 533
+        },
+        {
+          "num": "17.1",
+          "title": "范式定义",
+          "line": 534
+        },
+        {
+          "num": "17.2",
+          "title": "引擎决策复核（ADR：为什么手机开发仍保留 Unity）",
+          "line": 558
+        },
+        {
+          "num": "17.3",
+          "title": "范式对既有方案的影响面",
+          "line": 584
+        },
+        {
+          "num": "18",
+          "title": "手机端工具链",
+          "line": 593
+        },
+        {
+          "num": "18.1",
+          "title": "硬件配置",
+          "line": 594
+        },
+        {
+          "num": "18.2",
+          "title": "软件栈（双轨）",
+          "line": 604
+        },
+        {
+          "num": "18.3",
+          "title": "语音口述规格书工作流",
+          "line": 627
+        },
+        {
+          "num": "18.4",
+          "title": "工具链 W1 验证清单",
+          "line": 636
+        },
+        {
+          "num": "19",
+          "title": "代码优先工程学（No-Editor Discipline）",
+          "line": 647
+        },
+        {
+          "num": "19.1",
+          "title": "四项工程承诺",
+          "line": 651
+        },
+        {
+          "num": "19.2",
+          "title": "Level DSL：关卡即数据",
+          "line": 671
+        },
+        {
+          "num": "19.3",
+          "title": "CI 资产管线",
+          "line": 690
+        },
+        {
+          "num": "19.4",
+          "title": "内容热加载：免构建迭代",
+          "line": 694
+        },
+        {
+          "num": "19.5",
+          "title": "三层免构建调参通道",
+          "line": 699
+        },
+        {
+          "num": "20",
+          "title": "48 小时构建循环",
+          "line": 710
+        },
+        {
+          "num": "20.1",
+          "title": "循环结构",
+          "line": 711
+        },
+        {
+          "num": "20.2",
+          "title": "构建分钟预算",
+          "line": 729
+        },
+        {
+          "num": "20.3",
+          "title": "规格书门禁（Spec-Gate）",
+          "line": 739
+        },
+        {
+          "num": "21",
+          "title": "调试与验收体系（无本地编辑器）",
+          "line": 749
+        },
+        {
+          "num": "21.1",
+          "title": "设备调试面板",
+          "line": 750
+        },
+        {
+          "num": "21.2",
+          "title": "远程观测",
+          "line": 759
+        },
+        {
+          "num": "21.3",
+          "title": "Test Lab 截图审查流（视觉验收的替代方案）",
+          "line": 763
+        },
+        {
+          "num": "21.4",
+          "title": "真机验收的角色分级",
+          "line": 772
+        },
+        {
+          "num": "22",
+          "title": "人机分工 v3 与质量门禁 v3",
+          "line": 780
+        },
+        {
+          "num": "22.1",
+          "title": "AI 覆盖率重估",
+          "line": 781
+        },
+        {
+          "num": "22.2",
+          "title": "质量门禁 v3",
+          "line": 805
+        },
+        {
+          "num": "23",
+          "title": "排期修订：构建周期制的 24 周",
+          "line": 816
+        },
+        {
+          "num": "23.1",
+          "title": "总体判断",
+          "line": 817
+        },
+        {
+          "num": "23.2",
+          "title": "前 90 天（构建周期视角）",
+          "line": 823
+        },
+        {
+          "num": "23.3",
+          "title": "五个北极星指标与二元决策点",
+          "line": 866
+        },
+        {
+          "num": "23.4",
+          "title": "延长预案（触发条件制，不做概率预测）",
+          "line": 874
+        },
+        {
+          "num": "24",
+          "title": "风险矩阵 v5（手机模式新风险 ▲）",
+          "line": 883
+        },
+        {
+          "num": "25",
+          "title": "预算修订",
+          "line": 912
+        },
+        {
+          "num": "26",
+          "title": "规格书模板 v3（代码任务契约）",
+          "line": 946
+        },
+        {
+          "num": "27",
+          "title": "AI 会话工作模板与文档喂入包",
+          "line": 968
+        },
+        {
+          "num": "27.1",
+          "title": "文档喂入包（docs/ai-context/）",
+          "line": 969
+        },
+        {
+          "num": "27.2",
+          "title": "手机 AI 会话系统提示模板",
+          "line": 988
+        },
+        {
+          "num": "27.3",
+          "title": "规格书口述提示模板（配合 §18.3）",
+          "line": 998
+        },
+        {
+          "num": "28",
+          "title": "前端设计提示词库（摘要版，全文见 V6 §24~§29）",
+          "line": 1006
+        },
+        {
+          "num": "28.1",
+          "title": "全局风格锚点",
+          "line": 1007
+        },
+        {
+          "num": "28.2",
+          "title": "分页提示词速查",
+          "line": 1023
+        },
+        {
+          "num": "29",
+          "title": "后端规格书提示词（三份核心）",
+          "line": 1067
+        },
+        {
+          "num": "30",
+          "title": "内容工厂提示词（对抗内容产能瓶颈）",
+          "line": 1083
+        },
+        {
+          "num": "30.1",
+          "title": "档案残页生成",
+          "line": 1085
+        },
+        {
+          "num": "30.2",
+          "title": "动态事件池 DSL 条目",
+          "line": 1093
+        },
+        {
+          "num": "30.3",
+          "title": "词条组合生成",
+          "line": 1098
+        },
+        {
+          "num": "30.4",
+          "title": "人格包轮盘语音文案",
+          "line": 1102
+        },
+        {
+          "num": "31",
+          "title": "立项后两周行动清单（手机模式版）",
+          "line": 1111
+        },
+        {
+          "num": "32",
+          "title": "最终结论",
+          "line": 1137
+        }
+      ],
+      "requirements": [
+        {
+          "specVersion": "V9",
+          "spec": "§(未定位)",
+          "specTitle": "",
+          "line": 7,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "文档性 V5~V8 四版唯一有效整合基线（终稿冻结版）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§(未定位)",
+          "specTitle": "",
+          "line": 13,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "基线文 V5.0（28 页）· V6.0（41 页）· V7.0（48 页）· V8.0（40 页），四版合计 157 页，自本版起归档不"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§(未定位)",
+          "specTitle": "",
+          "line": 19,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "敛全部规格书与提示词资产（第五部分）。按 V8 反建议 1 的纪律，本版为最后一版完整文档，此后冻结篇"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§1",
+          "specTitle": "版本谱系：四版各自的贡献",
+          "line": 46,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "2,000 与免费档三规则；最 备份占日写 24% 逼近红"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§1",
+          "specTitle": "版本谱系：四版各自的贡献",
+          "line": 55,
+          "kind": "mandate",
+          "tags": [],
+          "text": "容量口径统一 DAU 2,000 / 版执行冻结）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§2",
+          "specTitle": "十一域终评",
+          "line": 101,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "后端与商业化 7.5 7.5 六能力 + 六集合 + 配额 6%"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§2",
+          "specTitle": "十一域终评",
+          "line": 110,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "合规与上架 6.0 7.0 V8 补全 10 项清单（API"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13",
+          "specTitle": "▲ 开发角色：人写架构 + AI 写叶节 人批准架构（AI 可起草）+ AI 执行",
+          "line": 161,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "点（V5/V7 铁律） 全部实现。规格书门禁（spec-"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§14",
+          "specTitle": "▲ 场景搭建：编辑器可视化操作 全面代码优先：Level DSL + 运行时",
+          "line": 179,
+          "kind": "mandate",
+          "tags": [],
+          "text": "辑、上架硬门槛、UGC 三件套、计 由本版执行冻结"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§14",
+          "specTitle": "▲ 场景搭建：编辑器可视化操作 全面代码优先：Level DSL + 运行时",
+          "line": 191,
+          "kind": "mandate",
+          "tags": [],
+          "text": "智系统）。与支柱无关的功能一律砍掉。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 251,
+          "kind": "mandate",
+          "tags": [],
+          "text": "片解锁装备补给、第二张地图与难度词条。变现红线不变：碎片不可付费购买。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 253,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "（标准点安全 / 深处点 +30%）；90 秒断线重连，快照含位置 / 道具 / 理智 / 证据 / 门柜状态 / 怪物仇"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§8",
+          "specTitle": "无麦流派：语音人格包",
+          "line": 261,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "新兵 标准指令 基准 100% 无额外效果（初始解锁）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§9",
+          "specTitle": "第 0 局引导与档案残页",
+          "line": 283,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "规则细化：权益判定在建房时校验（非启动时）；免费房主同房间码 24 小时内可重建（掉线重开不算"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§9",
+          "specTitle": "第 0 局引导与档案残页",
+          "line": 284,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "新房）；Host 迁移时校验新房主资格——买断房主退出后，本局正常打完再解散 + 30 秒宽限提示（V8"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§50",
+          "specTitle": "倍）",
+          "line": 371,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "Unity SDK ≥12.10.0；Vivox Unity ≥16.6.2；Burst ≥1.8.21。写进依赖清单与 CI 校验，targetSdk"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13.4",
+          "specTitle": "网络同步",
+          "line": 394,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "批发送；带宽预算下行 ≤12KB/s、上行 ≤6KB/s。同步对象四类：玩家 Transform（10Hz 插值）、"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13.8",
+          "specTitle": "性能与包体硬门禁（V8 R9）",
+          "line": 423,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "13.8 性能与包体硬门禁（V8 R9）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13.8",
+          "specTitle": "性能与包体硬门禁（V8 R9）",
+          "line": 425,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "APK ≤200MB / AAB install-time ≤150MB 包体门禁"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13.8",
+          "specTitle": "性能与包体硬门禁（V8 R9）",
+          "line": 426,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "中端机冷启动 ≤8s / PSS 内存 ≤600MB 启动与内存门禁"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13.8",
+          "specTitle": "性能与包体硬门禁（V8 R9）",
+          "line": 427,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "UI 帧耗 ≤2ms / Draw Call ≤120 / 同屏动态光源 ≤4 渲染门禁"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13.8",
+          "specTitle": "性能与包体硬门禁（V8 R9）",
+          "line": 428,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "低端机 30fps / 中端机 20 分钟不降频 结果验收"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13.8",
+          "specTitle": "性能与包体硬门禁（V8 R9）",
+          "line": 434,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "峰值并发 CCU 100（硬上限，≈25 个四人房） 无 Burst，第 101 人即被拒入"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§13.8",
+          "specTitle": "性能与包体硬门禁（V8 R9）",
+          "line": 438,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "流量配额 0.3TB/月 本作 2,000 DAU 月流量 <15GB，极度宽裕"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15",
+          "specTitle": "最小后端（六能力）",
+          "line": 461,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "化 / 合规崩坏」才进清单；「完全不耽误」一律砍掉。对局进行中客户端与 Firebase 零交互，只在"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15",
+          "specTitle": "最小后端（六能力）",
+          "line": 464,
+          "kind": "mandate",
+          "tags": [],
+          "text": "# 能力 为什么必须服务端 优先级 载体"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15",
+          "specTitle": "最小后端（六能力）",
+          "line": 469,
+          "kind": "mandate",
+          "tags": [],
+          "text": "3 举报受理 语音 UGC 举报必须落库留痕、可人工处置 M1 必做（合规红 reports 集合 + 处置工作流"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15.1",
+          "specTitle": "认证与支付链路",
+          "line": 480,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "CCU。日调用 ≈6,000 次，配额裕量 8 倍以上。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15.1",
+          "specTitle": "认证与支付链路",
+          "line": 484,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "Developer API 校验 purchaseState===0 → 归属校验（obfuscatedAccountId 必须匹配 uid，防票据"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15.2",
+          "specTitle": "数据模型与配额",
+          "line": 496,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "建房门禁（权益 + 限额） 960 480 1.9% / 2.4%"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15.2",
+          "specTitle": "数据模型与配额",
+          "line": 501,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "Spark 日配额 5 万读 / 2 万写。破圈日 3 倍流量仍在 10% 红线内——fail-closed 风险基本消失。70%"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15.3",
+          "specTitle": "反作弊三层防线与举报工作流",
+          "line": 506,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "认证层：拒绝匿名连接，封禁在签发时拦截。行为层：速度 / 位置合理性 + 碎片交叉校验（差异 >10%"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§15.3",
+          "specTitle": "反作弊三层防线与举报工作流",
+          "line": 511,
+          "kind": "mandate",
+          "tags": [],
+          "text": "含语音本体（不落盘是合规红线），语音类举报依赖描述 + 双方历史 flags 模式。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§16",
+          "specTitle": "合规与上架清单（10 项）",
+          "line": 513,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "16 合规与上架清单（10 项）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§16",
+          "specTitle": "合规与上架清单（10 项）",
+          "line": 527,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "36（2026-08-31 起新应用强制）；16KB 页对齐（Unity"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§17.2",
+          "specTitle": "引擎决策复核（ADR：为什么手机开发仍保留 Unity）",
+          "line": 559,
+          "kind": "mandate",
+          "tags": [],
+          "text": "手机 + AI 编程约束下，引擎选择必须重新评估。三个候选："
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§18.1",
+          "specTitle": "硬件配置",
+          "line": 600,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "测试机 ×2（低 / 高端） 机型矩阵 + 多人联机测试 低端机守 30fps 红线；高端机验证上"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§18.4",
+          "specTitle": "工具链 W1 验证清单",
+          "line": 637,
+          "kind": "mandate",
+          "tags": [],
+          "text": "工具链本身是 M0 的第一道验证对象，W1 必须全部跑通："
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§18.4",
+          "specTitle": "工具链 W1 验证清单",
+          "line": 641,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "3 GameCI：push 触发构建出 APK 构建时长记录在案（预算 ~40 分钟）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§20.1",
+          "specTitle": "循环结构",
+          "line": 712,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "CI 构建 ~40 分钟、AI 实现 ~数小时，决定了开发的基本节拍是「天」而非「分钟」。定义标准开发周"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§20.1",
+          "specTitle": "循环结构",
+          "line": 722,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "【第 2 天】真机验收"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§20.1",
+          "specTitle": "循环结构",
+          "line": 726,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "节拍纪律：每周期 1~2 个任务（单任务 ≤1 个 AI 工作日）；连续两个周期审查不过 → 重写而非修补"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§20.1",
+          "specTitle": "循环结构",
+          "line": 727,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "（V5 红线不变）；每周期结束时人手上有一份「已验收可玩版本」——项目任何时刻止损，损失不超"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§20.2",
+          "specTitle": "构建分钟预算",
+          "line": 736,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "纪律：PR 阶段只跑测试（Play Mode 测试在 GameCI test runner，~10 分钟），合并后才出包；测试"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§20.3",
+          "specTitle": "规格书门禁（Spec-Gate）",
+          "line": 740,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "V5 的铁律是「人类写接口与测试，AI 生成实现」。手机模式下人类不再亲写，铁律改写为门禁制："
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§20.3",
+          "specTitle": "规格书门禁（Spec-Gate）",
+          "line": 745,
+          "kind": "mandate",
+          "tags": [],
+          "text": "人类批准的是「契约」，AI 执行的是「实现」——架构决策权仍在人（V5 铁律的精神内核不变），只"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§20.3",
+          "specTitle": "规格书门禁（Spec-Gate）",
+          "line": 746,
+          "kind": "mandate",
+          "tags": [],
+          "text": "是从「亲写」变为「批准」。接口与测试一旦批准即冻结，实现阶段不得擅自修改；确需修改回到门"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§21.1",
+          "specTitle": "设备调试面板",
+          "line": 755,
+          "kind": "mandate",
+          "tags": [],
+          "text": "作弊指令 注入声纹事件（模拟喊叫）、传送、冻结怪物、理智直改、时停"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§21.2",
+          "specTitle": "远程观测",
+          "line": 761,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "Firestore debug_logs 集合，dev 期专用，限频每设备每日 10 次以防配额污染——生产构建无此通"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§21.3",
+          "specTitle": "Test Lab 截图审查流（视觉验收的替代方案）",
+          "line": 770,
+          "kind": "mandate",
+          "tags": [
+            "gate",
+            "rule"
+          ],
+          "text": "纪律：任何 UI / 视觉 PR 没有截图附件不允许合并——这是手机审查的硬门禁（§22 门禁表 G5）。截"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§21.4",
+          "specTitle": "真机验收的角色分级",
+          "line": 775,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "低端测试机 每周性能红线验收（30fps / 内存 / 冷启动）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22",
+          "specTitle": "人机分工 v3 与质量门禁 v3",
+          "line": 780,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "22 人机分工 v3 与质量门禁 v3"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.1",
+          "specTitle": "AI 覆盖率重估",
+          "line": 786,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "架构代码（接口 / 事件 / 配 0%（人类专属） 起草 100% / 决策 0% Spec-Gate：AI 起草契"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.1",
+          "specTitle": "AI 覆盖率重估",
+          "line": 793,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "后端云函数 / 安全规则 —（V5 无后端） 95% 规格书 P-B1/P-B3/P-B5"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.1",
+          "specTitle": "AI 覆盖率重估",
+          "line": 795,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "联机 / 语音集成 50%~60% 80% 文档喂入包铁律"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.1",
+          "specTitle": "AI 覆盖率重估",
+          "line": 796,
+          "kind": "mandate",
+          "tags": [],
+          "text": "（§27）：SDK 调用必须"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.1",
+          "specTitle": "AI 覆盖率重估",
+          "line": 803,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "架构决策 / 玩法手感 / 恐怖 0% 0%（永久人类专属） 铁律不变"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.2",
+          "specTitle": "质量门禁 v3",
+          "line": 806,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "表 22-2 七道门禁（CI 与流程强制）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.2",
+          "specTitle": "质量门禁 v3",
+          "line": 809,
+          "kind": "mandate",
+          "tags": [
+            "gate",
+            "rule"
+          ],
+          "text": "G1 Spec-Gate 接口契约与测试清单未经人类批准，实现不得开始 流程纪律（Issue 模板状态字段）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.2",
+          "specTitle": "质量门禁 v3",
+          "line": 810,
+          "kind": "mandate",
+          "tags": [],
+          "text": "G2 无测试不合并 AI 模块必须附测试且 CI 全绿 GameCI test job 阻断 PR"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.2",
+          "specTitle": "质量门禁 v3",
+          "line": 811,
+          "kind": "mandate",
+          "tags": [],
+          "text": "G3 架构守护 Gameplay / UI 模块禁止 import 第三方 SDK 命名空间 CI 静态扫描 using 指令"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§22.2",
+          "specTitle": "质量门禁 v3",
+          "line": 813,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "G5 截图门禁 UI / 视觉 PR 必须附 Test Lab 截图与视频 PR 模板检查（人工确认）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§23.2",
+          "specTitle": "前 90 天（构建周期视角）",
+          "line": 828,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "W1 Unity 6 LTS 代码优先工程 三重验证：① 麦克风单源 依赖清单锁定（16KB 四件"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§23.2",
+          "specTitle": "前 90 天（构建周期视角）",
+          "line": 852,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "无麦配额 ≥30%） 工作流（P-B5）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§23.2",
+          "specTitle": "前 90 天（构建周期视角）",
+          "line": 855,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "W11~12 完整单局循环 + 撤离博弈 M1 验收（崩溃率 / 30fps / 权益门禁闭环演练；四语"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§24",
+          "specTitle": "风险矩阵 v5（手机模式新风险 ▲）",
+          "line": 895,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "质量代码漏网 （单 PR ≤400 行纪律）；"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§25",
+          "specTitle": "预算修订",
+          "line": 941,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "日志回复（24h 内 ≥80%）计入人力预算，B/C 档从 W17 起执行。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§26",
+          "specTitle": "规格书模板 v3（代码任务契约）",
+          "line": 956,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "## 接口契约（Spec-Gate：批准后冻结）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§26",
+          "specTitle": "规格书模板 v3（代码任务契约）",
+          "line": 959,
+          "kind": "mandate",
+          "tags": [],
+          "text": "- 遵循 docs/ai-context/ 喂入包：任何第三方 SDK 调用必须注明喂入包出处"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§26",
+          "specTitle": "规格书模板 v3（代码任务契约）",
+          "line": 960,
+          "kind": "mandate",
+          "tags": [],
+          "text": "- 遵循现有 EventBus / 配置表 / DesignTokens 模式，禁止引入新框架"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§26",
+          "specTitle": "规格书模板 v3（代码任务契约）",
+          "line": 962,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "## 验收测试清单（Spec-Gate：批准后冻结）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§27.1",
+          "specTitle": "文档喂入包（docs/ai-context/）",
+          "line": 985,
+          "kind": "mandate",
+          "tags": [],
+          "text": "铁律写进每个 AI 会话的系统提示：AI 书写的任何第三方 API 调用必须能在喂入包里找到出处，找不到"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§27.2",
+          "specTitle": "手机 AI 会话系统提示模板",
+          "line": 992,
+          "kind": "mandate",
+          "tags": [],
+          "text": "1. 动手前先读 docs/ai-context/ 四个文件；第三方 SDK 调用必须引用喂入包出处。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§27.2",
+          "specTitle": "手机 AI 会话系统提示模板",
+          "line": 997,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "6. 遇到含糊之处，列出问题清单提问，禁止自行猜测架构决策。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§28.2",
+          "specTitle": "分页提示词速查",
+          "line": 1064,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "通用规则：提示词内一律用占位文字（AI 生成文字必错，实际文字由 uGUI 渲染）；UI 稿"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§28.2",
+          "specTitle": "分页提示词速查",
+          "line": 1065,
+          "kind": "mandate",
+          "tags": [],
+          "text": "1920×1080、图标 1024→128/64、头图 1024×500；统一 seed 与风格锚点后缀锁一致性；禁止出"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§28.2",
+          "specTitle": "分页提示词速查",
+          "line": 1066,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "现具体游戏名与艺术家名。产能预算：全套 UI 概念 ≈12~15 小时，W2~W3 完成。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§29",
+          "specTitle": "后端规格书提示词（三份核心）",
+          "line": 1072,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "原因码；验收 = 模拟器内「过期版本拒签 / 封禁拦截 / 正常签发」三测试全绿；配额 = 单次调用 ≤1 次"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§29",
+          "specTitle": "后端规格书提示词（三份核心）",
+          "line": 1078,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "内）；验收 = 模拟器 + Billing 沙盒全链路（购买 / 重放 / 移植票据 / 退款 RTDN 四场景）；红线 = 客"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§29",
+          "specTitle": "后端规格书提示词（三份核心）",
+          "line": 1081,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "回 / 警告 -15 信誉 / 封禁 7~30 天写 bans）→ 封禁在下次 issueTokens 拦截；验收 = 举报 → 处置 →"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§29",
+          "specTitle": "后端规格书提示词（三份核心）",
+          "line": 1082,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "拦截全链路测试 + 处置时效 SLO 48 小时；红线 = 永不自动封禁、证据不含语音本体。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§30.1",
+          "specTitle": "档案残页生成",
+          "line": 1090,
+          "kind": "mandate",
+          "tags": [],
+          "text": "- 禁止出现\"自杀\"字样（日本市场文化敏感性）"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§30.2",
+          "specTitle": "动态事件池 DSL 条目",
+          "line": 1096,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "生成 5 个新类型，约束：每局至多注入 2~3 个；必须有明确反制手段（counterplay）；"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§30.3",
+          "specTitle": "词条组合生成",
+          "line": 1101,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "规则必须改「信息量或安全」而非改操作精度（触屏精操上限低的既定约束）。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§30.4",
+          "specTitle": "人格包轮盘语音文案",
+          "line": 1107,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "内容工厂的验收口径（V8 R7 目标）：M2 之后每个 4~6 周内容包的边际成本 ≤40 小时。四条链路全"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§31",
+          "specTitle": "立项后两周行动清单（手机模式版）",
+          "line": 1134,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "配额 ≥30%） 人名单与问卷"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§32",
+          "specTitle": "最终结论",
+          "line": 1144,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "写进铁律的方案，最终自然走向「人类只做决策与验收」。第 1 周的三重验证（麦克风、跨机一致、"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§32",
+          "specTitle": "最终结论",
+          "line": 1168,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "其他：单局 10~15 分钟；撤离双点（标准 / 深处 +30%）；90 秒断线重连（快照 ≈2.8KB / TTL"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§32",
+          "specTitle": "最终结论",
+          "line": 1192,
+          "kind": "mandate",
+          "tags": [],
+          "text": "Google Play Billing 无月费 2026-08-31 起 Billing v8 强制；服务"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§32",
+          "specTitle": "最终结论",
+          "line": 1206,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "V9.0 为四版整合终稿。本文档冻结基线，此后一切变更以任务清单与规格书驱动。"
+        },
+        {
+          "specVersion": "V9",
+          "spec": "§32",
+          "specTitle": "最终结论",
+          "line": 1207,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "基线文档：V5.0（28 页）· V6.0（41 页）· V7.0（48 页）· V8.0（40 页）——全部归档。"
+        }
+      ],
+      "chapterCount": 80,
+      "requirementCount": 91
+    },
+    {
+      "version": "V8",
+      "role": "综合裁决（含反建议）",
+      "source": "docs/spec/V8-fulltext.txt",
+      "lines": 929,
+      "chapters": [
+        {
+          "num": "1",
+          "title": "版本谱系：三版各自的贡献与失效部分 5",
+          "line": 19
+        },
+        {
+          "num": "2",
+          "title": "十域综合评审（V5 / V6 / V7 / 本次判断） 6",
+          "line": 20
+        },
+        {
+          "num": "3",
+          "title": "三版矛盾、过期、重复与不可验证项清单 7",
+          "line": 21
+        },
+        {
+          "num": "4",
+          "title": "问题追踪总表 V5 → V6 → V7 → V8 9",
+          "line": 22
+        },
+        {
+          "num": "5",
+          "title": "产品与玩法系统 12",
+          "line": 24
+        },
+        {
+          "num": "6",
+          "title": "客户端工程架构 15",
+          "line": 25
+        },
+        {
+          "num": "7",
+          "title": "联机、语音与容量工程 17",
+          "line": 26
+        },
+        {
+          "num": "8",
+          "title": "后端六能力（最小后端） 19",
+          "line": 27
+        },
+        {
+          "num": "9",
+          "title": "前端设计系统 21",
+          "line": 28
+        },
+        {
+          "num": "10",
+          "title": "排期、预算与风险 23",
+          "line": 29
+        },
+        {
+          "num": "11",
+          "title": "合规与上架清单（V8 补全） 25",
+          "line": 30
+        },
+        {
+          "num": "12",
+          "title": "推荐总纲：三条判断 28",
+          "line": 32
+        },
+        {
+          "num": "13",
+          "title": "P0 级：现在必须改的六件事 29",
+          "line": 33
+        },
+        {
+          "num": "14",
+          "title": "P1 级：显著提升成功率的六件事 31",
+          "line": 34
+        },
+        {
+          "num": "15",
+          "title": "反建议：我建议删除、降级与延后的内容 33",
+          "line": 35
+        },
+        {
+          "num": "16",
+          "title": "修订后的排期建议（前 90 天） 34",
+          "line": 36
+        },
+        {
+          "num": "17",
+          "title": "建议的验收门槛与止损线 35",
+          "line": 37
+        },
+        {
+          "num": "18",
+          "title": "结论：立项判断与三档命运修正 36",
+          "line": 38
+        },
+        {
+          "num": "5.1",
+          "title": "核心幻想与三支柱",
+          "line": 214
+        },
+        {
+          "num": "5.2",
+          "title": "核心循环与单局节奏",
+          "line": 217
+        },
+        {
+          "num": "5.3",
+          "title": "声纹系统（核心机制）",
+          "line": 227
+        },
+        {
+          "num": "5.4",
+          "title": "理智系统与怪物",
+          "line": 237
+        },
+        {
+          "num": "5.5",
+          "title": "地图、道具与经济",
+          "line": 245
+        },
+        {
+          "num": "5.6",
+          "title": "商业化：房主买断 + 社交裂变（V6 P0-1）",
+          "line": 255
+        },
+        {
+          "num": "5.7",
+          "title": "无麦流派：语音人格包（V6 P0-2）",
+          "line": 263
+        },
+        {
+          "num": "5.8",
+          "title": "第 0 局引导与档案残页（V6 P1-5 / P1-8）",
+          "line": 273
+        },
+        {
+          "num": "6.1",
+          "title": "模块边界（V6 §9，V7 增补第七模块）",
+          "line": 281
+        },
+        {
+          "num": "6.2",
+          "title": "三接口抽象层（迁移梯队的物理基础）",
+          "line": 285
+        },
+        {
+          "num": "6.3",
+          "title": "配置表与远程调参",
+          "line": 288
+        },
+        {
+          "num": "6.4",
+          "title": "输入、UI 分层与性能基线",
+          "line": 292
+        },
+        {
+          "num": "6.5",
+          "title": "断线重连快照（V6 §6.4 / §10.4）",
+          "line": 298
+        },
+        {
+          "num": "6.6",
+          "title": "测试与 CI（V6 §14 / §16）",
+          "line": 302
+        },
+        {
+          "num": "7.1",
+          "title": "选型（V7 结论，V8 确认）",
+          "line": 324
+        },
+        {
+          "num": "7.2",
+          "title": "网络同步（V6 §10）",
+          "line": 337
+        },
+        {
+          "num": "7.3",
+          "title": "语音链路：判定与传输解耦（V7 P0-A / P2-H）",
+          "line": 344
+        },
+        {
+          "num": "7.4",
+          "title": "容量基线与溢出处置",
+          "line": 359
+        },
+        {
+          "num": "8.1",
+          "title": "能力清单与哲学",
+          "line": 376
+        },
+        {
+          "num": "8.2",
+          "title": "认证与支付链路",
+          "line": 394
+        },
+        {
+          "num": "8.3",
+          "title": "数据模型与配额",
+          "line": 406
+        },
+        {
+          "num": "8.4",
+          "title": "反作弊、举报与降级",
+          "line": 422
+        },
+        {
+          "num": "9.1",
+          "title": "设计哲学与信息层级",
+          "line": 436
+        },
+        {
+          "num": "9.2",
+          "title": "色彩与字体",
+          "line": 440
+        },
+        {
+          "num": "9.3",
+          "title": "HUD 与关键界面",
+          "line": 454
+        },
+        {
+          "num": "9.4",
+          "title": "触控与无障碍",
+          "line": 468
+        },
+        {
+          "num": "9.5",
+          "title": "视觉特效",
+          "line": 478
+        },
+        {
+          "num": "9.6",
+          "title": "前端提示词库（摘要，完整沿用 V6 §24~§29）",
+          "line": 483
+        },
+        {
+          "num": "10.1",
+          "title": "24 周路线图与里程碑",
+          "line": 492
+        },
+        {
+          "num": "10.2",
+          "title": "三档预算（沿用 V7 修订值）",
+          "line": 506
+        },
+        {
+          "num": "10.3",
+          "title": "风险矩阵 v4（在 V7 基础上追加 ▲ 六条）",
+          "line": 524
+        },
+        {
+          "num": "11.1",
+          "title": "平台硬性要求",
+          "line": 546
+        },
+        {
+          "num": "11.2",
+          "title": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 560
+        },
+        {
+          "num": "18.1",
+          "title": "三档命运的修正判断",
+          "line": 817
+        },
+        {
+          "num": "18.2",
+          "title": "最后一句话",
+          "line": 833
+        },
+        {
+          "num": "0",
+          "title": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 855
+        }
+      ],
+      "requirements": [
+        {
+          "specVersion": "V8",
+          "spec": "§(未定位)",
+          "specTitle": "",
+          "line": 9,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "新增第三部分「混元推荐」——面向 1~3 人团队的优先序建议、反建议与验收门槛。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§(未定位)",
+          "specTitle": "",
+          "line": 13,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "基线文档 V5.0（28 页）· V6.0（41 页）· V7.0（48 页）"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§13",
+          "specTitle": "P0 级：现在必须改的六件事 29",
+          "line": 33,
+          "kind": "mandate",
+          "tags": [],
+          "text": "13 P0 级：现在必须改的六件事 29"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 60,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "28 页 值基线 行/风险）；上限评审体系（七维\"天花板—瓶颈—突破 档）商用许可误判；CCU→DAU 换"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 72,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "48 页 端补全 传输解耦；容量基线校准（DAU 2,000）与免费档三规 16KB 页对齐、UGC 条款同意）；"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 94,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "能与包体没有硬门禁数值（仅\"低端机 30fps\"这类结果指标，无过程阈值）。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 99,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "化 格书 + 云备份），云备份单项即占日写配额 24%，接近 30% 红线。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 104,
+          "kind": "mandate",
+          "tags": [],
+          "text": "合规与上架 2.0 6.5 7.0 6.0 V6 抓住了语音合规这条真红线，V7 补了举报工作流；但上架的硬门槛"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 137,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "P1 云备份配额占比 V7 §12.4 自述云备份占日写 24%、逼近 30% 建议 EA 期移除自动云备份，改为手动导出"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 138,
+          "kind": "mandate",
+          "tags": [],
+          "text": "红线，却仍将其保留在 EA 范围，依赖\"节流\"手 （见 §15 反建议 3）。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 170,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "P1-7 内测样本量小 V6 已解决 双轮内测 + 无麦配额 ≥30%（V6 §8.1）"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 176,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "P1-E Spark fail-closed V7 已解决 数据分层 + 30% 红线 + 配额断言测试（V7 §4.2 / §12.4 / §15.1）"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 197,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "N7 P1 云备份单項占日写配额 24%，逼近 30% EA 期改为手动备份 / 换机导出码（§15 反建议 3）"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 201,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "N9 P1 性能与包体只有结果指标（30fps / 不降 设定包体、冷启动、内存、UI 帧耗阈值并进 CI 冒烟（R9）"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18",
+          "specTitle": "结论：立项判断与三档命运修正 36",
+          "line": 203,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "N10 P2 文档 28→41→48 页持续膨胀，边际收益 冻结为\"执行版 + 附录\"，后续以任务清单驱动（§15 反建议 1）"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§5.1",
+          "specTitle": "核心幻想与三支柱",
+          "line": 216,
+          "kind": "mandate",
+          "tags": [],
+          "text": "（分工与互救）、失控边缘的挣扎（理智系统）。与三支柱无关的功能一律砍掉。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§5.2",
+          "specTitle": "核心循环与单局节奏",
+          "line": 226,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "10~12 分钟 撤离博弈：标准点或深处点 狂暴化，撤离路径封锁 终局张力 + 结算奖励差异"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§5.5",
+          "specTitle": "地图、道具与经济",
+          "line": 253,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "· 经济：残响碎片 = 证据 ×200 + 存活队友 ×150 + 效率分（10 分钟内 +100）+ 深处加成（×1.3）。变现红线不"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§5.8",
+          "specTitle": "第 0 局引导与档案残页（V6 P1-5 / P1-8）",
+          "line": 275,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "室）。M1 验收：首局前 5 分钟任务完成率 ≥85%，首局后 24 小时再开率 ≥50%。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§6.1",
+          "specTitle": "模块边界（V6 §9，V7 增补第七模块）",
+          "line": 283,
+          "kind": "mandate",
+          "tags": [],
+          "text": "（→Core，V7 新增）· UI（→Core+Gameplay+Audio+Net+Backend）· Analytics（→Core）。禁止循环依赖："
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§6.6",
+          "specTitle": "测试与 CI（V6 §14 / §16）",
+          "line": 312,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "配额断言 Emulator 用量计数 + 自定义断 模拟 DAU 2,000 / 6,000 读写，断言 ≤30% 红线 每次 Push + 每日"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§7.3",
+          "specTitle": "语音链路：判定与传输解耦（V7 P0-A / P2-H）",
+          "line": 350,
+          "kind": "mandate",
+          "tags": [],
+          "text": "V8 修订（对应 N1，M0 W1 必须验证）"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§7.3",
+          "specTitle": "语音链路：判定与传输解耦（V7 P0-A / P2-H）",
+          "line": 355,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "驱动。此项必须在 M0 第 1 周用 2~3 台真机交叉验证，而不是等到 W5 全链路联调。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§7.4",
+          "specTitle": "容量基线与溢出处置",
+          "line": 362,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "峰值并发 CCU 100（硬上限，≈25 个四人房） 无 Burst，第 101 人即被拒入"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§7.4",
+          "specTitle": "容量基线与溢出处置",
+          "line": 366,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "流量配额 0.3 TB/月 本作 2,000 DAU 月流量 <15GB，极度宽裕"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§7.4",
+          "specTitle": "容量基线与溢出处置",
+          "line": 369,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "原方案在计数器满时\"建房按钮置灰 + 排队提示 + 排队 >5 分钟赠送优先匹配券（可立即建房）\"。100 CCU 是硬上限且"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.1",
+          "specTitle": "能力清单与哲学",
+          "line": 378,
+          "kind": "mandate",
+          "tags": [],
+          "text": "单；\"完全不耽误\"一律砍掉。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.1",
+          "specTitle": "能力清单与哲学",
+          "line": 379,
+          "kind": "mandate",
+          "tags": [],
+          "text": "# 能力 为什么必须服务端 V8 优先级 载体"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.1",
+          "specTitle": "能力清单与哲学",
+          "line": 384,
+          "kind": "mandate",
+          "tags": [],
+          "text": "3 举报受理 语音 UGC 举报必须落库留痕、可人工处置 M1 必做（合规红线） reports 集合 + 处置工作"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.2",
+          "specTitle": "认证与支付链路",
+          "line": 397,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "匿名连接）。盗版无合法 uid → 连接被拒 → 不消耗 CCU。日调用 ≈6,000 次（DAU 2,000 × 3 次），配额裕量 8 倍以"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.2",
+          "specTitle": "认证与支付链路",
+          "line": 401,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "purchaseState===0 → 归属校验（obfuscatedAccountId 必须匹配 uid，防票据移植）→ 事务写票据与权益 → 服务端"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.2",
+          "specTitle": "认证与支付链路",
+          "line": 402,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "acknowledge（3 天内必须）。退款走 RTDN（ONE_TIME_PRODUCT_VOIDED，messageId 幂等）回滚权益，并以每日"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.3",
+          "specTitle": "数据模型与配额",
+          "line": 414,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "建房门禁（权益 + 限额） 1,200 意图 × 60% 命中 960 480 1.9% / 2.4%"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.3",
+          "specTitle": "数据模型与配额",
+          "line": 420,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "Spark 日配额 50,000 读 / 20,000 写。移除云备份后，读写双双降到 6% 左右，破圈日 3 倍流量仍在 10% 红线内——这是 V8 建议移"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.4",
+          "specTitle": "反作弊、举报与降级",
+          "line": 423,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "三层防线：认证层（拒绝匿名连接，封禁在签发时拦截）· 行为层（速度/位置合理性 + 碎片交叉校验，差异 >10% 当"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§8.4",
+          "specTitle": "反作弊、举报与降级",
+          "line": 429,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "降级策略：Firestore 达 70% 配额 → ① 延长缓存 TTL（10min→30min）② 关闭非必要写入 ③ 仍超则临时接受 Blaze"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§9.6",
+          "specTitle": "前端提示词库（摘要，完整沿用 V6 §24~§29）",
+          "line": 486,
+          "kind": "mandate",
+          "tags": [],
+          "text": "一律用占位文字（AI 生成文字必错，实际文字由 uGUI 渲染）、UI 稿 1920×1080 / 图标 1024→128/64 / 头图"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§9.6",
+          "specTitle": "前端提示词库（摘要，完整沿用 V6 §24~§29）",
+          "line": 487,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "1024×500、禁止出现具体游戏名与艺术家名。产能预算：全套 UI 概念（8 页 + 图标 + 商店素材）≈12~15 小时，"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§10.1",
+          "specTitle": "24 周路线图与里程碑",
+          "line": 495,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "30~50 人（无麦配额 ≥30%），问卷 ≥3.5/5、触控通过率 ≥70%；▲ 麦克风单源采集在 ≥3 台真"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§10.1",
+          "specTitle": "24 周路线图与里程碑",
+          "line": 498,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "M1 切片 第 12 周 完整单局循环；崩溃率 <1%；低端机 30fps；次日留存 ≥25%；房主权益校验闭环（沙盒购买→验"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§10.1",
+          "specTitle": "24 周路线图与里程碑",
+          "line": 499,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "证→门禁）；举报工作流上线；CCU 溢出感知上线；Firestore 日用量 ≤ 配额 30% 连续 7 天；▲ 包"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§10.2",
+          "specTitle": "三档预算（沿用 V7 修订值）",
+          "line": 523,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "人力时间未计。业余开发（每周 10~15 小时）周期 ×2~2.5，EA 约 12~15 个月——这是三档预算表背后最大的隐性成本项。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§10.3",
+          "specTitle": "风险矩阵 v4（在 V7 基础上追加 ▲ 六条）",
+          "line": 544,
+          "kind": "mandate",
+          "tags": [],
+          "text": "以下时效要求核验于 2026-10-02，均来自 Google 官方开发者文档；本作第 24 周（约 2027 年 3 月）提交时必须满足。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.1",
+          "specTitle": "平台硬性要求",
+          "line": 548,
+          "kind": "mandate",
+          "tags": [],
+          "text": "target API 级别 API 36（Android 16） 自 2026-08-31 起，新应用与更新必须 target API 36 才能提交；可申请"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.1",
+          "specTitle": "平台硬性要求",
+          "line": 551,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "16KB 内存页对齐 必须支持 自 2025-11-01 起，target Android 15+ 的应用必须支持 16KB 页大小。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.1",
+          "specTitle": "平台硬性要求",
+          "line": 556,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "Vivox SDK 版本 ≥ 16.6.2 Unity 官方说明：Vivox Unity 16.6.2 起支持 16KB 页；新项目一律用"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 581,
+          "kind": "mandate",
+          "tags": [],
+          "text": "▲10 数据安全表单一致性 Play 数据安全表单申报项必须与 APK 实际采集一致（语 V8 新增 文档 1h"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 613,
+          "kind": "mandate",
+          "tags": [],
+          "text": "13 P0 级：现在必须改的六件事"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 621,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "2~3 台真机（高通/天玑/低端各一）交叉验证，写入 M0 验收。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 629,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "基准，天然免疫该问题。M0 验收加一条：同一段录音在三档机型上分档一致率 ≥90%。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 632,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "V6 §7.3 与 V7 §14.1 都承诺\"排队 >5 分钟赠送优先匹配券（可立即建房）\"。但 100 CCU 是硬上限，Photon 不"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 639,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "target API 36（2026-08-31 起强制）、16KB 页对齐（2025-11-01 起强制）以及四个 SDK 的最低版本，三版一"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 645,
+          "kind": "mandate",
+          "tags": [],
+          "text": "V6 的语音合规七项抓对了真红线，但 Google Play 的 UGC 政策还明确要求：用户创建 UGC 前必须接受使用条"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 674,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "三版的性能要求都是结果指标（\"低端机 30fps\"\"20 分钟不降频\"），没有过程阈值，于是在开发期不构成任何约"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 677,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "PSS 内存 ≤600MB / UI 帧耗 ≤2ms / Draw Call ≤120 / 同屏动态光源 ≤4。写进每日真机冒烟，超阈值自动判"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 684,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "力减半；教程本身是世界观的一部分（废弃监控室）；M1 验收\"首局后 24 小时再开率 ≥50%\"应当与\"次日留"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 707,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "Functions / Billing v8）+ 本仓库三接口定义。规则写死：AI 书写的任何第三方 API 调用必须能在喂入包里找到"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 727,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "3 移除 EA 期的自动云备份 V7 自己算出它占日写配额 24%、逼近 30% 红线，是唯 改为\"手动备份 / 换机导出码\"。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 741,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "而 Firebase Analytics 已经免费无上限。 的手动周报模板替代。1 人团队"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 753,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "W1 Unity 6 LTS 工程 + 三接口骨架 + 触 ▲ 麦克风单源采集验证（3 台真 依赖清单锁定（Unity/Firebase"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 770,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "W11~12 完整单局循环 + 撤离博弈 M1 验收（崩溃率 / 30fps / 留存 / 包 权益门禁闭环演练；五语本地化（改四"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 784,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "声纹跨机型分档一致率 ≥90% 强制改为相对电平"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 793,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "M1 崩溃率 <1% 只修崩溃，冻结内容"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§11.2",
+          "specTitle": "语音 UGC 合规包（在 V6 §7.2 七项基础上补三条）",
+          "line": 805,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "Firestore 日用量 ≤30% 配额 启动降级三步"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§18.1",
+          "specTitle": "三档命运的修正判断",
+          "line": 821,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "止损 M0 恐惧问卷 <3.0 或触控通过率 <50%，或 W1 麦克风方案 沉没成本约 6~8 周。这正是上限评审体系的价值："
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 857,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "制（标准点安全 / 深处点 +30%）；死亡变幽灵（低语干扰冷却 30 秒）；90 秒断线重连。"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 887,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "Google Play Billing 无月费；30% 分成仅在收入发生时 2026-08-31 起新应用/更新必须 Billing Library v8+；服"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 892,
+          "kind": "mandate",
+          "tags": [],
+          "text": "target API 36（Android 16） 2026-08-31（可申请延期至 新应用与更新必须满足；本作上架时点在生效后，直接按 API 36"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 904,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "（Vivox 16KB 支持）、Photon / Vivox / Firebase 官方定价页。各配额与政策以官方页面实时数据为准，本表核验于 2026 年 10 月"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 912,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "3 锁定依赖版本（含 16KB 四项） 第 1~2 天 依赖清单写入仓库；CI 校验"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 916,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "6 移除云备份、后端瘦身到 4 份规格书 第 5~7 天 修订后的后端范围与配额预算表"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 920,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "9 性能与包体阈值写入 CI 冒烟 第 7~10 天 每日构建自动判红的阈值脚本"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 924,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "12 内测招募（双轮制，无麦配额 第 7~14 天 定性 8~12 人 + 定量 30~50 人名单与问卷"
+        },
+        {
+          "specVersion": "V8",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 927,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "基线文档：V5.0（28 页）· V6.0（41 页）· V7.0（48 页） | 内部资料 · 请勿外传"
+        }
+      ],
+      "chapterCount": 54,
+      "requirementCount": 74
+    },
+    {
+      "version": "V7",
+      "role": "风险清偿 + 后端规格书全文",
+      "source": "docs/spec/V7-fulltext.txt",
+      "lines": 1626,
+      "chapters": [
+        {
+          "num": "1",
+          "title": "文档定位与版本谱系",
+          "line": 68
+        },
+        {
+          "num": "2",
+          "title": "V5.0 / V6.0 深度评审（第三轮分析）",
+          "line": 92
+        },
+        {
+          "num": "2.1",
+          "title": "评审方法与基准更新",
+          "line": 93
+        },
+        {
+          "num": "2.2",
+          "title": "V6.0 改进成果确认",
+          "line": 101
+        },
+        {
+          "num": "2.3",
+          "title": "V7 新发现问题诊断（按严重度排序）",
+          "line": 106
+        },
+        {
+          "num": "2.4",
+          "title": "问题追踪总表",
+          "line": 184
+        },
+        {
+          "num": "2.5",
+          "title": "评审结论",
+          "line": 211
+        },
+        {
+          "num": "3",
+          "title": "2026 免费联机方案全景与重构决策",
+          "line": 227
+        },
+        {
+          "num": "3.1",
+          "title": "需求重述（约束条件）",
+          "line": 228
+        },
+        {
+          "num": "3.2",
+          "title": "六方案比选矩阵（2026 年 10 月数据）",
+          "line": 234
+        },
+        {
+          "num": "3.3",
+          "title": "主推架构：Fusion + Vivox + Firebase",
+          "line": 283
+        },
+        {
+          "num": "3.4",
+          "title": "语音链路重构：声纹判定与传输解耦（P0-A / P2-H 落地）",
+          "line": 308
+        },
+        {
+          "num": "3.5",
+          "title": "容量基线校准（P0-C 落地）",
+          "line": 351
+        },
+        {
+          "num": "3.6",
+          "title": "迁移梯队与触发条件（更新 V5 表 4-2）",
+          "line": 373
+        },
+        {
+          "num": "4",
+          "title": "后端基础设施选型与免费额度治理",
+          "line": 388
+        },
+        {
+          "num": "4.1",
+          "title": "BaaS 选型：Firebase 为主锚，Supabase 为对照",
+          "line": 389
+        },
+        {
+          "num": "4.2",
+          "title": "Spark 计划 fail-closed 治理（P1-E 落地）",
+          "line": 415
+        },
+        {
+          "num": "4.3",
+          "title": "V7 免费技术栈总表（替换 V5 表 4-1）",
+          "line": 425
+        },
+        {
+          "num": "5",
+          "title": "玩法系统与商业化完善",
+          "line": 465
+        },
+        {
+          "num": "5.1",
+          "title": "房主买断制的服务端校验闭环（V6 P0-1 的补全）",
+          "line": 466
+        },
+        {
+          "num": "5.2",
+          "title": "语音人格包与档案残页的云档案（V6 §6.1 / §6.5 的数据层补全）",
+          "line": 479
+        },
+        {
+          "num": "5.3",
+          "title": "反作弊升级：三层防线（V6 §7.1 的服务端扩展）",
+          "line": 484
+        },
+        {
+          "num": "5.4",
+          "title": "埋点事件扩展（后端域）",
+          "line": 500
+        },
+        {
+          "num": "6",
+          "title": "AI 主力生产流水线升级（V7）",
+          "line": 513
+        },
+        {
+          "num": "6.1",
+          "title": "2026 年 AI 编码生态与本项目定位",
+          "line": 514
+        },
+        {
+          "num": "6.2",
+          "title": "AI-SDK 适配纪律（P1-G 落地）",
+          "line": 535
+        },
+        {
+          "num": "6.3",
+          "title": "质量门禁 v2",
+          "line": 546
+        },
+        {
+          "num": "7",
+          "title": "开发路线图与里程碑修订",
+          "line": 555
+        },
+        {
+          "num": "7.1",
+          "title": "里程碑变化（后端任务入图）",
+          "line": 556
+        },
+        {
+          "num": "7.2",
+          "title": "M0 六周逐周计划 v2（含后端并行线）",
+          "line": 572
+        },
+        {
+          "num": "8",
+          "title": "预算与风险矩阵修订",
+          "line": 587
+        },
+        {
+          "num": "8.1",
+          "title": "预算修订：语音成本归零，后端成本封顶 1 美元/月",
+          "line": 588
+        },
+        {
+          "num": "8.2",
+          "title": "风险矩阵 v3（新增五条）",
+          "line": 616
+        },
+        {
+          "num": "9",
+          "title": "后端架构总览与设计原则",
+          "line": 636
+        },
+        {
+          "num": "9.1",
+          "title": "最小后端哲学",
+          "line": 637
+        },
+        {
+          "num": "9.2",
+          "title": "三层架构与请求流",
+          "line": 659
+        },
+        {
+          "num": "9.3",
+          "title": "后端技术栈与关键决策记录",
+          "line": 685
+        },
+        {
+          "num": "10",
+          "title": "账号与身份系统",
+          "line": 707
+        },
+        {
+          "num": "10.1",
+          "title": "匿名设备账号（零摩擦优先）",
+          "line": 708
+        },
+        {
+          "num": "10.2",
+          "title": "认证令牌链路（防盗版 + 封禁执行的唯一关口）",
+          "line": 721
+        },
+        {
+          "num": "10.3",
+          "title": "设备唯一性与防小号",
+          "line": 737
+        },
+        {
+          "num": "11",
+          "title": "房主权益与支付验证",
+          "line": 743
+        },
+        {
+          "num": "11.1",
+          "title": "商品定义与客户端流程（Billing v8）",
+          "line": 744
+        },
+        {
+          "num": "11.2",
+          "title": "服务端验证函数（核心代码契约）",
+          "line": 757
+        },
+        {
+          "num": "11.3",
+          "title": "RTDN 退款处理（M2 上线）",
+          "line": 794
+        },
+        {
+          "num": "11.4",
+          "title": "建房门禁（权益的消费端）",
+          "line": 802
+        },
+        {
+          "num": "12",
+          "title": "数据模型与存储设计",
+          "line": 814
+        },
+        {
+          "num": "12.1",
+          "title": "数据分层（配额治理的第一原则）",
+          "line": 815
+        },
+        {
+          "num": "12.2",
+          "title": "Firestore 集合设计",
+          "line": 829
+        },
+        {
+          "num": "12.3",
+          "title": "安全规则（最小权限）",
+          "line": 854
+        },
+        {
+          "num": "12.4",
+          "title": "读写配额预算表（P1-E / P0-B 落地）",
+          "line": 871
+        },
+        {
+          "num": "13",
+          "title": "反作弊与信誉系统（服务端）",
+          "line": 890
+        },
+        {
+          "num": "13.1",
+          "title": "信誉分模型（轻量级）",
+          "line": 891
+        },
+        {
+          "num": "13.2",
+          "title": "举报工作流（V6 P0-3 的服务端落地）",
+          "line": 896
+        },
+        {
+          "num": "13.3",
+          "title": "封禁执行与申诉",
+          "line": 908
+        },
+        {
+          "num": "14",
+          "title": "容量工程与免费额度治理",
+          "line": 914
+        },
+        {
+          "num": "14.1",
+          "title": "CCU 溢出感知实现（P0-C / P1-F 落地）",
+          "line": 915
+        },
+        {
+          "num": "14.2",
+          "title": "配额监控与告警",
+          "line": 927
+        },
+        {
+          "num": "14.3",
+          "title": "降级策略与 Blaze 决策树",
+          "line": 933
+        },
+        {
+          "num": "15",
+          "title": "后端测试与部署流水线",
+          "line": 946
+        },
+        {
+          "num": "15.1",
+          "title": "本地开发与测试（Emulator Suite 全闭环）",
+          "line": 947
+        },
+        {
+          "num": "15.2",
+          "title": "CI/CD（与游戏构建同一条流水线）",
+          "line": 961
+        },
+        {
+          "num": "16",
+          "title": "AI 后端开发工作流",
+          "line": 996
+        },
+        {
+          "num": "16.1",
+          "title": "规格书驱动（Spec-driven）开发循环",
+          "line": 997
+        },
+        {
+          "num": "16.2",
+          "title": "上下文工程（对抗训练数据滞后的手段）",
+          "line": 1010
+        },
+        {
+          "num": "16.3",
+          "title": "人类角色（后端域的把关点）",
+          "line": 1016
+        },
+        {
+          "num": "17",
+          "title": "全局上下文锚与开发规范",
+          "line": 1022
+        },
+        {
+          "num": "17.1",
+          "title": "CTX_BACKEND（每次后端会话的首条消息）",
+          "line": 1023
+        },
+        {
+          "num": "17.2",
+          "title": "后端工程规范（补充 V6 §9 的 ASMDEF 体系）",
+          "line": 1043
+        },
+        {
+          "num": "18",
+          "title": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1059
+        },
+        {
+          "num": "19",
+          "title": "提示词资产管理与迭代纪律",
+          "line": 1180
+        },
+        {
+          "num": "20",
+          "title": "前端设计规范（V6.0 §17~§23 完整收录）",
+          "line": 1198
+        },
+        {
+          "num": "20.1",
+          "title": "设计哲学与支柱（V6 §17）",
+          "line": 1199
+        },
+        {
+          "num": "20.2",
+          "title": "设计系统 Token（V6 §18）",
+          "line": 1212
+        },
+        {
+          "num": "20.3",
+          "title": "HUD 设计规范（V6 §19）",
+          "line": 1243
+        },
+        {
+          "num": "20.4",
+          "title": "菜单与结算页（V6 §20）",
+          "line": 1261
+        },
+        {
+          "num": "20.5",
+          "title": "移动端触控与手势（V6 §21）",
+          "line": 1274
+        },
+        {
+          "num": "20.6",
+          "title": "视觉特效与氛围（V6 §22）",
+          "line": 1286
+        },
+        {
+          "num": "20.7",
+          "title": "无障碍与国际化（V6 §23）",
+          "line": 1304
+        },
+        {
+          "num": "21",
+          "title": "前端设计提示词库（V6.0 §24~§29 完整收录）",
+          "line": 1317
+        },
+        {
+          "num": "21.1",
+          "title": "使用规范（V6 §24）",
+          "line": 1318
+        },
+        {
+          "num": "21.2",
+          "title": "全局风格锚点（V6 §25）",
+          "line": 1327
+        },
+        {
+          "num": "21.3",
+          "title": "分页面 UI 概念稿提示词（V6 §26）",
+          "line": 1343
+        },
+        {
+          "num": "26.1",
+          "title": "主菜单",
+          "line": 1344
+        },
+        {
+          "num": "26.2",
+          "title": "对局 HUD",
+          "line": 1352
+        },
+        {
+          "num": "26.3",
+          "title": "快捷喊话轮盘",
+          "line": 1360
+        },
+        {
+          "num": "26.4",
+          "title": "暂停菜单（病历纸）",
+          "line": 1369
+        },
+        {
+          "num": "26.5",
+          "title": "结算页（幸存 / 沉寂）",
+          "line": 1376
+        },
+        {
+          "num": "26.6",
+          "title": "组队大厅 / 房间页",
+          "line": 1384
+        },
+        {
+          "num": "26.7",
+          "title": "档案残页收集界面",
+          "line": 1392
+        },
+        {
+          "num": "26.8",
+          "title": "设置页",
+          "line": 1399
+        },
+        {
+          "num": "21.4",
+          "title": "图标与组件提示词（V6 §27）",
+          "line": 1407
+        },
+        {
+          "num": "27.1",
+          "title": "应用图标（Google Play 512×512）",
+          "line": 1408
+        },
+        {
+          "num": "27.2",
+          "title": "道具图标组（手电 / 录音笔 / 照相机 / 镇静剂 / 信号弹）",
+          "line": 1414
+        },
+        {
+          "num": "27.3",
+          "title": "人格包头像组（5 枚）",
+          "line": 1421
+        },
+        {
+          "num": "27.4",
+          "title": "怪物概念图（三只首发怪）",
+          "line": 1428
+        },
+        {
+          "num": "21.5",
+          "title": "商店素材提示词（V6 §28）",
+          "line": 1440
+        },
+        {
+          "num": "28.1",
+          "title": "Google Play 头图（1024×500）",
+          "line": 1441
+        },
+        {
+          "num": "21.6",
+          "title": "提示词迭代与资产管理（V6 §29）",
+          "line": 1458
+        },
+        {
+          "num": "22",
+          "title": "V7.0 行动清单与立项结论",
+          "line": 1471
+        },
+        {
+          "num": "22.1",
+          "title": "立项后两周行动清单（V7 整合版）",
+          "line": 1472
+        },
+        {
+          "num": "22.2",
+          "title": "立项结论",
+          "line": 1499
+        },
+        {
+          "num": "0",
+          "title": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 1523
+        }
+      ],
+      "requirements": [
+        {
+          "specVersion": "V7",
+          "spec": "§(未定位)",
+          "specTitle": "",
+          "line": 10,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "基线文档：《恐怖多人联机游戏开发方案 V5.0》（28 页）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§1",
+          "specTitle": "文档定位与版本谱系",
+          "line": 69,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "V5.0 建立了完整的立项基线（市场、玩法、技术、AI 生产、路线图、预算、发行、风险八域，28 页）；V6.0 在其上"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 130,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "P0-C CCU→DAU 容量换算偏乐观 25%~50%，且免费档规则未澄清"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 134,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "录：① 100 CCU 是硬上限且无 Burst——超出即拒入，付费档才有 48 小时升级缓冲；② 计费峰值为「各区域"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 136,
+          "kind": "mandate",
+          "tags": [],
+          "text": "免费档一工作室限一个应用，且升级付费后不能降回免费档——「临时升级扛破圈日再降回来」不可行，必须"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 144,
+          "kind": "mandate",
+          "tags": [],
+          "text": "此该防护必须由后端补位：Firebase Auth 匿名账号 → Cloud Function 签发 Photon 认证令牌 → 关闭匿名连接"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 148,
+          "kind": "mandate",
+          "tags": [],
+          "text": "每日 2 万次写，整个 Firestore 服务当月冻结，云存档 / 权益查询 / 封禁表全部失效，等于线上事故。V5「日均"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 152,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "修正：数据分层设计（本地为主、Firestore 仅存低频关键数据，日读写控制在配额 30% 以内，§12.4）；显式"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 153,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "决策「EA 前升级 Blaze + 预算封顶 1 美元 / 月」（费用构成见 §4.3）；配置 70% 配额告警（§14.2）。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 168,
+          "kind": "mandate",
+          "tags": [],
+          "text": "词」驱动（第五部分），使 AI 产出可被一次性替换（延续 V5 §5.6 叶节点铁律）。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 169,
+          "kind": "mandate",
+          "tags": [],
+          "text": "P2-H 语音链路架构澄清：声纹判定必须与传输层解耦"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 176,
+          "kind": "mandate",
+          "tags": [],
+          "text": "① Google Play Billing Library v8：2026 年 8 月 31 日起所有新应用与更新必须使用 v8+，本作第 24 周上架"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§2.3",
+          "specTitle": "V7 新发现问题诊断（按严重度排序）",
+          "line": 177,
+          "kind": "mandate",
+          "tags": [],
+          "text": "时点必须按 v8 开发（§11.2）；② PlayFab 免费档已实质出局：2026 年 3 月起 Development Mode 限每标题"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§3.1",
+          "specTitle": "需求重述（约束条件）",
+          "line": 230,
+          "kind": "mandate",
+          "tags": [],
+          "text": "可接受（Host 迁移兜底，V6 §7.1）；② 语音即玩法——语音通道是核心机制的载体，必须支持空间音频与低延迟，"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§3.1",
+          "specTitle": "需求重述（约束条件）",
+          "line": 231,
+          "kind": "mandate",
+          "tags": [],
+          "text": "且商用许可必须干净；③ 零现金成本至 DAU 2000——上线前现金支出仅设备与账号费（V5 §7.2）；④ 开发以 AI"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§3.2",
+          "specTitle": "六方案比选矩阵（2026 年 10 月数据）",
+          "line": 240,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "Fusion 2 + （商用，硬上限） （无 Mode + 内置 Host 迁移与本作 4 人"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§3.4",
+          "specTitle": "语音链路重构：声纹判定与传输解耦（P0-A / P2-H 落地）",
+          "line": 328,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "StimulusEvent 管线，「同一规则下的另一种流派」在架构层面成立；其三，电平判定在本地 20ms 窗口内完成，不"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§3.4",
+          "specTitle": "语音链路重构：声纹判定与传输解耦（P0-A / P2-H 落地）",
+          "line": 345,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "现载体）；一键静默 = 本地麦克风静音 + 声纹强度强制 道加入前校验"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§3.5",
+          "specTitle": "容量基线校准（P0-C 落地）",
+          "line": 354,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "峰值并发（CCU） 100（≈25 个四人房） 100（硬上限） 免费档无 Burst，第 101 人即被"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§3.5",
+          "specTitle": "容量基线校准（P0-C 落地）",
+          "line": 363,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "流量配额 未记录 0.3 TB/月 本作带宽预算 ≤12KB/s/人 下"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§3.5",
+          "specTitle": "容量基线校准（P0-C 落地）",
+          "line": 371,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "2,000 为红线——溢出感知（§14.1）的部署时点因此从 M2 提前到 M1 末；破圈情景（V5 §10.4 乐观 5%）下 100"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§4.2",
+          "specTitle": "Spark 计划 fail-closed 治理（P1-E 落地）",
+          "line": 417,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "· 30% 设计余量：所有 Firestore 读写的设计容量 ≤ 日配额的 30%（§12.4 预算表），让「破圈日 3 倍流量」仍"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§4.2",
+          "specTitle": "Spark 计划 fail-closed 治理（P1-E 落地）",
+          "line": 420,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "Functions），设置 1 美元/月预算告警与封顶——按 §12.4 预算，实际用量在免费额度内的概率 >99%，月账单"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§5.2",
+          "specTitle": "语音人格包与档案残页的云档案（V6 §6.1 / §6.5 的数据层补全）",
+          "line": 480,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "人格包解锁进度、档案残页收集（5 本 × 10 页）、碎片经济全部以本地存档为权威（防 Firestore 写配额爆炸，P1-"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§5.3",
+          "specTitle": "反作弊升级：三层防线（V6 §7.1 的服务端扩展）",
+          "line": 493,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "（V6 §7.1 校验（差异 >10% 当局作废）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§5.4",
+          "specTitle": "埋点事件扩展（后端域）",
+          "line": 506,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "host_gate_result 建房门禁判定（放行 / 免费限 房主转化率监测（V6 §6.2 目标 ≥12%）；免费限额的挫败率"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.1",
+          "specTitle": "2026 年 AI 编码生态与本项目定位",
+          "line": 518,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "1~3 天工作量）。V7 的流水线相应升级为「规格书驱动」：每个模块一份规格书（目标 / 接口 / 约束 / 测试 / 验收，"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.1",
+          "specTitle": "2026 年 AI 编码生态与本项目定位",
+          "line": 523,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "样板代码（UI / 存档 / 埋 90% 规格书 + 代理执行；人类只写验收测试"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.1",
+          "specTitle": "2026 年 AI 编码生态与本项目定位",
+          "line": 527,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "后端云函数 / 安全规则 85%（V7 新增 本方案第五部分 P-B1~P-B8 规格书直接驱动；模拟器内闭环测试"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.1",
+          "specTitle": "2026 年 AI 编码生态与本项目定位",
+          "line": 530,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "联机同步 / 语音集成代码 50%~60% 必须按 §6.2 纪律：SDK 文档喂入 + 接口抽象 + 版本锁定"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.1",
+          "specTitle": "2026 年 AI 编码生态与本项目定位",
+          "line": 533,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "架构决策 / 玩法手感 / 恐 0%（人类专 铁律不变（V5 §5.6）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.2",
+          "specTitle": "AI-SDK 适配纪律（P1-G 落地）",
+          "line": 538,
+          "kind": "mandate",
+          "tags": [],
+          "text": "12.x）；AI 会话启动时把该版本的官方 API 文档（摘录）作为上下文喂入——禁止 AI 凭训练记忆直接书写第三方"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.2",
+          "specTitle": "AI-SDK 适配纪律（P1-G 落地）",
+          "line": 539,
+          "kind": "mandate",
+          "tags": [],
+          "text": "SDK 调用，所有 SDK 调用必须能在喂入文档中找到出处。这是对抗「训练数据滞后」的唯一可靠手段。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.2",
+          "specTitle": "AI-SDK 适配纪律（P1-G 落地）",
+          "line": 542,
+          "kind": "mandate",
+          "tags": [],
+          "text": "3. 测试先行 + 双审不过即重写：延续 V5 §5.2 红线（无测试不合并；连续两次审查不过即重写而非修补）。后端模"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.3",
+          "specTitle": "质量门禁 v2",
+          "line": 548,
+          "kind": "mandate",
+          "tags": [
+            "gate",
+            "rule"
+          ],
+          "text": "门禁 规则 工具化（CI 强制）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.3",
+          "specTitle": "质量门禁 v2",
+          "line": 549,
+          "kind": "mandate",
+          "tags": [],
+          "text": "无测试不合并 AI 生成模块必须附带人类审查过的集成测试 GameCI 的 test job 失败即阻断 PR"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§6.3",
+          "specTitle": "质量门禁 v2",
+          "line": 550,
+          "kind": "mandate",
+          "tags": [],
+          "text": "架构守护 Gameplay / UI 模块禁止 import 第三方网 CI 脚本静态扫描 using 指令（违规直接 fail）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§7.1",
+          "specTitle": "里程碑变化（后端任务入图）",
+          "line": 566,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "溢出感知上线（计数器 + 匹配按钮降级 UI）；▲ Firestore 日用量 ≤ 配额 30% 连续 7 天"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§7.1",
+          "specTitle": "里程碑变化（后端任务入图）",
+          "line": 570,
+          "kind": "mandate",
+          "tags": [],
+          "text": "EA 上线 第 24 周 V5/V6 全部沿用；▲ Billing v8 合规检查（2026-08-31 后新应用强制）；▲ 语音合规七项"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§7.2",
+          "specTitle": "M0 六周逐周计划 v2（含后端并行线）",
+          "line": 585,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "W6 蒲公英 APK 分发 + 8~12 人内测 + 问 AI 汇总反馈聚类；V7.1 修订清单 ▲ 内测后端监控面板（Auth /"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§8.1",
+          "specTitle": "预算修订：语音成本归零，后端成本封顶 1 美元/月",
+          "line": 610,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "算） 隐藏 95 美元/12 月的强制支出且 A 档无预算科目）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§8.2",
+          "specTitle": "风险矩阵 v3（新增五条）",
+          "line": 621,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "▲ Firestore 配额 fail- 中 中 30% 设计余量 + 70% 告警 + 本地缓存降级（§4.2）；破圈日预案：临时切"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§9.1",
+          "specTitle": "最小后端哲学",
+          "line": 639,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "答案是「能玩但商业化 / 合规崩坏」，才进入清单；若答案是「完全不耽误」，一律砍掉（进正式版再议）。压缩的"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§9.1",
+          "specTitle": "最小后端哲学",
+          "line": 642,
+          "kind": "mandate",
+          "tags": [],
+          "text": "# 能力 为什么必须服务端 对应问题 实现载体"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§9.1",
+          "specTitle": "最小后端哲学",
+          "line": 643,
+          "kind": "mandate",
+          "tags": [],
+          "text": "1 匿名身份 盗版客户端会消耗 CCU 与流量，必须能 P1-D / P0-B Firebase Auth + 认证"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§9.1",
+          "specTitle": "最小后端哲学",
+          "line": 649,
+          "kind": "mandate",
+          "tags": [],
+          "text": "4 举报受理 语音合规的举报必须落库留痕、可人工处 V6 P0-3 reports 集合 + 控制台"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§10.2",
+          "specTitle": "认证令牌链路（防盗版 + 封禁执行的唯一关口）",
+          "line": 736,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "6,000 次/日，函数配额（2M/月）与 Firestore 读配额（5 万/日）均裕量 8 倍以上。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§10.3",
+          "specTitle": "设备唯一性与防小号",
+          "line": 738,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "EA 期不做设备指纹强校验（Play Integrity API 留作 M2 后评估）——理由：匿名封禁按 uid 拦截已覆盖 90% 场景，"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§11.1",
+          "specTitle": "商品定义与客户端流程（Billing v8）",
+          "line": 748,
+          "kind": "mandate",
+          "tags": [],
+          "text": "耗 （公平红线，V5 §3.11）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§11.2",
+          "specTitle": "服务端验证函数（核心代码契约）",
+          "line": 760,
+          "kind": "mandate",
+          "tags": [],
+          "text": "const uid = req.auth?.uid; // 强制已登录"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§11.2",
+          "specTitle": "服务端验证函数（核心代码契约）",
+          "line": 773,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "// 3. 归属校验：obfuscatedAccountId 必须匹配当前 uid（防票据移植）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§11.2",
+          "specTitle": "服务端验证函数（核心代码契约）",
+          "line": 785,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "// 5. acknowledge（3 天内必须，否则 Google 自动退款）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§12.1",
+          "specTitle": "数据分层（配额治理的第一原则）",
+          "line": 824,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "像） Storage 配额 × 单档 <100KB = 5 万玩家"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§12.4",
+          "specTitle": "读写配额预算表（P1-E / P0-B 落地）",
+          "line": 872,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "表 12-2 DAU 2,000 场景的 Firestore 日用量预算（Spark 配额的 30% 红线）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§12.4",
+          "specTitle": "读写配额预算表（P1-E / P0-B 落地）",
+          "line": 878,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "建房门禁（权益 + 限额） 1,200 房主意图 × 60% 960 480 1.9% / 2.4%"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§12.4",
+          "specTitle": "读写配额预算表（P1-E / P0-B 落地）",
+          "line": 885,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "合计 — ≈3,800 ≈5,990 7.6% / 30%（红线内）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§12.4",
+          "specTitle": "读写配额预算表（P1-E / P0-B 落地）",
+          "line": 889,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "份），写入可压到 10% 以下。函数调用预算：≈9,000 次/日 vs 2M/月（≈66,000/日），裕量 7 倍。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§13.2",
+          "specTitle": "举报工作流（V6 P0-3 的服务端落地）",
+          "line": 906,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "证据留痕：对局聚合数据（埋点经 daily_rollup 保留 90 天）不含语音本体（合规红线：语音流不落盘）——语音类"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§14.2",
+          "specTitle": "配额监控与告警",
+          "line": 928,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "· Firestore：Cloud Monitoring 原生指标（读写次数）→ 70% 配额时邮件告警（免费）；每日 daily_stats 快照"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§14.3",
+          "specTitle": "降级策略与 Blaze 决策树",
+          "line": 940,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "└─ 持续超 3 天 → 重算 §12.4 预算表，评估数据模型瘦身"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§14.3",
+          "specTitle": "降级策略与 Blaze 决策树",
+          "line": 942,
+          "kind": "mandate",
+          "tags": [],
+          "text": "决策树的关键立场：Blaze 按量不是失败而是保险——1 美元/月的封顶换「破圈日不冻结」，这笔账在任何 DAU 水平"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§15.1",
+          "specTitle": "本地开发与测试（Emulator Suite 全闭环）",
+          "line": 957,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "定义断言 写模型，断言 ≤ 配额红线（§12.4）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§15.2",
+          "specTitle": "CI/CD（与游戏构建同一条流水线）",
+          "line": 988,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "独 PR 人类强制双审——规则是安全边界，永远不过 AI 单审。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§16.1",
+          "specTitle": "规格书驱动（Spec-driven）开发循环",
+          "line": 1007,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "失败循环：连续两次验收不过 → 整模块重写（不修补，V5 §5.2 铁律）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§16.2",
+          "specTitle": "上下文工程（对抗训练数据滞后的手段）",
+          "line": 1011,
+          "kind": "mandate",
+          "tags": [],
+          "text": "每次会话除规格书外，必须附上「文档喂入包」（随仓库维护，路径 docs/ai-context/）：Firebase Functions 当前"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§16.2",
+          "specTitle": "上下文工程（对抗训练数据滞后的手段）",
+          "line": 1014,
+          "kind": "mandate",
+          "tags": [],
+          "text": "AI 书写的任何第三方 API 调用，必须能在喂入包中找到出处；找不到时它应当提问而不是编造——这条指令写进"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§17.1",
+          "specTitle": "CTX_BACKEND（每次后端会话的首条消息）",
+          "line": 1031,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "- 运行环境：Firebase Blaze（预算封顶 1 美元/月），配额红线：Firestore 日读 ≤15,000 / 日写 ≤6,000（设计容量 30%），"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§17.1",
+          "specTitle": "CTX_BACKEND（每次后端会话的首条消息）",
+          "line": 1036,
+          "kind": "mandate",
+          "tags": [],
+          "text": "2. 第三方 API 调用必须在 docs/ai-context/ 文档喂入包中有出处；没有出处时向我提问，禁止凭记忆编造 API"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§17.1",
+          "specTitle": "CTX_BACKEND（每次后端会话的首条消息）",
+          "line": 1038,
+          "kind": "mandate",
+          "tags": [],
+          "text": "4. 密钥与凭据只从环境变量读取；代码中不得出现任何明文密钥"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§17.1",
+          "specTitle": "CTX_BACKEND（每次后端会话的首条消息）",
+          "line": 1040,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "6. Firestore 写入走事务或批量；注意我给的配额红线，拒绝任何玩家级高频写入设计"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§17.2",
+          "specTitle": "后端工程规范（补充 V6 §9 的 ASMDEF 体系）",
+          "line": 1046,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "模块边界 新增第 7 个 ASMDEF：Whisper.Backend（依赖 Core；被 UI 依赖；禁止反向依赖 Gameplay /"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1066,
+          "kind": "mandate",
+          "tags": [],
+          "text": "- onCall request.auth.uid 必须存在（未登录抛 unauthenticated）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1079,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "- 令牌过期时间 = 1 小时；HMAC 可被 Photon 端验证（用测试密钥自校验）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1081,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "验收标准：测试全绿；bans 查询有缓存（第二次调用读次数为 0）；无明文密钥；函数冷启动 <2s。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1083,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "模块目标：实现 §11.4 建房门禁的每日限额部分。无房主权益玩家每日（UTC 日界）可建 1 个免费房，同房间码 24h 内重建不计次。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1093,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "验收标准：测试全绿；对局日志确认「买房者零额外写、免费者日写 ≤2」。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1115,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "模块目标：按 §12.2 建立全部 7 个集合的初始数据与索引，并落地 §12.3 安全规则 + 配额护栏。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1122,
+          "kind": "mandate",
+          "tags": [
+            "rule"
+          ],
+          "text": "5. 配额护栏函数 assert_quota(dailyStats)：写入前检查当日累计读写是否超红线，超则告警日志（供 §15.1 quota-test 断言）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1123,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "测试用例：规则测试全矩阵（合法 3 条 / 非法 8 条）；索引查询返回正确；room_counters 原子性（并发 10 个 +1 结果正确）。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1137,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "验收标准：测试全绿；从举报到封禁拦截的最短链路演示通过；48 小时处置 SLP 写入看板指标。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1164,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "验收标准：测试全绿；ASMDEF 守护通过（Gameplay 零 Firebase 引用）；M0 W6 内测真机日志确认每日人均读写 ≤14 次（配额实"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1171,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "2. 断言：日读 ≤15,000 / 日写 ≤6,000（Spark 的 30% 红线，§12.4）；单玩家日写 ≤6；函数调用 ≤20,000"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§18",
+          "specTitle": "后端模块规格书提示词（P-B1 ~ P-B8）",
+          "line": 1176,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "验收标准：quota-test 全绿且用时 <10 分钟；每日定时任务上线；M2 验收「Firestore 日用量 ≤ 配额 30% 连续 7 天」的数据由本"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§19",
+          "specTitle": "提示词资产管理与迭代纪律",
+          "line": 1183,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "——SDK 升级（偿债日）后必须回归验证并更新日期，超期 90 天未验证的规格书标记 STALE；"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§19",
+          "specTitle": "提示词资产管理与迭代纪律",
+          "line": 1188,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "· 产能预算：B1~B8 全套 ≈ 6~8 个工作日（人类 1 天审查 + AI 执行 + 联调），其中人类净投入 ≈ 2 天——这是"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§20.1",
+          "specTitle": "设计哲学与支柱（V6 §17）",
+          "line": 1205,
+          "kind": "mandate",
+          "tags": [],
+          "text": "协作的必要性 队友状态必须「在余光中可感知」 队友方位指示器用极简色点 + 距离数字；避免全屏地图"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§20.4",
+          "specTitle": "菜单与结算页（V6 §20）",
+          "line": 1267,
+          "kind": "mandate",
+          "tags": [],
+          "text": "· 对局内暂停菜单：系统返回键 / 顶部边缘下滑触发；不冻结游戏世界，画面中央叠加「泛黄病历纸」（世界化"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§20.6",
+          "specTitle": "视觉特效与氛围（V6 §22）",
+          "line": 1299,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "动态光照规则：安全区暖白点光源（照度 2.0 / 3200K）；压力区冷白荧光（0.8 / 频闪周期 3~7 秒随机正弦）；高危"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§20.7",
+          "specTitle": "无障碍与国际化（V6 §23）",
+          "line": 1312,
+          "kind": "mandate",
+          "tags": [],
+          "text": "高对比度 强制黑底白字，去除毛玻璃与半透明"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§21.1",
+          "specTitle": "使用规范（V6 §24）",
+          "line": 1322,
+          "kind": "mandate",
+          "tags": [],
+          "text": "统一附加 NEGATIVE_UI；③ AI 生成图像中的文字几乎必然出错——提示词一律要求占位文字，实际文字由 uGUI 叠"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§21.1",
+          "specTitle": "使用规范（V6 §24）",
+          "line": 1324,
+          "kind": "mandate",
+          "tags": [],
+          "text": "图）；⑤ 版权边界——禁止出现具体游戏名 / 艺术家名，仅用风格描述词，产出人类审查后入库。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§21.6",
+          "specTitle": "提示词迭代与资产管理（V6 §29）",
+          "line": 1462,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "码、风格漂移、卡通化）记入提示词库末尾「陷阱清单」。产能预算：每页面概念稿生成 + 挑选 + 修正 ≈ 1.5 小时；"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§22.1",
+          "specTitle": "立项后两周行动清单（V7 整合版）",
+          "line": 1475,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "1 确认团队档位（A/B/C）与预算授权 第 1 天 立项确认书（本方案签批）；预算按表 8-1（含后端 ≤90"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§22.1",
+          "specTitle": "立项后两周行动清单（V7 整合版）",
+          "line": 1477,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "2 注册基础设施 + GameCI 骨架 第 1~3 天 GitHub / Firebase（▲ 直接 Blaze + 1 美元预算封顶）/ 蒲"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§22.1",
+          "specTitle": "立项后两周行动清单（V7 整合版）",
+          "line": 1488,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "8 内测招募与问卷（双轮制） 第 7~14 天 定性 8~12 人 + 定量 30~50 人；无麦配额 ≥30%（V6"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§22.2",
+          "specTitle": "立项结论",
+          "line": 1505,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "全部修正未增加任何现金成本（预算三档合计与 V5 持平，±1%），新增工期 ≈ 2.5 周且与既有里程碑并行。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 1525,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "制（标准点安全 / 深处点 +30%）；死亡变幽灵（低语干扰冷却 30 秒）；90 秒断线重连。"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 1582,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "Google Play Billing 无月费；30% 分成仅收入发生时 2026-08-31 起新应用 / 更新必须 Billing"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 1600,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "P2-9 语种 / 客服未计 V6 已解决 数据驱动追加语种；社区人力入预算（V6 §8.2）"
+        },
+        {
+          "specVersion": "V7",
+          "spec": "§0",
+          "specTitle": "崩溃 原地尖叫 3 秒（全图声纹）吸引怪物，随后理智回至 25",
+          "line": 1612,
+          "kind": "mandate",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "P1-E Spark fail-closed 未治理 V7 本方案解 数据分层 + 30% 红线 + 配额断言测试（§4.2 /"
+        }
+      ],
+      "chapterCount": 103,
+      "requirementCount": 100
+    },
+    {
+      "version": "V6",
+      "role": "设计补全（十项改进）",
+      "source": "docs/spec/V6-fulltext.txt",
+      "lines": 1137,
+      "chapters": [
+        {
+          "num": "1",
+          "title": "评审方法",
+          "line": 13
+        },
+        {
+          "num": "2",
+          "title": "总体评价",
+          "line": 21
+        },
+        {
+          "num": "3",
+          "title": "核心亮点（应予保留并发扬）",
+          "line": 33
+        },
+        {
+          "num": "4",
+          "title": "关键问题诊断（按严重度排序）",
+          "line": 49
+        },
+        {
+          "num": "5",
+          "title": "改进总清单",
+          "line": 96
+        },
+        {
+          "num": "6",
+          "title": "玩法系统改进详案",
+          "line": 113
+        },
+        {
+          "num": "6.1",
+          "title": "语音人格包系统（无麦体验重塑）",
+          "line": 114
+        },
+        {
+          "num": "6.2",
+          "title": "付费模式重构：房主买断 + 社交裂变",
+          "line": 133
+        },
+        {
+          "num": "6.3",
+          "title": "第 0 局：引导剧本设计",
+          "line": 145
+        },
+        {
+          "num": "6.4",
+          "title": "快照重连系统强化（V5 §3.10 扩展）",
+          "line": 159
+        },
+        {
+          "num": "6.5",
+          "title": "档案残页：元叙事收集系统",
+          "line": 174
+        },
+        {
+          "num": "7",
+          "title": "技术改进详案",
+          "line": 184
+        },
+        {
+          "num": "7.1",
+          "title": "最小反作弊与 Host 可靠性",
+          "line": 185
+        },
+        {
+          "num": "7.2",
+          "title": "语音链路安全与合规",
+          "line": 195
+        },
+        {
+          "num": "7.3",
+          "title": "Photon 免费档溢出预案（V5 §4.8 扩展）",
+          "line": 203
+        },
+        {
+          "num": "8",
+          "title": "发行与运营改进",
+          "line": 211
+        },
+        {
+          "num": "8.1",
+          "title": "双通道 M0 内测（解决样本量问题）",
+          "line": 212
+        },
+        {
+          "num": "8.2",
+          "title": "Discord / TapTap 社区最小可行运营",
+          "line": 223
+        },
+        {
+          "num": "9",
+          "title": "工程骨架与模块边界",
+          "line": 235
+        },
+        {
+          "num": "9.1",
+          "title": "Assembly Definition（ASMDEF）划分",
+          "line": 236
+        },
+        {
+          "num": "9.2",
+          "title": "事件总线（EventBus）实现",
+          "line": 246
+        },
+        {
+          "num": "9.3",
+          "title": "配置表管线",
+          "line": 297
+        },
+        {
+          "num": "10",
+          "title": "网络同步实现",
+          "line": 326
+        },
+        {
+          "num": "10.1",
+          "title": "Photon Fusion 集成要点",
+          "line": 327
+        },
+        {
+          "num": "10.2",
+          "title": "关键网络对象定义",
+          "line": 334
+        },
+        {
+          "num": "10.3",
+          "title": "声纹事件的网络同步",
+          "line": 371
+        },
+        {
+          "num": "10.4",
+          "title": "断线重连快照序列化",
+          "line": 388
+        },
+        {
+          "num": "10.5",
+          "title": "Host 迁移实现",
+          "line": 418
+        },
+        {
+          "num": "11",
+          "title": "怪物 AI 行为树实现",
+          "line": 438
+        },
+        {
+          "num": "11.1",
+          "title": "行为树框架选型",
+          "line": 439
+        },
+        {
+          "num": "11.2",
+          "title": "四主干行为树结构",
+          "line": 477
+        },
+        {
+          "num": "11.3",
+          "title": "听觉刺激黑板（Blackboard）",
+          "line": 494
+        },
+        {
+          "num": "11.4",
+          "title": "NavMesh 局部重烘焙",
+          "line": 516
+        },
+        {
+          "num": "12",
+          "title": "语音与声纹系统实现",
+          "line": 520
+        },
+        {
+          "num": "12.1",
+          "title": "Photon Voice 集成链路",
+          "line": 521
+        },
+        {
+          "num": "12.2",
+          "title": "音量分层与声纹强度映射",
+          "line": 529
+        },
+        {
+          "num": "12.3",
+          "title": "快捷喊话轮盘声纹模拟",
+          "line": 548
+        },
+        {
+          "num": "13",
+          "title": "UI 前端技术架构",
+          "line": 551
+        },
+        {
+          "num": "13.1",
+          "title": "UI 分层与职责",
+          "line": 552
+        },
+        {
+          "num": "13.2",
+          "title": "UGUI 性能基线（Android 中端机）",
+          "line": 560
+        },
+        {
+          "num": "13.3",
+          "title": "输入系统配置",
+          "line": 567
+        },
+        {
+          "num": "13.4",
+          "title": "屏幕适配策略",
+          "line": 592
+        },
+        {
+          "num": "14",
+          "title": "构建与 CI/CD 配置",
+          "line": 599
+        },
+        {
+          "num": "14.1",
+          "title": "GameCI 工作流（精简版）",
+          "line": 600
+        },
+        {
+          "num": "14.2",
+          "title": "AAB 构建与 Play Asset Delivery",
+          "line": 636
+        },
+        {
+          "num": "15",
+          "title": "数据埋点实现",
+          "line": 660
+        },
+        {
+          "num": "15.1",
+          "title": "Firebase Analytics 集成",
+          "line": 661
+        },
+        {
+          "num": "15.2",
+          "title": "远程配置（Remote Config）",
+          "line": 687
+        },
+        {
+          "num": "16",
+          "title": "测试策略",
+          "line": 698
+        },
+        {
+          "num": "16.1",
+          "title": "自动化测试分层",
+          "line": 699
+        },
+        {
+          "num": "16.2",
+          "title": "关键集成测试用例（AI 生成 + 人类审查）",
+          "line": 705
+        },
+        {
+          "num": "17",
+          "title": "设计哲学与支柱",
+          "line": 724
+        },
+        {
+          "num": "17.1",
+          "title": "三根体验支柱的 UI 翻译",
+          "line": 725
+        },
+        {
+          "num": "17.2",
+          "title": "信息层级（战斗时注意力分配）",
+          "line": 732
+        },
+        {
+          "num": "18",
+          "title": "设计系统 Token",
+          "line": 749
+        },
+        {
+          "num": "18.1",
+          "title": "色彩系统",
+          "line": 750
+        },
+        {
+          "num": "18.2",
+          "title": "字体系统",
+          "line": 764
+        },
+        {
+          "num": "18.3",
+          "title": "间距与形状",
+          "line": 774
+        },
+        {
+          "num": "18.4",
+          "title": "动效 Token",
+          "line": 782
+        },
+        {
+          "num": "19",
+          "title": "HUD 设计规范",
+          "line": 790
+        },
+        {
+          "num": "19.1",
+          "title": "布局总览（16:9 基准，自适应 20:9）",
+          "line": 791
+        },
+        {
+          "num": "19.2",
+          "title": "理智环（Sanity Ring）",
+          "line": 803
+        },
+        {
+          "num": "19.3",
+          "title": "队友方位指示器",
+          "line": 809
+        },
+        {
+          "num": "19.4",
+          "title": "音量环（Volume Ring）",
+          "line": 814
+        },
+        {
+          "num": "19.5",
+          "title": "快捷喊话轮盘",
+          "line": 819
+        },
+        {
+          "num": "19.6",
+          "title": "死亡与幽灵 HUD",
+          "line": 825
+        },
+        {
+          "num": "20",
+          "title": "菜单与结算页设计",
+          "line": 832
+        },
+        {
+          "num": "20.1",
+          "title": "主菜单（Main Menu）",
+          "line": 833
+        },
+        {
+          "num": "20.2",
+          "title": "对局内暂停菜单",
+          "line": 841
+        },
+        {
+          "num": "20.3",
+          "title": "结算页（Escape / Death）",
+          "line": 846
+        },
+        {
+          "num": "21",
+          "title": "移动端触控与手势规范",
+          "line": 854
+        },
+        {
+          "num": "21.1",
+          "title": "触控热区与防误触",
+          "line": 855
+        },
+        {
+          "num": "21.2",
+          "title": "陀螺仪辅助瞄准",
+          "line": 867
+        },
+        {
+          "num": "21.3",
+          "title": "系统手势冲突处理",
+          "line": 871
+        },
+        {
+          "num": "22",
+          "title": "视觉特效与氛围设计",
+          "line": 881
+        },
+        {
+          "num": "22.2",
+          "title": "动态光照规则",
+          "line": 896
+        },
+        {
+          "num": "22.3",
+          "title": "粒子与氛围元素",
+          "line": 903
+        },
+        {
+          "num": "23",
+          "title": "无障碍与国际化设计",
+          "line": 909
+        },
+        {
+          "num": "23.1",
+          "title": "无障碍（Accessibility）",
+          "line": 910
+        },
+        {
+          "num": "23.2",
+          "title": "国际化（i18n）",
+          "line": 923
+        },
+        {
+          "num": "24",
+          "title": "使用规范",
+          "line": 940
+        },
+        {
+          "num": "24.1",
+          "title": "工作流",
+          "line": 941
+        },
+        {
+          "num": "24.2",
+          "title": "通用规则",
+          "line": 945
+        },
+        {
+          "num": "25",
+          "title": "全局风格锚点（STYLE_ANCHOR）",
+          "line": 956
+        },
+        {
+          "num": "26",
+          "title": "分页面 UI 概念稿提示词",
+          "line": 975
+        },
+        {
+          "num": "26.1",
+          "title": "主菜单",
+          "line": 976
+        },
+        {
+          "num": "26.2",
+          "title": "对局 HUD",
+          "line": 984
+        },
+        {
+          "num": "26.3",
+          "title": "快捷喊话轮盘",
+          "line": 994
+        },
+        {
+          "num": "26.4",
+          "title": "暂停菜单（病历纸）",
+          "line": 1001
+        },
+        {
+          "num": "26.5",
+          "title": "结算页（幸存 / 沉寂）",
+          "line": 1008
+        },
+        {
+          "num": "26.6",
+          "title": "组队大厅 / 房间页",
+          "line": 1016
+        },
+        {
+          "num": "26.7",
+          "title": "档案残页收集界面",
+          "line": 1026
+        },
+        {
+          "num": "26.8",
+          "title": "设置页",
+          "line": 1034
+        },
+        {
+          "num": "27",
+          "title": "图标与组件提示词",
+          "line": 1041
+        },
+        {
+          "num": "27.1",
+          "title": "应用图标（Google Play 512×512）",
+          "line": 1042
+        },
+        {
+          "num": "27.2",
+          "title": "道具图标组（手电 / 录音笔 / 照相机 / 镇静剂 / 信号弹）",
+          "line": 1049
+        },
+        {
+          "num": "27.3",
+          "title": "人格包头像组（5 枚）",
+          "line": 1058
+        },
+        {
+          "num": "27.4",
+          "title": "怪物概念图（三只首发怪）",
+          "line": 1065
+        },
+        {
+          "num": "28",
+          "title": "商店素材提示词（Google Play）",
+          "line": 1078
+        },
+        {
+          "num": "28.1",
+          "title": "头图（1024×500）",
+          "line": 1079
+        },
+        {
+          "num": "28.2",
+          "title": "短视频素材脚本（15s 主播向，非图像提示词）",
+          "line": 1086
+        },
+        {
+          "num": "29",
+          "title": "提示词迭代与资产管理",
+          "line": 1095
+        }
+      ],
+      "requirements": [
+        {
+          "specVersion": "V6",
+          "spec": "§(未定位)",
+          "specTitle": "",
+          "line": 6,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "基线文档 《恐怖多人联机游戏开发方案（Android 版）V5.0》（28 页）"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§1",
+          "specTitle": "评审方法",
+          "line": 17,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "2. 可执行性：每项设计能否被 1~3 人团队在既定里程碑内落地，验收指标是否可测量、样本是否有"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§2",
+          "specTitle": "总体评价",
+          "line": 29,
+          "kind": "mandate",
+          "tags": [],
+          "text": "风险与合规 6.5 风险矩阵质量高，但漏掉语音内容合规这条真正的红线"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§3",
+          "specTitle": "核心亮点（应予保留并发扬）",
+          "line": 39,
+          "kind": "mandate",
+          "tags": [],
+          "text": "资源投放原则（V5 §10.3：一切与内容产能无关的优化一律后置）。这套框架应在每个里程碑复"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§4",
+          "specTitle": "关键问题诊断（按严重度排序）",
+          "line": 61,
+          "kind": "mandate",
+          "tags": [
+            "gate"
+          ],
+          "text": "线。M0 验收必须增加无麦专项指标。详见 §6.1、§8。"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§4",
+          "specTitle": "关键问题诊断（按严重度排序）",
+          "line": 62,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "P0-3 语音内容合规空白——这是真正的红线，V5 完全未提。 实时语音属于 UGC：Google Play 家庭"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§4",
+          "specTitle": "关键问题诊断（按严重度排序）",
+          "line": 69,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "但需要最小防护。修正：① 结算数据由客户端各自上报 + 交叉校验（残响碎片差异 >10% 则当局作废"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§4",
+          "specTitle": "关键问题诊断（按严重度排序）",
+          "line": 73,
+          "kind": "mandate",
+          "tags": [],
+          "text": "P1 —— 显著影响留存与口碑，M1 前必须修复"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§4",
+          "specTitle": "关键问题诊断（按严重度排序）",
+          "line": 82,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate",
+            "rule"
+          ],
+          "text": "P1-7 M0 验收样本量过小，统计意义弱。 8~12 人内测 + 问卷 ≥3.5/5 的阈值，单样本权重过高（1"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§4",
+          "specTitle": "关键问题诊断（按严重度排序）",
+          "line": 84,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "人定量轮（蒲公英扩大分发，问卷 ≥3.5 且触控通过率 ≥70%）；新增「无麦玩家」配额 ≥30%。"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§5",
+          "specTitle": "改进总清单",
+          "line": 100,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "P0-3 语音合规空白 不落盘/屏蔽/举报/家长控制 §7.3 EA 前（上架红线）"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§5",
+          "specTitle": "改进总清单",
+          "line": 108,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "P2-9 语种与客服 数据驱动追加语种；社区人力入预算 §9 EA 后"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§6.1",
+          "specTitle": "语音人格包系统（无麦体验重塑）",
+          "line": 120,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "新兵 标准指令（跟我来/躲起来/安静 基准 100% 无额外效果 通用"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§6.1",
+          "specTitle": "语音人格包系统（无麦体验重塑）",
+          "line": 132,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "验收指标：M0 内测中「无麦玩家」恐惧问卷 ≥3.3/5、胜率与语音玩家差异 ≤15%。"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§6.3",
+          "specTitle": "第 0 局：引导剧本设计",
+          "line": 149,
+          "kind": "mandate",
+          "tags": [],
+          "text": "1. 0:00~1:30 苏醒：玩家从监控桌前醒来，环境光极暗，仅有手电；强制操作：起身、走动、环顾。"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§6.3",
+          "specTitle": "第 0 局：引导剧本设计",
+          "line": 151,
+          "kind": "mandate",
+          "tags": [],
+          "text": "2. 1:30~3:00 耳语教学：系统检测到麦克风音量（或强制打开轮盘），屏幕边缘出现音量环 UI；提"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§6.3",
+          "specTitle": "第 0 局：引导剧本设计",
+          "line": 158,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "M1 验收：新玩家首局前 5 分钟任务完成率 ≥85%；首局后 24 小时再开率 ≥50%。"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§7.1",
+          "specTitle": "最小反作弊与 Host 可靠性",
+          "line": 187,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "1. 速度/位置合理性检查：每 5 秒校验玩家位移距离是否合理（当前速度 × 1.2 × 5s 容差）。异常写"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§7.1",
+          "specTitle": "最小反作弊与 Host 可靠性",
+          "line": 189,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "2. 碎片交叉校验：对局结束后，各客户端上报碎片数，Host 上报碎片数；差异 >10% 则当局无效，"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§7.1",
+          "specTitle": "最小反作弊与 Host 可靠性",
+          "line": 190,
+          "kind": "mandate",
+          "tags": [],
+          "text": "各方均不得分，但保留日志供人工审查。"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§7.3",
+          "specTitle": "Photon 免费档溢出预案（V5 §4.8 扩展）",
+          "line": 204,
+          "kind": "mandate",
+          "tags": [],
+          "text": "Photon 免费档 100 CCU 是全局峰值，「破圈日」排队将直接杀死口碑。M2 阶段必须实现溢出感知"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§8.1",
+          "specTitle": "双通道 M0 内测（解决样本量问题）",
+          "line": 221,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "无麦玩家配额：两组合计无麦玩家 ≥30%，否则样本不具代表性。"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§9.1",
+          "specTitle": "Assembly Definition（ASMDEF）划分",
+          "line": 244,
+          "kind": "mandate",
+          "tags": [],
+          "text": "禁止循环依赖：Net 不得引用 UI；Gameplay 不得引用 Net。跨模块通信统一走 EventBus<T>（见"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§10.1",
+          "specTitle": "Photon Fusion 集成要点",
+          "line": 331,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "· 带宽预算：每房间 4 人，下行 ≤12KB/s、上行 ≤6KB/s（以 Photon 免费档消息量无限制为前"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§10.4",
+          "specTitle": "断线重连快照序列化",
+          "line": 417,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "Properties 单值上限 32KB，完全够用。TTL 设 120 秒，覆盖 90 秒重连窗口。"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§13.4",
+          "specTitle": "屏幕适配策略",
+          "line": 593,
+          "kind": "mandate",
+          "tags": [],
+          "text": "· 安全区（Safe Area）：所有交互按钮必须位于 Screen.safeArea 内，Notch/挖孔区域仅放置纯信息"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§17.1",
+          "specTitle": "三根体验支柱的 UI 翻译",
+          "line": 728,
+          "kind": "mandate",
+          "tags": [],
+          "text": "协作的必要性 队友状态必须「在余光中可感 队友方位指示器用极简色点 + 距离数字；避免全屏地图"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§17.2",
+          "specTitle": "信息层级（战斗时注意力分配）",
+          "line": 733,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "Layer 0 —— 致命信息（必须 0.1 秒内读取）"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§17.2",
+          "specTitle": "信息层级（战斗时注意力分配）",
+          "line": 736,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "Layer 1 —— 战术信息（必须 0.5 秒内读取）"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§20.2",
+          "specTitle": "对局内暂停菜单",
+          "line": 843,
+          "kind": "mandate",
+          "tags": [],
+          "text": "· 视觉：不冻结游戏世界，而是在画面中央叠加一张「泛黄的病历纸」（世界化 UI），纸上列出选"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§23.1",
+          "specTitle": "无障碍（Accessibility）",
+          "line": 921,
+          "kind": "mandate",
+          "tags": [],
+          "text": "高对比 开启后所有文字强制黑底白字，去除毛玻璃与半透明效果"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§24.2",
+          "specTitle": "通用规则",
+          "line": 946,
+          "kind": "mandate",
+          "tags": [],
+          "text": "1. 一致性锁定：所有 UI 生成必须使用同一风格锚点后缀（§25 的 STYLE_ANCHOR），并固定随机"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§24.2",
+          "specTitle": "通用规则",
+          "line": 950,
+          "kind": "mandate",
+          "tags": [],
+          "text": "3. 文字问题：AI 生成图像中的文字几乎必然出错——提示词中一律要求 placeholder text（如"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§24.2",
+          "specTitle": "通用规则",
+          "line": 954,
+          "kind": "mandate",
+          "tags": [],
+          "text": "5. 版权边界：提示词中禁止出现具体游戏名/艺术家名（如 “in the style of Phasmophobia”），仅"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§29",
+          "specTitle": "提示词迭代与资产管理",
+          "line": 1104,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "4. 产能预算：每页面概念稿生成 + 挑选 + 修正 ≈ 1.5 小时；全套 UI 概念（8 页 + 图标 + 商店素材）"
+        },
+        {
+          "specVersion": "V6",
+          "spec": "§29",
+          "specTitle": "提示词迭代与资产管理",
+          "line": 1112,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "1 确认团队档位与预算 第 1 天 不变"
+        }
+      ],
+      "chapterCount": 102,
+      "requirementCount": 36
+    },
+    {
+      "version": "V5",
+      "role": "立项基线（八域框架 + 数值基线）",
+      "source": "docs/spec/V5-fulltext.txt",
+      "lines": 858,
+      "chapters": [
+        {
+          "num": "1",
+          "title": "摘 要",
+          "line": 78
+        },
+        {
+          "num": "2",
+          "title": "市场与竞品分析",
+          "line": 106
+        },
+        {
+          "num": "2.1",
+          "title": "品类标杆复盘（PC 端）",
+          "line": 107
+        },
+        {
+          "num": "2.2",
+          "title": "Android 端机会窗口",
+          "line": 138
+        },
+        {
+          "num": "2.3",
+          "title": "目标用户画像",
+          "line": 149
+        },
+        {
+          "num": "2.4",
+          "title": "市场上限评审",
+          "line": 165
+        },
+        {
+          "num": "3",
+          "title": "玩法设计详案",
+          "line": 180
+        },
+        {
+          "num": "3.1",
+          "title": "核心幻想与体验支柱",
+          "line": 181
+        },
+        {
+          "num": "3.2",
+          "title": "核心循环",
+          "line": 185
+        },
+        {
+          "num": "3.3",
+          "title": "单局节奏表",
+          "line": 189
+        },
+        {
+          "num": "3.4",
+          "title": "声纹系统（核心机制）",
+          "line": 204
+        },
+        {
+          "num": "3.5",
+          "title": "理智系统",
+          "line": 231
+        },
+        {
+          "num": "0",
+          "title": "崩溃 并吸引怪物，随后理智回至",
+          "line": 248
+        },
+        {
+          "num": "3.6",
+          "title": "首发怪物阵容",
+          "line": 253
+        },
+        {
+          "num": "3.7",
+          "title": "首发双地图与动态事件",
+          "line": 278
+        },
+        {
+          "num": "3.8",
+          "title": "道具设计",
+          "line": 286
+        },
+        {
+          "num": "15",
+          "title": "秒安全区，怪物回",
+          "line": 299
+        },
+        {
+          "num": "3.9",
+          "title": "移动端操作方案",
+          "line": 302
+        },
+        {
+          "num": "3.10",
+          "title": "死亡、撤离与断线重连",
+          "line": 311
+        },
+        {
+          "num": "3.11",
+          "title": "经济与进度",
+          "line": 318
+        },
+        {
+          "num": "3.12",
+          "title": "玩法上限评审",
+          "line": 324
+        },
+        {
+          "num": "4",
+          "title": "技术方案：零成本技术栈",
+          "line": 338
+        },
+        {
+          "num": "4.1",
+          "title": "免费技术栈总览",
+          "line": 339
+        },
+        {
+          "num": "4.2",
+          "title": "联机方案比选",
+          "line": 371
+        },
+        {
+          "num": "4.3",
+          "title": "网络同步与语音链路",
+          "line": 393
+        },
+        {
+          "num": "4.4",
+          "title": "怪物 AI 架构",
+          "line": 399
+        },
+        {
+          "num": "4.5",
+          "title": "工程架构",
+          "line": 403
+        },
+        {
+          "num": "4.6",
+          "title": "数据埋点",
+          "line": 419
+        },
+        {
+          "num": "4.7",
+          "title": "构建流水线",
+          "line": 433
+        },
+        {
+          "num": "4.8",
+          "title": "技术上限评审",
+          "line": 439
+        },
+        {
+          "num": "5",
+          "title": "AI 主力生产流水线",
+          "line": 453
+        },
+        {
+          "num": "5.1",
+          "title": "流水线总览",
+          "line": 454
+        },
+        {
+          "num": "5.2",
+          "title": "编程（AI 结对）",
+          "line": 458
+        },
+        {
+          "num": "5.3",
+          "title": "美术（概念→资产管线）",
+          "line": 464
+        },
+        {
+          "num": "5.4",
+          "title": "音频（语音+音效）",
+          "line": 469
+        },
+        {
+          "num": "5.5",
+          "title": "本地化与测试",
+          "line": 476
+        },
+        {
+          "num": "5.6",
+          "title": "人机分工原则与质量门禁",
+          "line": 480
+        },
+        {
+          "num": "5.7",
+          "title": "AI 产能上限评审",
+          "line": 485
+        },
+        {
+          "num": "6",
+          "title": "开发路线图与里程碑",
+          "line": 497
+        },
+        {
+          "num": "6.1",
+          "title": "总体路线图（24 周）",
+          "line": 498
+        },
+        {
+          "num": "6.2",
+          "title": "里程碑验收标准",
+          "line": 504
+        },
+        {
+          "num": "6.3",
+          "title": "M0 六周逐周计划",
+          "line": 529
+        },
+        {
+          "num": "7",
+          "title": "团队配置与预算",
+          "line": 550
+        },
+        {
+          "num": "7.1",
+          "title": "三档团队配置",
+          "line": 551
+        },
+        {
+          "num": "7.2",
+          "title": "预算明细",
+          "line": 567
+        },
+        {
+          "num": "7.3",
+          "title": "人力时间说明",
+          "line": 610
+        },
+        {
+          "num": "8",
+          "title": "发行与运营策略",
+          "line": 614
+        },
+        {
+          "num": "8.1",
+          "title": "双通道分发：APK 先行，AAB 后接",
+          "line": 615
+        },
+        {
+          "num": "8.2",
+          "title": "发行节奏与量化目标",
+          "line": 639
+        },
+        {
+          "num": "8.3",
+          "title": "运营与长线策略",
+          "line": 661
+        },
+        {
+          "num": "8.4",
+          "title": "发行与变现上限评审",
+          "line": 668
+        },
+        {
+          "num": "9",
+          "title": "风险分析与应对",
+          "line": 680
+        },
+        {
+          "num": "10",
+          "title": "全量上限评审汇总",
+          "line": 726
+        },
+        {
+          "num": "10.1",
+          "title": "六维雷达总览",
+          "line": 727
+        },
+        {
+          "num": "10.2",
+          "title": "上限矩阵与属性判定",
+          "line": 733
+        },
+        {
+          "num": "10.3",
+          "title": "评审结论：瓶颈排序与资源投放",
+          "line": 767
+        },
+        {
+          "num": "10.4",
+          "title": "三档命运预测",
+          "line": 775
+        },
+        {
+          "num": "11",
+          "title": "结论与下一步行动",
+          "line": 807
+        },
+        {
+          "num": "11.1",
+          "title": "立项结论",
+          "line": 808
+        },
+        {
+          "num": "11.2",
+          "title": "立项后两周行动清单",
+          "line": 814
+        }
+      ],
+      "requirements": [
+        {
+          "specVersion": "V5",
+          "spec": "§(未定位)",
+          "specTitle": "",
+          "line": 50,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "5.6 人机分工原则与质量门禁.......................................................................................13"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§1",
+          "specTitle": "摘 要",
+          "line": 102,
+          "kind": "mandate",
+          "tags": [],
+          "text": "• 变现与红线：免费下载 + 4.99 美元买断解锁；核心进度不可付费，外观付费限"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§2.1",
+          "specTitle": "品类标杆复盘（PC 端）",
+          "line": 136,
+          "kind": "mandate",
+          "tags": [],
+          "text": "短视频是第一发行渠道，游戏内必须预埋可被剪辑的名场面；其三，长线留存依赖"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§3.1",
+          "specTitle": "核心幻想与体验支柱",
+          "line": 184,
+          "kind": "mandate",
+          "tags": [],
+          "text": "统）。所有系统设计围绕三支柱做加法，与支柱无关的功能一律砍掉。"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§3.10",
+          "specTitle": "死亡、撤离与断线重连",
+          "line": 313,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "却 30 秒）。全员死亡时已收集证据损失 50%。撤离双点制：标准点安全，深处点"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§3.11",
+          "specTitle": "经济与进度",
+          "line": 322,
+          "kind": "mandate",
+          "tags": [],
+          "text": "成）。变现红线：碎片不可付费购买；商业化只有 4.99 美元买断解锁（免费版含前"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§3.12",
+          "specTitle": "玩法上限评审",
+          "line": 331,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "30%，因此玩法深度必须建立在决策（藏/走/诱/撤）而非动作反应上，本作设计已按"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§5.1",
+          "specTitle": "流水线总览",
+          "line": 456,
+          "kind": "mandate",
+          "tags": [],
+          "text": "负责批量产出。人机分工铁律——AI 只产出“可被一次性替换”的模块化资产，系统"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§5.2",
+          "specTitle": "编程（AI 结对）",
+          "line": 462,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "（50%）。质量红线：每个 AI 生成模块必须配人类编写的集成测试；连续两次审查"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§5.6",
+          "specTitle": "人机分工原则与质量门禁",
+          "line": 480,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "5.6 人机分工原则与质量门禁"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§5.7",
+          "specTitle": "AI 产能上限评审",
+          "line": 492,
+          "kind": "mandate",
+          "tags": [],
+          "text": "制创新必须来自人）。另一个隐性债务：AI 代码的可维护性随代码库增长非线性劣"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§7.3",
+          "specTitle": "人力时间说明",
+          "line": 612,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "gate"
+          ],
+          "text": "约 12~15 个月。业余模式最大风险是热情衰减——严格执行 6.2 节里程碑验收，用外"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§8.4",
+          "specTitle": "发行与变现上限评审",
+          "line": 674,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "断 ARPU 上限约 1.5~2.5 美元（转化率 15%~30% × 4.99 × 0.7 分成），广告变现与恐"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§9",
+          "specTitle": "风险分析与应对",
+          "line": 719,
+          "kind": "mandate",
+          "tags": [
+            "quant"
+          ],
+          "text": "低端机性能不达标 低 中 置；30fps 红线进 CI"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§10.3",
+          "specTitle": "评审结论：瓶颈排序与资源投放",
+          "line": 774,
+          "kind": "mandate",
+          "tags": [],
+          "text": "能无关的优化（画面、社交系统、跨平台）一律后置。"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§10.4",
+          "specTitle": "三档命运预测",
+          "line": 781,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "悲观 25% 周——上限评审的价"
+        },
+        {
+          "specVersion": "V5",
+          "spec": "§11.1",
+          "specTitle": "立项结论",
+          "line": 811,
+          "kind": "quantified",
+          "tags": [
+            "quant",
+            "rule"
+          ],
+          "text": "2~3 人小队的水平。上限评审确认了它的可行性结构——玩法与技术上限充足，市"
+        }
+      ],
+      "chapterCount": 60,
+      "requirementCount": 17
+    }
+  ],
+  "totals": {
+    "lines": 5760,
+    "chapters": 399,
+    "requirements": 318
+  }
+}

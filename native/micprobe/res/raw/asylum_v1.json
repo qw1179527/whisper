@@ -49,11 +49,12 @@
         {
           "kit": "cabinet_a",
           "pos": [
-            1.5,
+            0.81,
             0,
-            0.6
+            0.56
           ],
-          "rot": 180
+          "rot": 180,
+          "pref": "nw"
         }
       ],
       "evidencePoint": false,
@@ -161,11 +162,12 @@
         {
           "kit": "cabinet_a",
           "pos": [
+            0.71,
             0,
-            0,
-            1
+            1.26
           ],
-          "rot": 180
+          "rot": 180,
+          "pref": "nw"
         }
       ],
       "evidencePoint": false,
@@ -294,11 +296,12 @@
         {
           "kit": "bed_b",
           "pos": [
+            1.41,
             0,
-            0,
-            -0.5
+            1.46
           ],
-          "rot": 90
+          "rot": 90,
+          "pref": "nw"
         }
       ],
       "evidencePoint": true,
@@ -331,11 +334,12 @@
         {
           "kit": "bed_b",
           "pos": [
+            1.31,
             0,
-            0,
-            -0.5
+            1.46
           ],
-          "rot": 90
+          "rot": 90,
+          "pref": "nw"
         }
       ],
       "evidencePoint": true,
@@ -368,11 +372,12 @@
         {
           "kit": "bed_b",
           "pos": [
+            1.31,
             0,
-            0,
-            -0.5
+            1.46
           ],
-          "rot": 90
+          "rot": 90,
+          "pref": "nw"
         }
       ],
       "evidencePoint": true,
@@ -405,11 +410,12 @@
         {
           "kit": "cabinet_a",
           "pos": [
+            0.56,
             0,
-            0,
-            0.8
+            3.21
           ],
-          "rot": 270
+          "rot": 270,
+          "pref": "ne"
         }
       ],
       "evidencePoint": true,
@@ -442,11 +448,12 @@
         {
           "kit": "bed_b",
           "pos": [
+            1.41,
             0,
-            0,
-            -0.5
+            1.46
           ],
-          "rot": 90
+          "rot": 90,
+          "pref": "nw"
         }
       ],
       "evidencePoint": true,

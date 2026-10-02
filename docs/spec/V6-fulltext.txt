@@ -1,0 +1,1136 @@
+         恐怖多人联机游戏开发方案 V6.0
+         ——深度评审 · 改进完善 · 技术构建实现 · 前端设计全案
+          项目代号       Project Whisper（低语计划）
+          目标平台       Android 8.0+（ARM64 / APK 先行 → AAB）
+          文档类型       V5.0 深度评审报告 + V6.0 改进版立项策划案
+          基线文档       《恐怖多人联机游戏开发方案（Android 版）V5.0》（28 页）
+          适用团队       1 至 3 人独立开发团队（AI 主力生产模式）
+          编制日期       2026 年 10 月 2 日
+           版本说明：本文档不重复 V5.0 已有内容，而是建立在其之上的增量版本——第一部分为对 V5.0 的深度评
+           审；第二部分为逐条改进与完善；第三、四、五部分为全新增补的技术构建实现、前端设计规范与前端设计
+           提示词库。引用 V5.0 章节时以「V5 §x.x」标注。
+        第一部分　V5.0 方案深度评审报告
+          1　评审方法
+        本次评审沿三个层面展开：
+         1. 战略一致性：各章节是否服务于同一命题（Android 空白市场 × 声纹机制差异化 × 零成本栈 ×
+           AI 主力生产），有无内部矛盾；
+         2. 可执行性：每项设计能否被 1~3 人团队在既定里程碑内落地，验收指标是否可测量、样本是否有
+           效；
+         3. 盲区扫描：V5.0 未覆盖但可能导致项目失败或重大返工的议题（合规、作弊、新手引导、无麦体
+           验完整性等）。
+          2　总体评价
+        综合评分：8.2 / 10 —— 立项建议确认，且是近年独立游戏方案中少见的「自我认知完整」的立项书。
+         评审维度         评分   一句话结论
+         战略与赛道判断      9.0  「已验证玩法 + 空白市场」判断准确，双通道节奏教科书级
+         玩法设计         8.5  声纹机制是真差异点；无麦体验与新手引导是最大短板
+         技术方案         8.0  选型务实有备胎；反作弊、语音合规、快照粒度缺失
+         AI 生产模式      8.5  「叶节点隔离 + 偿债日」的债务管理意识超前于多数团队
+         发行与变现        7.0  漏斗存在结构性缺陷（房客付费问题），区域定价未设计
+         风险与合规        6.5  风险矩阵质量高，但漏掉语音内容合规这条真正的红线
+         文档质量         9.0  上限评审体系本身是可复用的方法论资产
+        V5.0   最难得的品质是诚实——它反复回答「这事最坏会怎样」，而非只描绘成功路径。「最早的退出
+        点最便宜」（V5 §10.4）这一止损设计，在独立游戏立项书中极为罕见。
+          3　核心亮点（应予保留并发扬）
+         1. 「声纹即风险」把品类差异点打透了。 恐鬼症的语音只在驱鬼环节触发，本作将其升格为全程生
+           存货币；更妙的是快捷喊话轮盘同样产生声纹——无麦玩家不是二等公民，而是同一规则下的另一
+           种流派。这是机制层面真正的创新。
+                           Project Whisper · V6.0 深度评审与全量完善版      2 / 41
+         2. 上限评审体系是方法论资产。 对七个维度逐一回答「天花板 / 瓶颈 / 突破路径」，并把结论收敛为
+           资源投放原则（V5 §10.3：一切与内容产能无关的优化一律后置）。这套框架应在每个里程碑复
+           盘时复用。
+         3. 技术选型每一层都有免费路径和付费备胎。 Photon→Mirror→Nakama 的迁移梯队、keystore 双
+           密钥、接口抽象层预留——1 人团队最致命的单点故障被系统性排查过。
+         4. APK 先行 / AAB 后接的验证节奏正确。 第 5 周真机触达玩家，用真实尖叫数据修订设计，把最便
+           宜的验证放在最前面。
+         5. AI 债务管理意识超前。 「AI 只产出可被一次性替换的叶节点模块」「连续两次审查不过即重写而
+           非修补」「每月偿债日」——多数 AI 重度团队要到第 6 个月才学会这些教训。
+         6. 预埋短视频传播素材位（尖叫点、叛徒对讲机、幽灵视角）不是事后营销，而是设计内建，与品类
+           破圈规律（恐鬼症/致命公司销量曲线与主播直播同步）严格对齐。
+          4　关键问题诊断（按严重度排序）
+         P0 —— 不修复将动摇立项根基
+         P0-1　变现漏斗存在结构性缺陷：房客要不要买？ V5 §3.11 规定「免费版含前 3 局 + 4.99 美元买断
+         解锁」，但开黑游戏的核心场景是「一个老玩家拉三个新朋友」。若四人都需买断才能开第四局，裂
+         变链条在第 3 局就断裂——这恰恰是转化率最高的时刻。修正：房主买断制——房主买断即可无限建
+         房，房客免费跟房（参照致命公司「一人买全队玩」的社交传染模型）；免费玩家自建房限 3 局/日。
+         此修改同时强化「跟随房间主付费」（V5 §2.3 泛用户层）的既有判断。详见本方案 §6.2。
+         P0-2　麦克风权限与核心机制生死绑定，「无麦体验」只有兜底没有设计。 V5 已识别 Android 麦克
+         风权限授予率偏低，对策是喊话轮盘（V5 §3.9）。但轮盘目前是「残缺版语音」而非「独立流派」：
+         无麦玩家的策略深度、声纹差异化、成长感全部缺失。若轮盘体验不成立，本作在最广大的休闲用户
+         层将退化为普通追逐游戏。修正：将轮盘升级为「语音人格包」系统——预设角色声线（冷静领队/慌
+         张新人/挑衅者），不同人格的喊话附带差异化声纹强度与战术效果，无麦玩法成为可钻研的策略路
+         线。M0 验收必须增加无麦专项指标。详见 §6.1、§8。
+         P0-3　语音内容合规空白——这是真正的红线，V5 完全未提。 实时语音属于 UGC：Google Play 家庭
+         政策与各国未成年保护法规要求提供举报、屏蔽、监护人控制；玩家语音若被录制传播还涉及隐私。
+         V5 风险矩阵（表 9-1）无此条目。修正：① 语音流不落盘、不上传服务器，仅存音量包络数据用于声
+         纹判定；② 对局内一键屏蔽 + 赛后举报入口；③ 设置页「家长控制」默认对未成年声明账号关闭陌生
+         人语音；④ IARC 申报时如实勾选「用户互动」分级项。 成本极低，缺失代价是下架。详见 §7.3。
+         P0-4　房主权威性 = 作弊与体验单点，无任何防护设计。 Host 即权威端（V5 §4.3）意味着房主设备
+         可修改怪物 AI 参数、查看全图信息；房主网络劣化则全房卡顿。休闲合作游戏不需要电竞级反作弊，
+         但需要最小防护。修正：① 结算数据由客户端各自上报 + 交叉校验（残响碎片差异 >10% 则当局作废
+                             Project Whisper · V6.0 深度评审与全量完善版      3 / 41
+           并标记）；② 移动速度/位置合理性校验（服务端逻辑运行在 Host 上，但校验规则由配置表下发，异
+           常仅记录不踢人，供事后封禁）；③ 房主网络质量检测，低于阈值时提示迁移 Host。 详见 §7.1。
+           P1 —— 显著影响留存与口碑，M1 前必须修复
+           P1-5　新手引导缺失：恐怖游戏的首局流失主因是「不知道发生了什么」。  V5 从灰盒原型直接跳到
+           内测，无引导设计。玩家第一次被「缝匠」追时若不理解「它听见了你」，恐惧会变成困惑与卸载。
+           修正：设计「第 0 局」引导剧本——单人安全屋 5 分钟教学（移动/耳语/躲柜/看音量环），首局匹配
+           「教学局」怪物压力减半，死亡归因提示前置（V5   已有「它听见你了」闪现，需扩展为完整归因
+           链）。详见 §6.3。
+           P1-6　断线重连快照粒度过粗。 V5 §3.10 快照仅含位置/道具/理智/证据四项。门与柜状态、证据收
+           集进度、怪物当前仇恨目标缺失，重连后可能出现「队友明明锁了门，重连者面前门开着」的世界观
+           撕裂。修正：快照扩展为世界状态哈希 + 增量回放，详见 §12.6。
+           P1-7　M0 验收样本量过小，统计意义弱。 8~12 人内测 + 问卷 ≥3.5/5 的阈值，单样本权重过高（1
+           个差评即可拉垮均值）。修正：M0 改为两轮——8~12 人定性轮（观察尖叫与笑声，不计分）+ 30~50
+           人定量轮（蒲公英扩大分发，问卷 ≥3.5 且触控通过率 ≥70%）；新增「无麦玩家」配额 ≥30%。
+           详见 §8。
+           P1-8　恐怖感衰减对策单一，缺低成本长效钩子。  V5   的对策集中在动态事件池与词条（高成本内
+           容），缺少「元叙事」这类一次投入长期生效的钩子。修正：新增「档案残页」收集系统——每局散布
+           3~5   页疗养院往事残页，集齐解锁怪物背景故事与隐藏词条；残页随机位置由词条种子决定，与重玩
+           系统咬合。成本约等于一套 UI + 一批 AI 生成文本，详见 §6.5。
+           P2 —— 应在 EA 前完成，不阻塞 M0
+           P2-9　本地化语种取舍缺依据，客服成本未入预算。 五语（英日韩葡西）覆盖了高付费区，但漏掉恐
+           怖品类高活跃的泰语/印尼语区；建议 EA 后按 Firebase 地区数据追加。Discord/TapTap 社区运营折
+           算人力每周约 6~8 小时，应计入 §7.3 人力说明。
+           P2-10　iOS 缺席的决策未写明理由。 方案默认 Android only 正确（版号、审核、开发成本三重理
+           由），但应显式记录「iOS 在正式版验证后评估」以防团队后期动摇返工。
+             5　改进总清单
+            编号    问题             改进措施                         落地章节      阻塞级别
+            P0-1  房客付费断裂变        房主买断 + 房客免费跟房                §6.2      M0 前定案
+            P0-2  无麦体验残缺         语音人格包系统 + M0 专项验证            §6.1      M0
+            P0-3  语音合规空白         不落盘/屏蔽/举报/家长控制               §7.3      EA 前（上架红线）
+                                   Project Whisper · V6.0 深度评审与全量完善版                 4 / 41
+            编号    问题             改进措施                         落地章节      阻塞级别
+            P0-4  无反作弊           交叉校验 + 合理性检查 + Host 迁移       §7.1      M1
+            P1-5  无新手引导          第 0 局剧本 + 教学局                §6.3      M1
+            P1-6  快照过粗           世界状态哈希 + 增量回放                §12.6     M1
+            P1-7  样本量不足          双轮内测 + 无麦配额                  §8        M0
+            P1-8  长效钩子缺失         档案残页元叙事                      §6.5      M2
+            P2-9  语种与客服          数据驱动追加语种；社区人力入预算             §9        EA 后
+            P2-10 iOS 决策未记录      显式记录延后评估                     §9        文档层面
+                                   Project Whisper · V6.0 深度评审与全量完善版                 5 / 41
+         第二部分　V6.0 改进与完善方案
+           本部分针对 V5.0 诊断出的问题，给出可直接纳入执行的改进设计。未触及的 V5.0 内容仍继续有效。
+           6　玩法系统改进详案
+         6.1　语音人格包系统（无麦体验重塑）
+         设计目标：把「无麦克风」从缺陷降级为另一种策略流派；让轮盘喊话在声纹系统中拥有与语音同等
+         的战术深度与情感表达。
+         角色人格包：共 5 种，新玩家解锁「新兵」；其余通过碎片解锁或游戏成就获取。每人格含 8 条语音
+         轮盘 + 专属声纹特性。
+          人格 轮盘风格                   声纹强度      战术特性                  情感定位
+          新兵 标准指令（跟我来/躲起来/安静        基准 100%   无额外效果                 通用
+               等）
+          领队 低声指令（保持队形/搜索完毕/报 -15%（更隐         轮盘释放时 2 米内队友移动噪音      沉着、信任
+               告位置）                 蔽）        -20%                  感
+          挑衅 嘲讽怪物与队友（来啊！/你追不        +25%（更暴   持续吸引怪物仇恨 5 秒          主播素材人
+          者    上我）                  露）                              格
+          溺水 破碎短句（别……/它在……/快        基准但频率低 怪物 3 秒内对声源定位精度 -30%      心理恐怖
+          者    走……）                           （含糊）
+          引路 儿歌与计数（数到十/红灯停绿灯        中等，但节奏 使用时可短暂标记最近证据方向（消 诡异、神秘
+          人    行）                   感强        耗理智 5）
+         实现路径：TTS 变调链路（V5 §5.4）同一套技术——不同人格使用不同预训练音色 + 风格化提示词，
+         在设备本地合成。无额外服务器成本。
+         验收指标：M0 内测中「无麦玩家」恐惧问卷 ≥3.3/5、胜率与语音玩家差异 ≤15%。
+         6.2　付费模式重构：房主买断 + 社交裂变
+         V5.0 的「免费 3 局 + 买断」对开黑场景不友好。新模型：
+          模式          权限                          限制        备注
+          免费房主        每日限开 1 房；限标准撤离点             无         体验钩子
+                               Project Whisper · V6.0 深度评审与全量完善版          6 / 41
+           模式           权限                             限制         备注
+           买断房主         无限建房；解锁全部地图 + 词条               无          4.99 美元一次性付费
+           房客（免费）       可无限加入他人房间；解锁全部玩法               无          社交裂变引擎
+           外观 DLC       人格包/手电皮肤/幽灵外观                  不影响平衡      正式版追加
+          漏斗逻辑：免费房主的 1 房/日足够让老玩家「请客」（带新朋友），朋友玩过 3 局后已有付费意愿的
+          朋友自然会去买断；免费房主自身若不想付费，持续以房客身份游玩也不被驱逐。对长尾留存友好。
+          数据监测：「房主转化率」= 玩过 ≥5 局的免费房客中购买买断的比例；EA 目标 ≥12%。
+          6.3　第 0 局：引导剧本设计
+          前提：恐怖游戏不能在教程中破坏恐怖感，故「安全屋」本身也是世界观的一部分——它是一座废弃监
+          控室，墙上贴满被涂黑的手册与疯子写的便签。
+          流程（单局 5 分钟，单人无怪物）：
+           1. 0:00~1:30 苏醒：玩家从监控桌前醒来，环境光极暗，仅有手电；强制操作：起身、走动、环顾。
+             墙上便签提示「安静，它在听」。
+           2. 1:30~3:00 耳语教学：系统检测到麦克风音量（或强制打开轮盘），屏幕边缘出现音量环 UI；提
+             示「对它说话比对它沉默更危险」。让玩家在空房间内进行一次耳语（低音量）和一次正常说话
+             ——正常说话时远处传来怪物回应声（预制事件，无真实危险）。
+           3. 3:00~4:00 声纹实战：房间另一侧门自动打开，另一间模拟病房内有一个假人（代表队友），玩家
+             需用轮盘或语音发出指令，观察假人头顶出现声纹波纹。提示「你的声音不仅它能听见」。
+           4. 4:00~5:00 撤离演示：撤离点闪烁，玩家走入后触发结算面板——这是玩家第一次看见「残响碎
+             片」概念。退出时弹出「你准备好进入真正的疗养院了吗？」确认键。
+          M1 验收：新玩家首局前 5 分钟任务完成率 ≥85%；首局后 24 小时再开率 ≥50%。
+          6.4　快照重连系统强化（V5 §3.10 扩展）
+           快照项                  V5 基线      V6 扩展       说明
+           玩家 Transform         ✓          ✓           位置/旋转/姿态
+           道具                   ✓          ✓           含手电电量
+           理智                   ✓          ✓           —
+           证据                   ✓          ✓           已收集 ID 列表
+           门/柜/障碍状态             ✗          ✓           NavMesh 重烘焙源数据
+           怪物仇恨目标               ✗          ✓           确保重连者视角世界一致
+                                  Project Whisper · V6.0 深度评审与全量完善版               7 / 41
+          快照项                V5 基线     V6 扩展     说明
+          动态事件队列             ✗         ✓         未来 60 秒已注入事件
+          世界状态哈希             ✗         ✓         Host 与客户端交叉校验
+         技术路径：断线时 Host 将当前 GameState 序列化为字节流（预计 2~4KB），通过 Photon Cloud 的
+         Properties 暂存（不用自定义服务器，利用房间属性 TTL=120s）；重连时比对哈希，不匹配则触发完
+         整世界快照下载。容错：若 Host 已切换，新 Host 用最新完整快照覆盖。
+         6.5　档案残页：元叙事收集系统
+         设计意图：为恐怖感衰减提供叙事延缓剂；每局固定产出 3~5 页残页，位置由词条种子决定，与重玩
+         系统咬合。
+         残页内容：每页 50~80 字，碎片化讲述疗养院历史、怪物来源、前调查员笔记。由 AI 生成初稿，人类
+         精修。例：
+           「11 月 7 日。他们把缝匠叫来做衣服，但缝匠说：『我缝的是嘴。』此后夜班护士再没说过话。」
+         收集激励：集齐一本档案（10 页）解锁隐藏词条「真相大白」——怪物速度 +10% 但每局额外掉落 1
+         页未收集残页；集齐全部 5 本解锁幽灵外观「档案管理员」。
+         内容产能：AI 生成 50 页初稿约需 2 小时（含提示词调试），人类精修约 8 小时；足够支撑 M2 前 5 本
+         档案，后续按月追加。
+           7　技术改进详案
+         7.1　最小反作弊与 Host 可靠性
+         原则：休闲合作游戏不做实时强校验，只做事后标记与信誉系统。不影响体验，但保留证据。
+          1. 速度/位置合理性检查：每 5 秒校验玩家位移距离是否合理（当前速度 × 1.2 × 5s 容差）。异常写
+            入云端标记表，不做即时踢出。
+          2. 碎片交叉校验：对局结束后，各客户端上报碎片数，Host 上报碎片数；差异 >10% 则当局无效，
+            各方均不得分，但保留日志供人工审查。
+          3. Host 迁移：若当前 Host 网络 RTT >200ms 持续 10 秒，或 Host 主动退出，系统按「剩余玩家中
+            网络质量最优者」自动迁移 Host；迁移期间播放「信号干扰」UI 遮罩（2~3 秒），世界观内解
+            释。
+                               Project Whisper · V6.0 深度评审与全量完善版          8 / 41
+            7.2　语音链路安全与合规
+             合规项      实施方案                                                       开发成本
+             不落盘      麦克风音量包络实时计算后丢弃原始 PCM；声纹事件仅含 {音量, 位置, 类型}                   已内建于 V5 §4.3
+             不对传      语音流走 Photon Voice 端到端加密，服务器不存录音                            已内建
+             屏蔽       对局内长按玩家头像 → 屏蔽语音；本局及此后不再听见该玩家                              UI 开发 4h
+             举报       结算页「举报」入口 → 选择类别（辱骂/外挂/其他）；上报玩家 ID + 局 ID                  UI 开发 2h
+             家长控制 设置页「家长控制」：未成年声明账号默认关闭陌生人语音；仅可加入好友房间 UI 开发 6h
+             IARC 申报  勾选「用户互动」「恐怖主题」；不勾选「血腥/性」；申报 Teen 档                         0h（文档工作）
+            7.3　Photon 免费档溢出预案（V5 §4.8 扩展）
+            Photon 免费档 100 CCU 是全局峰值，「破圈日」排队将直接杀死口碑。M2 阶段必须实现溢出感知
+            UI：
+            · 当 CCU 接近阈值（>90）时，主菜单显示「当前服务器繁忙，匹配时间可能延长」；
+            · 超过阈值时，匹配按钮置灰，提示「排队中……预计等待 X 分钟」，并提供「加入社区 Discord 获
+               取实时状态」链接；
+            · 若排队 >5 分钟，赠送免费房主一次「优先匹配券」（可立即建房），补偿体验。
+            此预案本身不解决容量问题，但把「被拒入」转化为「被等待 + 被补偿」，极大降低差评率。
+              8　发行与运营改进
+            8.1　双通道 M0 内测（解决样本量问题）
+             轮次              人数               目标               渠道               关键动作
+             定性轮             8~12 人           观察尖叫、            蒲公英 + 开发者好友 开发者旁观录像 + 访
+                                              laughter、混乱时                      谈
+                                              刻；发现 P0 级体验
+                                              断层
+             定量轮             30~50 人          问卷指标达到统计意 蒲公英扩大 +                 问卷 ≥3.5 且通过率
+                                              义；触控 / 恐惧 / 无    TapTap 论坛招募      ≥70%
+                                              麦 三项基线
+            无麦玩家配额：两组合计无麦玩家 ≥30%，否则样本不具代表性。
+                                       Project Whisper · V6.0 深度评审与全量完善版                     9 / 41
+         8.2　Discord / TapTap 社区最小可行运营
+         V5 提及社区但未定义人力。B/C 档建议每周投入 6~8 小时：
+          · 周一：收集上周崩溃日志 Top5，发技术周报；
+          · 周三：发布「开发者低语」短视频（15~30 秒，恐怖氛围剪辑 + 开发进度）；
+          · 周五：举办「尖叫星期五」——邀请社区玩家提交对局录像，开发者精选剪辑并回赠外观码；
+          · 随时：TapTap 论坛回复率 24h 内 ≥80%。
+           A 档建议：将上述工作折算为「每两周 4 小时」，重点放在崩溃日志回
+           复与关键帖维护。
+                              Project Whisper · V6.0 深度评审与全量完善版        10 / 41
+           第三部分　技术构建实现全案（V6.0 新增）
+             本部分为 V5.0 原有技术方案（第 4 章）的「可执行实现层」——给出可直接落地的模块边界、接口定义、关
+             键伪代码与工具链配置。未列出的基础 Unity/Photon 教程内容默认开发者已掌握。
+             9　工程骨架与模块边界
+           9.1　Assembly Definition（ASMDEF）划分
+           沿用 V5 §4.5 的六模块设计，V6.0 细化依赖方向与命名空间：
+             Core         → 无外部依赖（.asmdef 中不勾选任何引用）
+             Gameplay     → 依赖 Core
+             Net          → 依赖 Core + Gameplay
+             Audio        → 依赖 Core
+             UI           → 依赖 Core + Gameplay + Audio + Net
+             Analytics    → 依赖 Core
+           禁止循环依赖：Net 不得引用 UI；Gameplay 不得引用 Net。跨模块通信统一走  EventBus<T>（见
+           §9.2）。
+           9.2　事件总线（EventBus）实现
+           所有模块间解耦通信使用类型安全的事件总线，避免直接引用。
+                                    Project Whisper · V6.0 深度评审与全量完善版                 11 / 41
+          // Core/EventBus.cs
+          using System;
+          using System.Collections.Generic;
+          namespace Whisper.Core
+          {
+             public static class EventBus<T> where T : IGameEvent
+              {
+               private static readonly List<Action<T>> _listeners = new();
+               public static void Subscribe(Action<T> listener)
+                  {
+                 if (!_listeners.Contains(listener)) _listeners.Add(listener);
+                  }
+               public static void Unsubscribe(Action<T> listener) => _listeners.Remove(listener);
+               public static void Publish(T evt)
+                  {
+                 // 快照遍历防止迭代时增删
+                 var snapshot = _listeners.ToArray();
+                 foreach (var l in snapshot) l?.Invoke(evt);
+                  }
+              }
+             public interface IGameEvent { }
+          }
+         关键事件定义：
+                             Project Whisper · V6.0 深度评审与全量完善版       12 / 41
+          // Gameplay/Events/GameplayEvents.cs
+          namespace Whisper.Gameplay.Events
+          {
+             public readonly struct StimulusEvent : IGameEvent
+              {
+               public readonly Vector3 Position;
+               public readonly float Intensity;   // 0~100
+               public readonly StimulusType Type; // Voice / Footstep / Action / Device
+               public readonly int PlayerId;
+              }
+             public readonly struct SanityChangedEvent : IGameEvent
+              {
+               public readonly int PlayerId;
+               public readonly float NewValue;    // 0~100
+               public readonly float Delta;
+               public readonly SanityChangeSource Source;
+              }
+             public readonly struct MonsterStateChangedEvent : IGameEvent
+              {
+               public readonly string MonsterId;
+               public readonly MonsterState OldState;
+               public readonly MonsterState NewState;
+              }
+          }
+         9.3　配置表管线
+         所有数值驱动配置统一用   ScriptableObject   序列化，支持运行时热重载（开发调试用）与
+         Addressables 远程更新（线上热更）。
+                             Project Whisper · V6.0 深度评审与全量完善版       13 / 41
+            // Core/Config/GameConfig.cs
+            [CreateAssetMenu(fileName = "GameConfig", menuName = "Whisper/GameConfig")]
+            public class GameConfig : ScriptableObject
+            {
+                [Header("Sanity")]
+              public float sanityDarkDecay = 1.0f;      // 黑暗每秒 -1
+              public float sanityMonsterGaze = 8.0f;    // 直视怪物每秒 -8
+              public float sanityTeammateDeath = 15.0f;
+              public float sanityJumpscare = 10.0f;
+              public float sanitySafeZoneRecover = 2.0f;
+                [Header("Stimulus")]
+              public StimulusEntry[] stimulusTable;     // 声纹强度与感知半径
+                [Header("Monster")]
+              public MonsterConfigEntry[] monsterTable;
+            }
+            [System.Serializable]
+            public struct StimulusEntry
+            {
+              public StimulusType type;
+              public float intensity;
+              public float radius;
+              public string animationTrigger;
+            }
+          开发期调参面板：AI 生成 Unity Editor 工具脚本，在 Play Mode 下实时修改 ScriptableObject 字段并
+          即时生效（通过 OnValidate 触发事件）。
+            10　网络同步实现
+          10.1　Photon Fusion 集成要点
+          · 网络拓扑：Shared Mode（Host = 房主客户端，无专用服务器）。Shared Mode 的 Host 拥有 
+             Object.HasStateAuthority ，其他客户端为  Proxy 。
+          · Tick Rate：固定 60 Tick/s；网络同步以每 3 Tick（50ms）为一批发送。
+          · 带宽预算：每房间 4 人，下行 ≤12KB/s、上行 ≤6KB/s（以 Photon 免费档消息量无限制为前
+            提，仅受 CCU 约束）。
+                                Project Whisper · V6.0 深度评审与全量完善版            14 / 41
+          10.2　关键网络对象定义
+            // Net/Player/NetworkPlayer.cs
+            using Fusion;
+            using Whisper.Gameplay.Events;
+            using Whisper.Core;
+            namespace Whisper.Net.Player
+            {
+               public class NetworkPlayer : NetworkBehaviour
+                {
+                    [Networked] public Vector3 NetworkPosition { get; set; }
+                    [Networked] public float NetworkSanity { get; set; }
+                    [Networked] public int EvidenceCount { get; set; }
+                    [Networked] public PlayerInputData Input { get; set; }
+                  // 位置由 Host 做权威校验后广播
+                  public override void FixedUpdateNetwork()
+                    {
+                    if (Object.HasStateAuthority)
+                        {
+                       // Host 端：应用移动输入 + 速度校验
+                       var predicted = NetworkPosition + Input.MoveDelta;
+                       if (IsPositionValid(predicted))
+                                NetworkPosition = predicted;
+                        }
+                    else
+                        {
+                       // 客户端：本地预测 + 插值平滑
+                            transform.position = Vector3.Lerp(transform.position, NetworkPosition, 
+                   Runner.DeltaTime * 10f);
+                        }
+                    }
+                  private bool IsPositionValid(Vector3 pos)
+                    {
+                    var maxDelta = GameConfig.Current.maxMoveSpeed * 1.2f * Runner.DeltaTime;
+                    return Vector3.Distance(NetworkPosition, pos) <= maxDelta;
+                    }
+                }
+            }
+          10.3　声纹事件的网络同步
+          声纹事件为瞬时 RPC，不走状态同步（状态同步每 50ms 一批，对声纹延迟过高）。
+                                  Project Whisper · V6.0 深度评审与全量完善版              15 / 41
+            // Net/Audio/StimulusRpc.cs
+            using Fusion;
+            namespace Whisper.Net.Audio
+            {
+               public class StimulusRpc : NetworkBehaviour
+                {
+                    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+                  public void RPC_ReportStimulus(Vector3 pos, float intensity, StimulusType type, int playerId)
+                    {
+                    // Host 端权威处理：写入 AI 行为树黑板
+                        EventBus<StimulusEvent>.Publish(new StimulusEvent(pos, intensity, type, playerId));
+                    }
+                }
+            }
+          10.4　断线重连快照序列化
+            // Net/Snapshot/GameSnapshot.cs
+            using MemoryPack; // 高性能序列化库（开源 MIT）
+            namespace Whisper.Net.Snapshot
+            {
+                [MemoryPackable]
+               public partial class GameSnapshot
+                {
+                  public int Tick;
+                  public byte[] WorldHash; // SHA256(GameState)
+                  public PlayerSnapshot[] Players;
+                  public MonsterSnapshot[] Monsters;
+                  public DoorState[] Doors;
+                  public string[] ActiveDynamicEvents;
+                  public int HostPlayerId;
+                }
+                [MemoryPackable]
+               public partial class PlayerSnapshot
+                {
+                  public int PlayerId;
+                  public Vector3 Position;
+                  public float Sanity;
+                  public int[] InventoryItemIds;
+                  public int[] CollectedEvidenceIds;
+                  public bool IsAlive;
+                }
+            }
+                                  Project Whisper · V6.0 深度评审与全量完善版              16 / 41
+           序列化后大小估算：4 人房 + 2 怪 + 20 门 ≈ 2.8KB（MemoryPack 二进制），Photon Room
+           Properties 单值上限 32KB，完全够用。TTL 设 120 秒，覆盖 90 秒重连窗口。
+           10.5　Host 迁移实现
+             // Net/HostMigration.cs
+             public class HostMigrationController : NetworkBehaviour
+             {
+                // 当 Host 断开时，Fusion 自动触发此回调
+                public override void HostMigration(NetworkRunner runner, HostMigrationToken token)
+                 {
+                   if (token.IsNewHost)
+                     {
+                      // 新 Host：从 Room Properties 读取最新快照并反序列化
+                      if (runner.SessionInfo.Properties.TryGetValue("snapshot", out var snapData))
+                         {
+                        var snapshot = MemoryPackSerializer.Deserialize<GameSnapshot>(snapData);
+                             WorldRebuilder.RebuildFrom(snapshot);
+                         }
+                      // 广播 Host 变更事件，UI 显示 "信号干扰" 2 秒
+                         EventBus<HostChangedEvent>.Publish(new HostChangedEvent());
+                     }
+                 }
+             }
+             11　怪物 AI 行为树实现
+           11.1　行为树框架选型
+           推荐 NPBehave（MIT 开源，C# 实现，轻量无反射）或自研简化版。以下给出自研简化版核心结构，
+           避免第三方库锁定。
+                                    Project Whisper · V6.0 深度评审与全量完善版                 17 / 41
+             // Gameplay/AI/BehaviorTree.cs
+             namespace Whisper.Gameplay.AI
+             {
+                public abstract class BTNode
+                 {
+                   public enum Status { Running, Success, Failure }
+                   public abstract Status Tick(Blackboard bb, float deltaTime);
+                   public virtual void OnEnter(Blackboard bb) { }
+                   public virtual void OnExit(Blackboard bb) { }
+                 }
+                public class Selector : BTNode // 顺序执行子节点，直到一个 Success
+                 {
+                   private readonly BTNode[] _children;
+                   private int _current;
+                   public Selector(params BTNode[] children) => _children = children;
+                   public override Status Tick(Blackboard bb, float deltaTime)
+                     {
+                      for (; _current < _children.Length; _current++)
+                         {
+                        var s = _children[_current].Tick(bb, deltaTime);
+                        if (s == Status.Running) return Status.Running;
+                        if (s == Status.Success) { _current = 0; return Status.Success; }
+                        // Failure → 继续下一个
+                         }
+                         _current = 0;
+                      return Status.Failure;
+                     }
+                 }
+                public class Sequence : BTNode // 顺序执行子节点，直到一个 Failure
+                 {
+                   // 实现类似 Selector，逻辑取反
+                 }
+             }
+                                    Project Whisper · V6.0 深度评审与全量完善版                 18 / 41
+        11.2　四主干行为树结构
+          Root (Selector)
+          ├── Berserk (Priority: 终局狂暴)
+          │   └── Condition: GamePhase == Escape && Within 60s
+          │   └── Action: SetSpeed(+40%) + IgnoreDoors + LockEscapePaths
+          ├── Chase (Priority: 追逐)
+          │   └── Sequence
+          │       ├── Condition: HasVisualTarget || (HasAuditoryTarget && Distance < 8m)
+          │       ├── Action: MoveTo(TargetPosition, Speed * 1.6)
+          │       └── Condition: LostTargetForSeconds > 12 → Return to Patrol
+          ├── Investigate (Priority: 调查)
+          │   └── Sequence
+          │       ├── Condition: LastStimulus.Age < 8s
+          │       ├── Action: MoveTo(LastStimulus.Position, Speed)
+          │       └── Action: Wait(3s) + ScanArea
+          └── Patrol (Priority: 休眠巡逻)
+              └── Action: PatrolWaypointLoop
+        11.3　听觉刺激黑板（Blackboard）
+          // Gameplay/AI/Blackboard.cs
+          public class Blackboard
+          {
+            public Stimulus LastStimulus;
+            public float LostTargetTimer;
+            public Vector3 CurrentDestination;
+            public MonsterState CurrentState;
+            public float CurrentSpeed;
+            // 每帧由 Host 端更新
+            public void UpdateStimulus(StimulusEvent evt)
+              {
+              var dist = Vector3.Distance(MonsterPosition, evt.Position);
+              var hearRadius = GetHearRadius(evt.Type, evt.Intensity);
+              if (dist <= hearRadius)
+                  {
+                      LastStimulus = new Stimulus(evt.Position, evt.Intensity, evt.Type, Time.time);
+                      LostTargetTimer = 0;
+                  }
+              }
+          }
+                           Project Whisper · V6.0 深度评审与全量完善版     19 / 41
+           11.4　NavMesh 局部重烘焙
+           门锁变动导致路径阻断时，调用 NavMeshBuilder.UpdateNavMeshDataAsync 对受影响 Tile 局部更新（而非全
+           局重建）。烘焙区域半径设为 15 米，确保怪物在调查/追逐范围内的路径实时有效。低端机限制：同
+           屏 ≤2 怪（V5 §4.4），NavMesh Agent 数同步限制。
+            12　语音与声纹系统实现
+           12.1　Photon Voice 集成链路
+             麦克风 → Photon Voice Recorder (AEC enabled)
+                     → Photon Voice Speaker (Spatial Audio: distance attenuation)
+                     → 本地音量检测回调 → StimulusEvent 生成 → RPC → Host AI
+           关键配置： -  Recorder.VoiceDetection   =   true ，阈值设为   -35dB（区分耳语与正常说话）；   -
+           Recorder.VoiceDetectionDelayMs = 500 （避免气音误触发）； - Speaker 端按距离衰减：≤4m 100% 音
+           量，4~15m 线性衰减至 20%，>15m 不可闻（与声纹感知半径解耦——声纹是 AI 的「听觉」，语音是
+           玩家的「听觉」）。
+           12.2　音量分层与声纹强度映射
+             // Audio/Voice/StimulusGenerator.cs
+             public class StimulusGenerator : MonoBehaviour
+             {
+               public void OnPhotonVoiceVolumeChanged(float volumeDb, Vector3 speakerPos, int playerId)
+                 {
+                  // volumeDb 通常为负值，-60 ~ 0
+                  float intensity = 0;
+                  if (volumeDb < -45f)      intensity = 10f;  // 耳语
+                  else if (volumeDb < -25f) intensity = 35f;  // 正常说话
+                  else                      intensity = 80f;  // 喊叫
+                  var radius = GameConfig.Current.GetStimulusRadius(intensity);
+                  // 生成声纹事件（本地预测 + RPC 上报）
+                     EventBus<StimulusEvent>.Publish(new StimulusEvent(speakerPos, intensity, StimulusType.Voice, 
+                    playerId));
+                     _stimulusRpc.RPC_ReportStimulus(speakerPos, intensity, StimulusType.Voice, playerId);
+                 }
+             }
+                                   Project Whisper · V6.0 深度评审与全量完善版               20 / 41
+               12.3　快捷喊话轮盘声纹模拟
+               轮盘选择后，本地立即播放 TTS 合成音频（人格包音色），同时向所有玩家广播预设  StimulusEvent
+               （强度/半径由人格包配置决定）。无麦玩家的声纹在规则层面与语音玩家完全等价。
+                  13　UI 前端技术架构
+               13.1　UI 分层与职责
+                 层级      职责                          技术选型                         说明
+                 数据      玩家状态、对局阶段、配                 ScriptableObject +           纯数据，无视图引用
+                 层       置表                          EventBus
+                 逻辑      页面状态机、动画触发条                 自研 UIPageController          每个页面对应一个 FiniteStateMachine
+                 层       件
+                 视图      Canvas、控件、粒子特效              Unity uGUI + UGUI            不直接读取 Gameplay 数据，只监听数据层
+                 层                                   Extended                     事件
+               13.2　UGUI 性能基线（Android 中端机）
+                · Canvas 合并：静态 UI（菜单、设置）使用 Screen Space - Overlay + 独立 Canvas；动态 HUD 使
+                   用 Screen Space - Camera + 单个 Canvas（减少 Draw Call）；
+                · Mask 限制：不使用 Mask 组件（每 Mask 增加 2 Draw Call），改用 RectMask2D（无额外 Draw
+                   Call，仅矩形裁剪）；
+                · Overdraw：HUD 半透明面板使用 9-slice 图，避免大面积纯色半透明填充；
+                · 目标：中端机（骁龙 765G / 天玑 800）UI 渲染耗时 ≤2ms/帧。
+               13.3　输入系统配置
+               使用 Unity Input System（Package Manager 内置）而非旧版 Input Manager。
+                                                  Project Whisper · V6.0 深度评审与全量完善版                                      21 / 41
+            // UI/Input/WhisperInputActions.inputactions
+            {
+               "name": "WhisperInput",
+               "maps": [
+                    {
+                    "name": "Gameplay",
+                    "actions": [
+                            { "name": "Move", "type": "Value", "expectedControlType": "Vector2" },
+                            { "name": "Look", "type": "Value", "expectedControlType": "Vector2" },
+                            { "name": "Interact", "type": "Button" },
+                            { "name": "Crouch", "type": "Button" },
+                            { "name": "Sprint", "type": "Button" },
+                            { "name": "PushToTalk", "type": "Button" },
+                            { "name": "QuickChat", "type": "Button" }
+                        ]
+                    }
+                ]
+            }
+          移动端绑定： - Move → 左摇杆（On-Screen Stick，死区 0.15）； - Look → 右半屏 Touch Delta（灵
+          敏度 0.8，支持陀螺仪叠加）； - Interact/Crouch/Sprint → 右侧固定按钮（距边缘 ≥16dp，防误
+          触）； - PushToTalk → 左下按住说话（上滑一键静默）； - QuickChat → 左下双击展开八向轮盘（时
+          停 0.3 秒，不暂停游戏）。
+          13.4　屏幕适配策略
+           · 安全区（Safe Area）：所有交互按钮必须位于 Screen.safeArea 内，Notch/挖孔区域仅放置纯信息
+             （如时间、信号状态）；
+           · 参考分辨率：1920×1080（16:9），对 20:9 长屏扩展两侧背景图，对 18:9 标准屏正常显示；
+           · 密度独立：UI 尺寸以 dp（密度无关像素）为单位，换算公式：px = dp * (Screen.dpi / 160)；按钮
+             最小触控区域 48dp × 48dp。
+                                  Project Whisper · V6.0 深度评审与全量完善版             22 / 41
+          14　构建与 CI/CD 配置
+        14.1　GameCI 工作流（精简版）
+          # .github/workflows/build.yml
+          name: Build APK
+          on:
+           push:
+            branches: [main, develop]
+           schedule:
+            - cron: '0 2 * * *'  # 每日凌晨 2 点定时构建
+          jobs:
+           build:
+            runs-on: ubuntu-latest
+            steps:
+             - uses: actions/checkout@v4
+              with:
+               lfs: true
+             - uses: game-ci/unity-builder@v4
+              with:
+               targetPlatform: Android
+               androidAppBundle: false
+               androidKeystoreName: whisper-upload.keystore
+               androidKeystoreBase64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+               androidKeystorePass: ${{ secrets.UPLOAD_KEYSTORE_PASS }}
+               androidKeyaliasName: whisper
+               androidKeyaliasPass: ${{ secrets.UPLOAD_KEY_PASS }}
+             - uses: actions/upload-artifact@v4
+              with:
+               name: APK-${{ github.run_number }}
+               path: build/Android/*.apk
+             - name: Upload to Firebase App Distribution
+              uses: wzieba/Firebase-Distribution-Github-Action@v1
+              with:
+               appId: ${{ secrets.FIREBASE_APP_ID }}
+               serviceCredentialsFileContent: ${{ secrets.FIREBASE_CREDENTIALS }}
+               groups: internal-testers
+               file: build/Android/*.apk
+                           Project Whisper · V6.0 深度评审与全量完善版     23 / 41
+           14.2　AAB 构建与 Play Asset Delivery
+             # .github/workflows/release.yml（tag 触发）
+             name: Release AAB
+             on:
+              push:
+                tags: ['v*']
+             jobs:
+              release:
+                runs-on: ubuntu-latest
+                steps:
+                 - uses: actions/checkout@v4
+                 - uses: game-ci/unity-builder@v4
+                   with:
+                    targetPlatform: Android
+                    androidAppBundle: true
+                       # install-time 基础包：引擎 + 首关 + 基础资源
+                       # on-demand 包：第二张地图资源（Addressables 分组）
+                 - name: Upload AAB to Play Console
+                     run: |
+                       # 使用 fastlane supply 或 Google Play Developer API 上传
+           Asset Delivery 分组： | 组名 | 大小 | 交付时机 | 内容 | |—|—|—|—| | install_time_core | ~180MB | 安装
+           时 | Unity 引擎 + 疗养院 + 基础怪物/音频/UI | | fast_follow_maps | ~80MB | 首次启动后 Wi-Fi 下后台
+           下载 | 矿区宿舍 | | on_demand_skins | ~20MB | 按需 | 外观 DLC |
+                                    Project Whisper · V6.0 深度评审与全量完善版                 24 / 41
+            15　数据埋点实现
+           15.1　Firebase Analytics 集成
+             // Analytics/FirebaseAnalyticsService.cs
+             using Firebase.Analytics;
+             namespace Whisper.Analytics
+             {
+               public static class AnalyticsService
+                 {
+                  public static void LogEvent(string name, params Parameter[] parameters)
+                     {
+                     #if !UNITY_EDITOR
+                         FirebaseAnalytics.LogEvent(name, parameters);
+                     #else
+                         UnityEngine.Debug.Log($"[Analytics] {name}: {string.Join(", ", parameters.Select(p => 
+                   $"{p.Name}={p.Value}"))}");
+                     #endif
+                     }
+                  public static void LogFearMoment(Vector3 pos, string source, float sessionTime)
+                     {
+                     LogEvent("fear_moment",
+                       new Parameter("pos_x", pos.x),
+                       new Parameter("pos_y", pos.y),
+                       new Parameter("source", source),
+                       new Parameter("session_time", sessionTime));
+                     }
+                 }
+             }
+           15.2　远程配置（Remote Config）
+           用于线上热调参而不发版： -  monster_speed_multiplier：默认 1.0，紧急热修可调整为 0.9~1.1； -
+           daily_free_room_limit ：默认 1（§6.2 免费房主），活动期间可调为 3； - event_pool_enabled：动态事
+           件总开关，若某事件引发崩溃可远程关闭。
+             // Core/Config/RemoteConfig.cs
+             public static class RemoteConfig
+             {
+               public static float MonsterSpeedMultiplier =>
+                     Firebase.RemoteConfig.FirebaseRemoteConfig.DefaultInstance.GetValue("monster_speed_multiplier").DoubleValue;
+             }
+                                   Project Whisper · V6.0 深度评审与全量完善版               25 / 41
+               16　测试策略
+             16.1　自动化测试分层
+              层级        工具                             覆盖内容                               频率
+              单元测试 Unity Test Framework (Edit Mode)    EventBus、Blackboard、配置表解析          每次 Push
+              集成测试 Unity Test Framework (Play Mode)    声纹 → AI 行为树全链路、断线重连模拟              每次 Push
+              真机冒烟 Firebase Test Lab + 自有设备            启动时间、内存、发热、帧率                      每日构建后
+              性能基准 Unity Profiler + Frame Debugger     渲染耗时、Draw Call、内存峰值                M1/M2 里程碑
+             16.2　关键集成测试用例（AI 生成 + 人类审查）
+               // Tests/PlayMode/StimulusToAIIntegrationTest.cs
+               [UnityTest]
+               public IEnumerator Stimulus_Triggers_Investigate_State()
+               {
+                  var monster = SpawnMonster("低语者");
+                  var player = SpawnPlayerAt(Vector3.zero);
+                  // 模拟玩家喊叫（强度 80）
+                   EventBus<StimulusEvent>.Publish(
+                      new StimulusEvent(player.transform.position, 80f, StimulusType.Voice, player.PlayerId));
+                  yield return new WaitForSeconds(0.5f); // RPC + 行为树 Tick
+                   Assert.AreEqual(MonsterState.Investigate, monster.Blackboard.CurrentState);
+                   Assert.That(monster.Blackboard.LastStimulus.Intensity, Is.EqualTo(80f).Within(0.1f));
+               }
+                                          Project Whisper · V6.0 深度评审与全量完善版                         26 / 41
+           第四部分　前端设计全案（V6.0 新增）
+             本部分为视觉与交互层面的完整设计规范，覆盖设计哲学、设计系统 Token、HUD、菜单、移动端手势与
+             特效。所有设计决策以「不破坏恐怖沉浸感」为最高优先级，功能性   UI   尽量在美学上「世界化」
+             （diegetic）——即 UI 元素被解释为游戏世界内的物体或现象。
+            17　设计哲学与支柱
+           17.1　三根体验支柱的 UI 翻译
+           支柱         设计策略                 具体手法
+           被倾听的恐惧 音量即可见威胁                  音量环 UI 只在危险时出现；平时隐藏，降低 HUD clutter
+           协作的必要性 队友状态必须「在余光中可感 队友方位指示器用极简色点 + 距离数字；避免全屏地图
+                      知」
+           失控边缘的挣 理智下降时 UI 本身开始「故          低理智阶段 HUD 出现噪点、错位、色偏；玩家意识到「连界面都
+           扎          障」                   在崩坏」
+           17.2　信息层级（战斗时注意力分配）
+             Layer 0 —— 致命信息（必须 0.1 秒内读取）
+               怪物仇恨闪烁（全屏边缘泛红）
+               撤离倒计时（屏幕中央大字，最后 10 秒出现）
+             Layer 1 —— 战术信息（必须 0.5 秒内读取）
+               队友方位点 + 距离
+               自身理智值（环形进度条，位置固定于左上角）
+               快捷喊话轮盘（八向图标）
+             Layer 2 —— 状态信息（可扫视，不紧急）
+               手电电量（手电图标 + 细条）
+               道具栏（3 格图标）
+               当前证据计数
+             Layer 3 —— 环境信息（沉浸层，可忽略）
+               环境光变化
+               雾气浓度
+               镜头畸变
+                                   Project Whisper · V6.0 深度评审与全量完善版               27 / 41
+                  18　设计系统 Token
+               18.1　色彩系统
+               主题定位「腐烂档案」——以医疗档案的泛黄色为基底，以血液氧化后的暗红为危险色，以霉菌绿为诡
+               异提示色。
+                 Token                      Hex               使用场景                                     情绪
+                  color-paper                #F0E6D2          菜单背景、档案残页                                陈旧、可信
+                  color-ink                  #1A1A1A          主文字                                      沉重
+                  color-faded                #8C7E66          次级文字、禁用态                                 遗忘
+                  color-blood                #8B1E1E          危险、怪物仇恨、死亡                               暴力
+                  color-warning              #C46A1A          中危提示（理智 <50）                             焦躁
+                  color-ghost                #5C8C6E          幽灵形态、档案解锁提示                              诡异、超自然
+                  color-dark                 #0D0D0D          背景遮罩、边缘晕影                                深渊
+               低理智色偏（Post-Processing 叠加）： - 理智 25~49：全局色温 +15（偏黄），对比度 -10%，暗角
+               强度 0.4； - 理智 1~24：色温 +30，对比度 -20%，暗角 0.6，边缘出现 2% 随机 RGB 错位
+               （chromatic aberration）； - 理智 0：全屏短暂血红 0.5 秒 → 恢复至理智 25 状态。
+               18.2　字体系统
+                 Token             字体                                  字号 字重                用途
+                  font-display     Noto Serif SC / Playfair Display    48sp    Bold         标题、结算大数字
+                  font-heading     Noto Sans SC                        24sp    SemiBold     页面标题、按钮
+                  font-body        Noto Sans SC                        16sp    Regular      正文、描述
+                  font-mono        JetBrains Mono / Roboto Mono        14sp    Regular      档案残页打字机效果、调试面板
+                  font-hud         Noto Sans SC                        12sp    Medium       HUD 数字、距离
+               低理智字体效果：理智 <25 时，正文字体随机出现 1~2 个字符错位（Y 轴偏移 2~4px），模拟阅读障
+               碍。
+                                                   Project Whisper · V6.0 深度评审与全量完善版                                      28 / 41
+               18.3　间距与形状
+                 Token                值            说明
+                  space-xs            4dp          图标内边距
+                  space-sm            8dp          紧凑列表项间距
+                  space-md            16dp         标准卡片内边距
+                  space-lg            24dp         页面级边距
+                  radius-sm           2dp          按钮、输入框（直角为主，微圆角降低锐利感）
+                  radius-md           4dp          卡片、弹窗
+               18.4　动效 Token
+                 Token                    值                                            用途
+                  ease-horror             cubic-bezier(0.22, 1, 0.36, 1)               菜单进入（慢启动、快收尾 = 不安感）
+                  ease-shock              cubic-bezier(0.68, -0.55, 0.265, 1.55)       跳吓 UI 弹跳（过冲 = 生理惊吓）
+                  duration-instant        80ms                                         按钮按下反馈
+                  duration-fast           200ms                                        页面切换、弹窗出现
+                  duration-slow           800ms                                        结算页数字滚动、档案翻页
+                  duration-atmosphere     4000ms                                       背景图轻微漂移、雾气流动
+                  19　HUD 设计规范
+               19.1　布局总览（16:9 基准，自适应 20:9）
+                  ┌──────────────────────────────────────────┐
+                  │ [理智环]  [队友点×3]              [电量]  │  ← 顶部安全区，距顶 24dp
+                  │                                          │
+                  │                                          │
+                  │            （游戏世界 —— 无 HUD）          │
+                  │                                          │
+                  │                                          │
+                  │  [PTT]  [轮盘]        [互动] [蹲] [冲]   │  ← 底部交互区，距底 24dp
+                  │                                          │
+                  └──────────────────────────────────────────┘
+                                                   Project Whisper · V6.0 深度评审与全量完善版                                      29 / 41
+          19.2　理智环（Sanity Ring）
+           · 位置：左上角，距边缘 16dp，直径 56dp；
+           · 常态：细环（2dp 描边），填充色按理智区间渐变（100 = color-paper，50 = color-warning，0 = 
+             color-blood ）；
+           · 变化时：数字放大 1.3 倍 + 200ms 弹跳（ease-shock），颜色闪烁一次；
+           · 低理智：环本身开始轻微抖动（振幅 1dp，频率 4Hz），暗示玩家界面也在失控。
+          19.3　队友方位指示器
+           · 表现形式：屏幕边缘色点 + 距离数字（m）；
+           · 颜色：存活 = color-paper（微发光），死亡/幽灵 = color-ghost；
+           · 动态：队友移动时色点平滑滑动（非跳跃），距离数字实时更新；
+           · 语音活跃：色点外圈出现 1 秒声纹波纹（与玩家语音音量关联），提示「他在那个方向说话」。
+          19.4　音量环（Volume Ring）
+           · 触发条件：玩家麦克风检测到音量 > -50dB，或轮盘喊话播放中；
+           · 位置：玩家角色脚下（世界空间 UI，非屏幕空间），仅在玩家自身视角可见；
+           · 视觉：同心圆扩散波纹，强度映射颜色（绿 → 黄 → 红），半径映射感知距离；
+           · 设计意图：让玩家「看见自己的声音」，建立「音量 = 风险」的直觉。
+          19.5　快捷喊话轮盘
+           · 触发：双击左下 QuickChat 按钮，或双指捏合手势（右手持机时拇指可及）；
+           · 时停：展开过程游戏时间流逝降至 30%（非完全暂停，保持紧张感），展开耗时 300ms；
+           · 布局：八向扇形，每扇 45°，图标 + 文字标签；
+           · 选中：手指滑入扇形区域高亮，松手发出；手指滑出轮盘范围取消；
+           · 人格包切换：轮盘中心小头像，长按切换已解锁人格。
+          19.6　死亡与幽灵 HUD
+           · 死亡瞬间：屏幕边缘血红晕染 1 秒 → 全屏降饱和度 80% → 世界变灰；
+           · 幽灵形态： 
+             ◦ 自身轮廓半透明（50% opacity），带微弱 color-ghost 描边；
+             ◦ 可交互按钮变为「低语干扰」（冷却 30 秒）；
+             ◦ 怪物位置以微弱脉冲红点提示（仅限幽灵玩家，辅助存活队友）。
+                                 Project Whisper · V6.0 深度评审与全量完善版            30 / 41
+           20　菜单与结算页设计
+         20.1　主菜单（Main Menu）
+         视觉结构： - 背景：疗养院走廊动态模糊视频（Unity VideoPlayer 循环播放，亮度压低至 15%）； -
+         中央：竖排按钮列（开始匹配 / 创建房间 / 档案 / 设置 / 退出）； - 按钮样式：透明底 + color-paper 文
+         字，Hover/Press 时底部出现不规则墨渍扩散（自定义 Shader：基于噪声图的 Alpha 遮罩）； - 音
+         效：按钮 Hover 播放极低音量纸张摩擦声（ASMR 质感）。
+         房间创建流程：
+           主菜单 → 创建房间 → 选择地图（疗养院/矿区） → 选择词条（默认/自定义） → 生成房间码 → 等待界面（显示
+           房间码大字 + 复制按钮 + 好友邀请）
+         20.2　对局内暂停菜单
+          · 触发：系统返回键 / 屏幕顶部边缘下滑；
+          · 视觉：不冻结游戏世界，而是在画面中央叠加一张「泛黄的病历纸」（世界化 UI），纸上列出选
+            项（继续 / 设置 / 退出房间）；
+          · 恐怖约束：暂停时环境音继续播放，怪物不会停止巡逻——提醒玩家「这里没有真正的暂停」。
+         20.3　结算页（Escape / Death）
+         撤离成功： - 中央大字「幸存」，字体 font-display，颜色 color-paper； - 下方数字滚动：证据 × 200
+         + 存活队友 × 150 + 效率分 + 深处加成； - 底部横向卡片：本局收集的档案残页缩略图（未收集的显示
+         为问号剪影）； - 分享按钮：一键生成本局数据长图（含房间码、词条组合、恐惧时刻截图位），适
+         配抖音/朋友圈 9:16。
+         全员死亡： - 中央大字「沉寂」，颜色 color-faded； - 死亡归因：「缝匠在走廊听见了你的奔跑」
+         （精确到行为）； - 提示：「你的证据损失了 50%，但档案残页已保存」； - 幽灵形态回顾：播放死
+         亡前 5 秒延迟回放（玩家可拖动时间轴复盘）。
+           21　移动端触控与手势规范
+         21.1　触控热区与防误触
+          元素     最小热区          边缘距离 防误触策略
+          摇杆     120dp × 120dp 左下     首次触摸 80ms 内不响应，确认意图后再激活
+                               16dp
+                               Project Whisper · V6.0 深度评审与全量完善版         31 / 41
+          元素     最小热区           边缘距离 防误触策略
+          交互键    64dp × 64dp    右下     按压 120ms 后触发（防止奔跑中误触）
+                                16dp
+          PTT 键  72dp × 72dp    左下     上滑 40dp 触发「一键静默」；静默状态视觉反馈（键变灰 + 锁图
+                                16dp   标）
+          轮盘展    双击区域 80dp ×    同 PTT  双击间隔 ≤300ms；误触率目标 <5%
+          开      80dp
+          21.2　陀螺仪辅助瞄准
+          · 默认关闭（V5 已确定，防止 3D 眩晕）；
+          · 开启后：陀螺仪仅影响视角 Yaw（水平）±15° 微修正，Pitch 不变；灵敏度 0.3；死区 2°；
+          · UI 提示：首次开启时屏幕中央出现 3 秒引导线：「倾斜手机微调方向」。
+          21.3　系统手势冲突处理
+          系统手势                   冲突场景                  解决方案
+          Android 返回键            误触退出                  首次返回弹出「再按一次退出房间」
+                                                       确认；对局中返回 = 暂停菜单
+          底部导航条上滑                误触影响摇杆                游戏运行时请求 
+                                                       WindowInsets.Type.navigationBars()
+                                                       隐藏；或设置 Immersive Mode
+          顶部状态栏下拉                误触展开通知                同上，全屏沉浸；或顶部 24dp 区域
+                                                       不设交互
+          三指截屏                   误触发轮盘                 忽略——截屏对游戏无害
+           22　视觉特效与氛围设计
+          22.1　Post-Processing Stack（URP）
+          特效             参数                     用途
+          Bloom          强度 0.8，阈值 0.6          手电光晕、安全区微光
+          Vignette       强度 0.4~0.6（理智动态）       视野压迫、聚焦中心
+          Film Grain     强度 0.3                 旧录像质感
+                               Project Whisper · V6.0 深度评审与全量完善版           32 / 41
+             特效                参数                            用途
+             Chromatic         强度 0.05（理智 <25 时 0.15）        失控感、边缘失真
+             Aberration
+             Fog               指数雾，密度 0.02                   空间压缩、隐藏远处细节
+             Color Grading     色温 +10，对比度 +15%，饱和度           统一「腐烂档案」色调
+                               -10%
+             Depth of Field    焦距 10m，模糊 2                   近景 UI 清晰、远景怪物微模糊（降低多边形压
+                                                             力）
+            22.2　动态光照规则
+             · 安全区（入口区）：暖白点光源，照度 2.0，色温 3200K；
+             · 压力区（住院区）：冷白荧光灯，照度 0.8，偶尔频闪（Shader 驱动的强度正弦波，周期 3~7 秒
+               随机）；
+             · 高危区（太平间）：几乎无光源，仅靠玩家手电；手电电量 <30% 时亮度线性衰减，色温从 4500K
+               偏至 2200K（蜡烛质感）；
+             · 怪物接近：怪物进入 8 米范围时，环境光源强度骤降 30%，模拟「它吸走了光」。
+            22.3　粒子与氛围元素
+             元素        实现                                                   性能预算
+             漂浮尘埃      VFX Graph / 简单 Billboard 粒子，数量 <200，受手电光照亮           GPU 粒子，低端机关闭
+             雾气流动      Shader 驱动的世界空间噪声纹理，Y 轴缓慢漂移                           1 个全屏后处理 Pass
+             镜面闪烁      镜面材质临时切换 Emission，0.2 秒脉冲                            仅在动态事件触发时出现
+             血迹 drip   贴花（Decal）+ 顶点动画 drip                                 每房间 ≤5 处
+              23　无障碍与国际化设计
+            23.1　无障碍（Accessibility）
+             需求      实现
+             色盲模 色点加形状区分：队友 = 圆点 + 菱形外框；怪物 = 三角脉冲
+             式
+             字幕      所有语音（队友语音/怪物低语/环境广播）实时字幕，位置固定于屏幕底部 1/5，半透明黑底；怪物低语
+                     字幕使用 font-mono  + 轻微错位
+                                        Project Whisper · V6.0 深度评审与全量完善版                      33 / 41
+            需求      实现
+            触觉反 怪物进入 8 米时手机震动 80ms；死亡时长震动 300ms；支持关闭
+            馈
+            UI 缩放   设置页提供 0.8x / 1.0x / 1.2x / 1.5x 四档 HUD 缩放
+            高对比 开启后所有文字强制黑底白字，去除毛玻璃与半透明效果
+            度
+           23.2　国际化（i18n）
+            · 布局方向：仅 LTR（从左到右）；阿拉伯语/希伯来语暂不支持（恐怖品类受众低）；
+            · 字体回退：Noto Sans SC → Noto Sans JP  →  Noto Sans  → 系统默认无衬线；
+            · 文本扩展预留：英文平均比中文长 30%，按钮宽度按 1.5 倍中文字符数预留；德文可能更长，关键
+              按钮使用自动缩小字号（最小 10sp）；
+            · 日期/数字：使用 CultureInfo.InvariantCulture  统一格式化，避免逗号/点号小数歧义；
+            · 文化敏感性： 
+               ◦ 日本：避免直接出现「自杀」字样，档案残页改写为「消失」；
+               ◦ 韩国：恐怖元素不过度涉及学校场景；
+               ◦ 
+                   巴西/拉美：色调偏暖（增加 color-warning 占比），符合当地视觉偏
+                   好。
+                                      Project Whisper · V6.0 深度评审与全量完善版                  34 / 41
+          第五部分　前端设计提示词库（V6.0 新增）
+            本部分提供可直接复制使用的 AI 绘图提示词，用于生成 UI 概念稿、图标、LOGO、商店素材与氛围参考
+            图。提示词面向 Stable Diffusion XL / Midjourney / 即梦等主流工具编写，英文为主（主流模型对英文响应
+            更稳定），附中文注释。所有提示词遵循 §17~§22 的设计系统，确保产出与设计规范一致。
+            24　使用规范
+          24.1　工作流
+            设计 Token（§18） → 全局风格锚点提示词（§25） → 分页面/组件提示词（§26~§28）
+            → 生成 4~8 张候选 → 人类挑选 1 张 → 局部重绘（inpainting）修正细节
+            → 切图/矢量化（图标类用 AI 初稿 + Figma 手工矢量化） → 入库前「恐怖感一致性」审查（V5 §5.6）
+          24.2　通用规则
+           1. 一致性锁定：所有 UI 生成必须使用同一风格锚点后缀（§25 的 STYLE_ANCHOR），并固定随机
+             种子区间（SD 中锁定 seed 微调，MJ 中使用 --seed 与 --sref）；
+           2. 负面提示词：UI 类统一附加 §25 的 NEGATIVE_UI，避免生成卡通、高饱和、拟物化高光等破坏
+             风格的元素；
+           3. 文字问题：AI 生成图像中的文字几乎必然出错——提示词中一律要求 placeholder text（如
+             “Lorem ipsum” 或 “[TITLE]”），实际文字由 Unity uGUI 叠加渲染；
+           4. 分辨率：UI 概念稿 1920×1080（横屏）；图标 1024×1024 后缩至 128/64；商店图按 Google
+             Play 规范（1024×500 头图等）；
+           5. 版权边界：提示词中禁止出现具体游戏名/艺术家名（如 “in the style of Phasmophobia”），仅
+             用风格描述词；产出物人类审查后方可入库。
+            25　全局风格锚点（STYLE_ANCHOR）
+          所有 UI 提示词的统一后缀，保证跨页面风格一致：
+                                  Project Whisper · V6.0 深度评审与全量完善版               35 / 41
+          STYLE_ANCHOR (UI):
+          dark horror game UI design, decayed medical archive aesthetic, aged yellowed
+          paper texture, ink stains, typewriter typography, muted desaturated color
+          palette of bone white #F0E6D2, ink black #1A1A1A, oxidized blood red #8B1E1E,
+          mold green #5C8C6E, subtle film grain, analog horror, minimal flat design
+          with diegetic elements, no 3D bevels, no glossy highlights
+          NEGATIVE_UI (负面提示词):
+          cartoon, cute, colorful, vibrant, neon, glossy, skeuomorphic, 3D buttons,
+          rounded bubbly shapes, emoji, gradients rainbow, modern flat mobile game UI,
+          cluttered, text artifacts, watermark
+         氛围/场景类锚点（用于概念图、商店素材）：
+          STYLE_ANCHOR (ATMOSPHERE):
+          first-person horror game screenshot, abandoned sanatorium interior, decayed
+          peeling walls, cold flickering fluorescent light, volumetric fog, analog
+          horror aesthetic, VHS grain, muted greenish-gray palette with single warm
+          flashlight source, liminal space, oppressive silence, cinematic composition
+          26　分页面 UI 概念稿提示词
+         26.1　主菜单
+          Horror game main menu screen UI mockup, vertical button list on the left
+          third of screen, buttons rendered as typewriter text on aged paper strips,
+          background is a heavily darkened blurred corridor of an abandoned sanatorium,
+          small red recording dot indicator in top corner, minimal HUD, [START
+          SESSION] [CREATE ROOM] [ARCHIVE] [SETTINGS] as placeholder text labels.
+          STYLE_ANCHOR(UI)
+         中文注释：主菜单概念稿；竖排按钮位于左 1/3；背景为压暗模糊的疗养院走廊；占位文字。
+         26.2　对局 HUD
+          First-person horror game HUD overlay mockup, diegetic minimal interface,
+          top-left circular sanity ring gauge in bone white fading to blood red,
+          small teammate direction dots along screen edge, bottom-right three ability
+          buttons with thin outlined icons, bottom-left push-to-talk microphone button
+          with subtle sound wave ring, everything semi-transparent over dark
+          sanatorium corridor gameplay view. STYLE_ANCHOR(UI)
+         中文注释：HUD 全要素概念稿——左上理智环、边缘队友方位点、右下三键、左下 PTT 声波环；半透
+         明叠加在 gameplay 画面上。
+                             Project Whisper · V6.0 深度评审与全量完善版       36 / 41
+         26.3　快捷喊话轮盘
+           Radial eight-direction quick chat wheel UI for mobile horror game, octagonal
+           fan layout, each segment contains a thin line icon and short label
+           placeholder, center shows a small character portrait avatar, wheel rendered
+           as aged paper with ink-drawn dividers, slightly rotated like a ritual
+           circle. STYLE_ANCHOR(UI)
+         中文注释：八向轮盘——扇形分区、细线图标、中心人格头像、仪式圆盘般的微旋转构图。
+         26.4　暂停菜单（病历纸）
+           In-game pause menu designed as a yellowed medical record sheet pinned to a
+           dark cork board, options written in typewriter font: [RESUME] [SETTINGS]
+           [ABANDON SESSION], coffee ring stains, one corner torn, faint blood smear
+           thumbprint, game world visible but desaturated behind the translucent paper.
+           STYLE_ANCHOR(UI)
+         中文注释：病历纸暂停菜单——软木板、打字机字体选项、咖啡渍、血指印；背景游戏世界去饱和。
+         26.5　结算页（幸存 / 沉寂）
+           Horror game post-match results screen, large distressed serif title "YOU
+           SURVIVED" in bone white, below a typewriter-style score breakdown table
+           (evidence, teammates, time bonus), bottom row of collectible archive page
+           thumbnails with question-mark silhouettes, film grain, red stamp reading
+           CASE FILE CLOSED tilted at corner. STYLE_ANCHOR(UI)
+         中文注释：结算页——大标题、计分明细表、档案残页缩略图行、斜盖红色「结案」印章。失败版本将
+         “YOU SURVIVED” 改为 “SILENCE FALLS”，色调降为灰。
+         26.6　组队大厅 / 房间页
+           Co-op horror game lobby screen UI, four player slots arranged as old
+           photograph frames on a dark wall, one frame shows a polaroid player avatar,
+           others show empty chair silhouettes, large room code "WHSP-7742" in stamped
+           ink letters at top, map selection as pinned polaroid photos of a sanatorium
+           and a mining dormitory, invite button as a wax-sealed envelope icon.
+           STYLE_ANCHOR(UI)
+         中文注释：房间页——四相框玩家位、空椅剪影、顶部油墨房间码、宝丽来地图选择、火漆信封邀请按
+         钮。
+                               Project Whisper · V6.0 深度评审与全量完善版         37 / 41
+         26.7　档案残页收集界面
+          Archive collection UI screen for horror game, a ring binder of case files
+          spread on dark desk, collected lore pages shown as aged typewritten notes
+          with redactions (blacked-out lines), uncollected pages as ghost-gray
+          outlines with page numbers, progress shown as a hand-drawn checklist in
+          margin, single desk lamp warm light from top-left. STYLE_ANCHOR(UI)
+         中文注释：档案收集界面——活页夹、涂黑删节的打字稿残页、未收集页灰色轮廓、页边手写勾选清
+         单、单一台灯光源。
+         26.8　设置页
+          Horror game settings screen, designed as a clipboard with inspection
+          checklist, toggle switches as ink checkboxes, sliders as hand-drawn
+          measurement rulers, categories: AUDIO VIDEO CONTROLS PARENTAL CONTROLS,
+          stamped CONFIDENTIAL header, muted colors. STYLE_ANCHOR(UI)
+         中文注释：设置页——剪贴板检查单、油墨勾选框开关、手绘标尺滑块；含家长控制分类（对应 §7.2
+         合规要求）。
+          27　图标与组件提示词
+         27.1　应用图标（Google Play 512×512）
+          Mobile game app icon, minimalist horror design, a single stitched-shut mouth
+          drawn in rough thread lines on dark aged paper background, one loose thread
+          end glowing faint green, heavy vignette, no text, square composition.
+          STYLE_ANCHOR(UI)
+         中文注释：应用图标——缝合的嘴（呼应怪物「缝匠」与「安静求生」主题）、松脱线头微光、无文
+         字。
+         27.2　道具图标组（手电 / 录音笔 / 照相机 / 镇静剂 / 信号弹）
+          Set of five game inventory icons, thin single-weight line art style, ink
+          drawing on aged paper texture background: flashlight, cassette voice
+          recorder, vintage camera, syringe of sedative, signal flare; consistent
+          stroke width, slight ink bleed edges, monochrome bone white on dark.
+          STYLE_ANCHOR(UI)
+                            Project Whisper · V6.0 深度评审与全量完善版     38 / 41
+        中文注释：五件道具图标组——单重细线画、统一笔宽、油墨微洇边。提示词中列举道具保证一次生成
+        同风格整套。
+        27.3　人格包头像组（5 枚）
+          Set of five character portrait avatars for horror game quick-chat
+          personas: recruit, leader, provocateur, drowned, guide; polaroid photo
+          style with grainy faces half-hidden in shadow, expressions ranging from
+          calm to unhinged, aged photo borders, consistent lighting from below.
+          STYLE_ANCHOR(UI)
+        中文注释：人格包头像——宝丽来风格、半隐于阴影、底部打光（经典恐怖打光）、五人表情梯度。
+        27.4　怪物概念图（三只首发怪）
+          Creature concept art, "The Seamstress": tall emaciated figure in a nurse
+          uniform sewn from mismatched fabric patches, face covered by stitched
+          leather mask, fingers replaced by sewing needles, standing in dark corridor,
+          full body turnaround reference, muted palette. STYLE_ANCHOR(ATMOSPHERE)
+          Creature concept art, "The Whisperer": gaunt blind figure with enormous
+          ears and no eyes, head tilted listening pose, body wrapped in soundproof
+          foam fragments, crouched in corner. STYLE_ANCHOR(ATMOSPHERE)
+          Creature concept art, "The Undertaker": massive slow figure in soaked
+          funeral suit, carrying a rusted gurney, face obscured by mourning veil,
+          heavy silhouette in fog. STYLE_ANCHOR(ATMOSPHERE)
+        中文注释：三怪概念图——分别强调缝合材质、听觉器官异化、丧葬压迫感；供外包建模（C   档）或
+        CC0 改装参考。
+          28　商店素材提示词（Google Play）
+        28.1　头图（1024×500）
+          Google Play feature graphic for co-op horror game, wide banner composition,
+          four silhouetted players with flashlights entering a decaying sanatorium
+          doorway, one player looking back at camera, volumetric fog, a tall stitched
+          figure barely visible in deep background shadows, title space reserved at
+          left third, muted horror palette. STYLE_ANCHOR(ATMOSPHERE)
+                           Project Whisper · V6.0 深度评审与全量完善版     39 / 41
+           28.2　短视频素材脚本（15s 主播向，非图像提示词）
+            时间        画面                                            声音
+            0~3s      四人开黑正常探索，语音闲聊                                 轻松说笑声
+            3~5s      一人音量环突然变红                                     环境音骤停
+            5~8s      怪物从黑暗走廊尽头抬头（低语者特写）                            低频轰鸣渐起
+            8~12s     追逐 + 队友尖叫 + 有人按下对讲机全图广播                       尖叫 + 电流杂音
+            12~15s    黑屏字幕：「它听见你了」+ 房间码闪现                           心跳一声骤停
+             该脚本可直接发给中小主播作为投放模板（对应 V5 §8.2 发售周投放），也可作为 AI 视频生成工具的分镜
+             提示词。
+            29　提示词迭代与资产管理
+            1. 版本管理：提示词与产出图一同入库（Assets/DesignPrompts/*.md + Docs/ArtReferences/ ），文件名含
+             日期与种子号，确保任何一张图可复现；
+            2. 一致性审查清单（人类执行，对应 V5 §5.6 质量门禁）： 
+              ◦ 是否符合色板（取样检查主色 ∈ §18.1）？
+              ◦ 是否出现 V5 三支柱无关元素（如科幻、奇幻符号）？
+              ◦ UI 稿的占位文字是否可在 48dp 热区内排布？
+            3. 失败模式记录：常见失败（文字乱码、风格漂移、卡通化）记入提示词库末尾的「陷阱清单」，供
+             后续迭代规避；
+            4. 产能预算：每页面概念稿生成 + 挑选 + 修正 ≈ 1.5 小时；全套 UI 概念（8 页 + 图标 + 商店素材）
+             ≈ 12~15 小时，建议在 W2~W3 完成（与灰盒开发并行）。
+                                   Project Whisper · V6.0 深度评审与全量完善版               40 / 41
+             结语　V6.0 行动清单更新
+             在 V5 §11.2「立项后两周行动清单」基础上，按本评审结论调整优先级：
+              序
+                   行动项                    时间        变化说明
+              号
+              1    确认团队档位与预算              第 1 天     不变
+              2    注册基础设施 + GameCI        第 1~3     不变
+                   骨架                     天
+              3    AI 工具链 + 提示词模板库        第 1~5     增补：前端设计提示词库（本文档 §25~§28）同步建立
+                   v1                     天
+              4    采购测试机                  第 1~5     不变
+                                          天
+              5    Unity 工程 + ASMDEF 骨    第 3~7     增补：EventBus 与配置表管线（§9.2/§9.3）先行
+                   架                      天
+              6    灰盒疗养院                  第 5~10    不变
+                                          天
+              7    Fusion 房间跑通 + 首包分      第 7~12    增补：音量→声纹 RPC 链路（§10.3）同步验证
+                   发                      天
+              8    内测招募与问卷设计              第 7~14    变更：改为双轮制（定性 8~12 人 + 定量 30~50 人），无麦玩家配
+                                          天         额 ≥30%（§8.1）
+              9    新增：付费模型与合规设 第 7 天                房主买断制（§6.2）与语音合规方案（§7.2）定案签字
+                   计评审
+              10   新增：UI 概念稿批量生成 第 8~14             用 §26 提示词产出全部核心页面概念稿，W3 前完成风格锁定
+                                          天
+             评审最终结论：V5.0 是一份上限罕见地诚实、下限基本扎实的方案；其四处 P0 级缺陷（房客付费断
+             裂、无麦体验残缺、语音合规空白、无反作弊）均非设计方向错误，而是尚未设计——补齐成本合计不
+             超过 2 周工期，全部纳入本 V6.0 文档后，方案的立项评级从「建议立项」上调为「建议立即立项」。
+             本方案（V6.0）与 V5.0 共同构成完整立项文档：V5.0 为基线设计，V6.0 为评审、改进与实现层。M0
+             结束时，请带着双轮内测数据回到本文档 §4 与 V5 第 3 章，再次修订。
+                                           Project Whisper · V6.0 深度评审与全量完善版                          41 / 41
