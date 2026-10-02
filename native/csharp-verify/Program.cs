@@ -35,8 +35,10 @@ static class Program
         catch (Exception ex) { failed++; failures.Add($"{name}（抛了 {ex.GetType().Name} 而非 {typeof(T).Name}）"); Console.WriteLine($"  ✗ {name}（抛 {ex.GetType().Name}）"); }
     }
 
-    static int Main()
+    static int Main(string[] rawArgs)
     {
+        if (Array.IndexOf(rawArgs, "--emit-voice-vectors") >= 0) return EmitVoiceVectors();
+
         Console.WriteLine("Project Whisper · 本机 C# 验证（真实源文件 + 真实关卡数据）");
 
         var levelJson = File.ReadAllText("asylum_v1.json");
@@ -350,4 +352,119 @@ static class Program
         public void SetLocalMute(string participantId, bool muted) { }
         public event Action<string, float> OnParticipantEnergy { add { } remove { } }
     }
+
+    /// <summary>
+    /// 向量产出模式：读 data/vectors/voice-classification.inputs.json，用**移植件**跑出逐帧结果并以 JSON 打印。
+    /// 由 tools/voice-port-vectors.mjs 调用并与灰盒 JS 实现比对（锁住移植等价性）。
+    /// </summary>
+    static int EmitVoiceVectors()
+    {
+        var inputPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data", "vectors", "voice-classification.inputs.json");
+        inputPath = Path.GetFullPath(inputPath);
+        if (!File.Exists(inputPath)) { Console.Error.WriteLine("缺输入向量: " + inputPath); return 2; }
+        var spec = MiniJson.AsMap(MiniJson.Parse(File.ReadAllText(inputPath)));
+        float frameMs = MiniJson.AsFloat(MiniJson.Get(spec, "frameMs"));
+        // 判定参数必须来自配置表（不许猜默认值）；跑手自己加载 config.json 真源
+        var cfgPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data", "config.json"));
+        Whisper.Gameplay.Config.GameConfig.LoadFromJson(File.ReadAllText(cfgPath));
+        var cfgReader = new Whisper.Gameplay.Config.GameConfigReader();
+        var cal = MiniJson.AsMap(MiniJson.Get(spec, "calibration"));
+        int sampleFrames = MiniJson.AsInt(MiniJson.Get(cal, "sampleFrames"));
+        int ambientFrames = MiniJson.AsInt(MiniJson.Get(cal, "ambientFrames"));
+        var prompts = MiniJson.AsList(MiniJson.Get(cal, "prompts")).ConvertAll(o => (string)o);
+
+        var outMap = new Dictionary<string, object>();
+        foreach (var devObj in MiniJson.AsList(MiniJson.Get(spec, "devices")))
+        {
+            var dev = MiniJson.AsMap(devObj);
+            string id = MiniJson.AsString(MiniJson.Get(dev, "id"));
+            float whisper = MiniJson.AsFloat(MiniJson.Get(dev, "whisper"));
+            float normal = MiniJson.AsFloat(MiniJson.Get(dev, "normal"));
+            float shout = MiniJson.AsFloat(MiniJson.Get(dev, "shout"));
+            float ambient = MiniJson.AsFloat(MiniJson.Get(dev, "ambient"));
+
+            // 校准：与 JS 侧完全相同的合成序列
+            var calibrator = new Whisper.Gameplay.Voice.VoiceCalibrator(3, sampleFrames, prompts);
+            for (int i = 0; i < ambientFrames; i++) calibrator.PushAmbientFrame(ambient + ((i % 5) - 2) * 0.5f);
+            foreach (var pr in prompts)
+            {
+                calibrator.StartPrompt(pr);
+                float baseDb = pr == "whisper" ? whisper : pr == "normal" ? normal : shout;
+                for (int i = 0; i < sampleFrames; i++) calibrator.PushFrame(baseDb + ((i % 7) - 3) * 0.4f);
+            }
+            var anchors = new Whisper.Gameplay.Voice.VoiceAnchors(whisper, normal, shout, ambient);
+            var clf = Whisper.Gameplay.Voice.VoiceBandClassifier.FromConfig(cfgReader, anchors);
+
+            var seqOut = new Dictionary<string, object>();
+            foreach (var seqObj in MiniJson.AsList(MiniJson.Get(spec, "resolved")))
+            {
+                var seq = MiniJson.AsMap(seqObj);
+                if (MiniJson.AsString(MiniJson.Get(seq, "device")) != id) continue;
+                string seqId = MiniJson.AsString(MiniJson.Get(seq, "sequence"));
+                var dec = new List<object>();
+                foreach (var f in MiniJson.AsList(MiniJson.Get(seq, "dBFS")))
+                {
+                    var r = clf.Push(MiniJson.AsFloat(f));
+                    // 形状对齐灰盒（两条路径字段不同）：
+                    //   成功路径  → { band, levelNorm(norm), relDb, relPeakNorm, snrDb, ... }，**无** snrPeakDb
+                    //   不可辨路径 → { band:'indistinguishable', reason:'snr_below_min', snrDb, snrPeakDb, minSnrDb, ... }，**无** relPeakNorm
+                    var cell = new Dictionary<string, object> {
+                        ["band"] = r.Band,
+                        ["reason"] = r.Reason,
+                        ["norm"] = Math.Round(r.Norm, 6),
+                        ["relDb"] = Math.Round(r.RelDb, 6),
+                        ["snrDb"] = Math.Round(r.SnrDb, 6),
+                    };
+                    if (r.Band == "indistinguishable") cell["snrPeakDb"] = Math.Round(r.SnrPeakDb, 6);
+                    else cell["relPeakNorm"] = Math.Round(r.RelPeakNorm, 6);
+                    dec.Add(cell);
+                }
+                seqOut[seqId] = dec;
+            }
+
+            var calOut = calibrator.Result == null ? null : new Dictionary<string, object> {
+                ["whisper"] = calibrator.Result.Whisper, ["normal"] = calibrator.Result.Normal,
+                ["shout"] = calibrator.Result.Shout, ["ambientDb"] = calibrator.Result.AmbientDb,
+            };
+            outMap[id] = new Dictionary<string, object> { ["calibration"] = calOut, ["sequences"] = seqOut };
+        }
+
+        Console.WriteLine(JsonWrite(new Dictionary<string, object> { ["devices"] = outMap }));
+        return 0;
+    }
+
+    /// <summary>极简 JSON 输出（只覆盖本文件用到的类型：Dictionary/List/string/float/bool/null）。</summary>
+    static string JsonWrite(object v)
+    {
+        var sb = new System.Text.StringBuilder();
+        void W(object o)
+        {
+            switch (o)
+            {
+                case null: sb.Append("null"); break;
+                case string str: sb.Append('"').Append(str.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append('"'); break;
+                case bool b: sb.Append(b ? "true" : "false"); break;
+                case float f: sb.Append(float.IsNaN(f) || float.IsInfinity(f) ? "null" : f.ToString(System.Globalization.CultureInfo.InvariantCulture)); break;
+                case double d: sb.Append(double.IsNaN(d) || double.IsInfinity(d) ? "null" : d.ToString(System.Globalization.CultureInfo.InvariantCulture)); break;
+                case int i: sb.Append(i.ToString(System.Globalization.CultureInfo.InvariantCulture)); break;
+                case long l: sb.Append(l.ToString(System.Globalization.CultureInfo.InvariantCulture)); break;
+                case Dictionary<string, object> map:
+                    sb.Append('{');
+                    bool firstK = true;
+                    foreach (var kv in map) { if (!firstK) sb.Append(','); firstK = false; sb.Append('"').Append(kv.Key).Append("\":"); W(kv.Value); }
+                    sb.Append('}');
+                    break;
+                case System.Collections.IEnumerable en:
+                    sb.Append('[');
+                    bool firstI = true;
+                    foreach (var item in en) { if (!firstI) sb.Append(','); firstI = false; W(item); }
+                    sb.Append(']');
+                    break;
+                default: sb.Append('"').Append(o.ToString()).Append('"'); break;
+            }
+        }
+        W(v);
+        return sb.ToString();
+    }
+
 }

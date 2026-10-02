@@ -36,7 +36,10 @@ node tools/gen-design-tokens.mjs --check
 step 9 "V9 §11 色彩 Token 对账双射"
 node tools/tokens-map-check.mjs
 
-step 10 "C# 真编译真跑（本机 .NET 8）"
+step 10 "声纹移植等价性（灰盒 JS ↔ C# 移植，1140 帧）"
+node tools/voice-port-vectors.mjs
+
+step 11 "C# 真编译真跑（本机 .NET 8）"
 cp unity/Assets/Levels/*.json native/csharp-verify/ 2>/dev/null || true
 (cd native/csharp-verify && ../../native/dotnet.sh run --nologo)
 
