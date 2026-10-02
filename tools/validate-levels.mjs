@@ -95,9 +95,13 @@ for (const file of files) {
       if (typeof d.id !== 'string' || d.id.trim() === '') P(`房间 ${r.id} 的门缺 id（走廊需要引用它，D1）`);
       else if (doorIds.has(d.id)) P(`房间 ${r.id} 门 id 重复：${d.id}`);
       else doorIds.add(d.id);
-      // offset 可选、缺省 0（与 C# LevelLoader 一致；裁决记录见 ai-context §4.2）
-      const off = d.offset === undefined ? 0 : d.offset;
-      if (typeof off !== 'number' || off < 0 || off > 1) P(`房间 ${r.id} 的门 offset 必须在 0..1：${d.offset}`);
+      // 门字段用**米**（灰盒约定）：offsetM 沿墙起点算起、widthM 门洞宽；缺省 0 / 1.2
+      const offM = d.offsetM === undefined ? 0 : d.offsetM;
+      const wM = d.widthM === undefined ? 1.2 : d.widthM;
+      const wallLen = (d.wall === 'north' || d.wall === 'south') ? (r.size ?? [0, 0, 0])[0] : (r.size ?? [0, 0, 0])[2];
+      if (typeof offM !== 'number' || offM < 0) P(`房间 ${r.id} 的门 ${d.id} 的 offsetM 不能为负：${d.offsetM}`);
+      if (typeof wM !== 'number' || wM <= 0) P(`房间 ${r.id} 的门 ${d.id} 的 widthM 必须为正：${d.widthM}`);
+      else if (offM + wM > wallLen + 1e-4) P(`房间 ${r.id} 的门 ${d.id} 门洞越界：offsetM ${offM} + widthM ${wM} > 墙长 ${wallLen}`);
     }
     for (const pr of r.props ?? []) {
       if (!pr.kit) P(`房间 ${r.id} 有道具缺 kit`);
@@ -112,21 +116,27 @@ for (const file of files) {
   }
   const roomById = new Map((Array.isArray(level.rooms) ? level.rooms : []).map((r) => [r.id, r]));
 
-  /** 房间按 pos/size/rotY(=0) 求 XZ 包围盒（当前实现只支持轴对齐，rotY≠0 将被拒绝） */
+  /**
+   * 房间按 pos/size/rotY(=0) 求 XZ 包围盒。
+   * **pos 是最小角点**（与灰盒 __m4.rect 严格一致：x0=pos[0], z0=pos[1], x1=x0+w, z1=z0+d）。
+   * 早期版本按"中心点"实现，与灰盒不兼容，会让 LevelBuilder 整体错位半间房。
+   */
   const box = (r) => {
     const [x, z] = r.pos ?? [0, 0];
     const [w, , d] = r.size ?? [0, 0, 0];
-    return { x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, cx: x, cz: z, w, d };
+    return { x0: x, x1: x + w, z0: z, z1: z + d, cx: x + w / 2, cz: z + d / 2, w, d };
   };
   /** 门在 XZ 平面上的贴墙线：返回沿墙的线段与外法向 */
   const doorLine = (r, d) => {
     const b = box(r);
-    const t = typeof d.offset === 'number' ? d.offset : 0;
+    const offM = typeof d.offsetM === 'number' ? d.offsetM : 0;
+    const wM = typeof d.widthM === 'number' ? d.widthM : 1.2;
+    const mid = offM + wM / 2;   // 沿墙取门洞中心作对齐比较（口径与灰盒 compileDoors 一致）
     switch (d.wall) {
-      case 'north': return { axis: 'z', fixed: b.z1, from: b.x0, to: b.x1, at: b.x0 + t * b.w, normal: [0, 1], bbox: b };
-      case 'south': return { axis: 'z', fixed: b.z0, from: b.x0, to: b.x1, at: b.x0 + t * b.w, normal: [0, -1], bbox: b };
-      case 'west': return { axis: 'x', fixed: b.x0, from: b.z0, to: b.z1, at: b.z0 + t * b.d, normal: [-1, 0], bbox: b };
-      case 'east': return { axis: 'x', fixed: b.x1, from: b.z0, to: b.z1, at: b.z0 + t * b.d, normal: [1, 0], bbox: b };
+      case 'north': return { axis: 'z', fixed: b.z1, from: b.x0, to: b.x1, at: b.x0 + mid, width: wM, normal: [0, 1], bbox: b };
+      case 'south': return { axis: 'z', fixed: b.z0, from: b.x0, to: b.x1, at: b.x0 + mid, width: wM, normal: [0, -1], bbox: b };
+      case 'west': return { axis: 'x', fixed: b.x0, from: b.z0, to: b.z1, at: b.z0 + mid, width: wM, normal: [-1, 0], bbox: b };
+      case 'east': return { axis: 'x', fixed: b.x1, from: b.z0, to: b.z1, at: b.z0 + mid, width: wM, normal: [1, 0], bbox: b };
       default: return null;
     }
   };

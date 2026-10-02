@@ -25,8 +25,8 @@
     {
       "id": "entrance_safe",
       "pos": [
-        2,
-        1.5
+        0,
+        0
       ],
       "size": [
         4,
@@ -40,7 +40,8 @@
         {
           "id": "d_east",
           "wall": "east",
-          "offset": 0.5,
+          "offsetM": 0.5,
+          "widthM": 2,
           "locked": false
         }
       ],
@@ -61,11 +62,11 @@
     {
       "id": "corridor_main",
       "pos": [
-        11,
-        1.5
+        4,
+        0
       ],
       "size": [
-        14,
+        18,
         3,
         3
       ],
@@ -76,19 +77,22 @@
         {
           "id": "d_west",
           "wall": "west",
-          "offset": 0.5,
+          "offsetM": 0.5,
+          "widthM": 2,
           "locked": false
         },
         {
           "id": "d_n_morgue",
           "wall": "north",
-          "offset": 0.929,
+          "offsetM": 16,
+          "widthM": 2,
           "locked": false
         },
         {
           "id": "d_n_link",
           "wall": "north",
-          "offset": 0.036,
+          "offsetM": 0,
+          "widthM": 2,
           "locked": false
         }
       ],
@@ -99,8 +103,8 @@
     {
       "id": "morgue_deep",
       "pos": [
-        17,
-        4.5
+        20,
+        3
       ],
       "size": [
         2,
@@ -114,13 +118,15 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.5,
+          "offsetM": 0,
+          "widthM": 2,
           "locked": false
         },
         {
           "id": "d_north",
           "wall": "north",
-          "offset": 0.5,
+          "offsetM": 0.1,
+          "widthM": 1.8,
           "locked": false
         }
       ],
@@ -131,8 +137,8 @@
     {
       "id": "morgue_ante",
       "pos": [
-        17,
-        7.5
+        20,
+        6
       ],
       "size": [
         2,
@@ -146,7 +152,8 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.5,
+          "offsetM": 0.1,
+          "widthM": 1.8,
           "locked": false
         }
       ],
@@ -167,8 +174,8 @@
     {
       "id": "corridor_link",
       "pos": [
-        6,
-        4
+        4,
+        3
       ],
       "size": [
         4,
@@ -182,13 +189,15 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.125,
+          "offsetM": 0,
+          "widthM": 2,
           "locked": false
         },
         {
           "id": "d_north",
           "wall": "north",
-          "offset": 0.125,
+          "offsetM": 0,
+          "widthM": 2,
           "locked": false
         }
       ],
@@ -199,11 +208,11 @@
     {
       "id": "corridor_ward",
       "pos": [
-        9.5,
-        5.5
+        4,
+        5
       ],
       "size": [
-        11,
+        15,
         3,
         1
       ],
@@ -214,37 +223,43 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.045,
+          "offsetM": 0,
+          "widthM": 2,
           "locked": false
         },
         {
           "id": "d_n1",
           "wall": "north",
-          "offset": 0.045,
+          "offsetM": 0.7,
+          "widthM": 1.6,
           "locked": false
         },
         {
           "id": "d_n2",
           "wall": "north",
-          "offset": 0.273,
+          "offsetM": 3.7,
+          "widthM": 1.6,
           "locked": false
         },
         {
           "id": "d_n3",
           "wall": "north",
-          "offset": 0.409,
+          "offsetM": 6.7,
+          "widthM": 1.6,
           "locked": false
         },
         {
           "id": "d_n4",
           "wall": "north",
-          "offset": 0.591,
+          "offsetM": 9.7,
+          "widthM": 1.6,
           "locked": false
         },
         {
           "id": "d_n5",
           "wall": "north",
-          "offset": 0.773,
+          "offsetM": 12.7,
+          "widthM": 1.6,
           "locked": false
         }
       ],
@@ -255,11 +270,11 @@
     {
       "id": "ward_01",
       "pos": [
-        5,
-        8
+        4,
+        6
       ],
       "size": [
-        2,
+        3,
         3.5,
         4
       ],
@@ -270,7 +285,8 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.25,
+          "offsetM": 0.7,
+          "widthM": 1.6,
           "locked": false
         }
       ],
@@ -292,10 +308,10 @@
       "id": "ward_02",
       "pos": [
         7,
-        8
+        6
       ],
       "size": [
-        2,
+        3,
         3.5,
         4
       ],
@@ -306,7 +322,8 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.5,
+          "offsetM": 0.7,
+          "widthM": 1.6,
           "locked": false
         }
       ],
@@ -327,11 +344,11 @@
     {
       "id": "ward_03",
       "pos": [
-        9,
-        8
+        10,
+        6
       ],
       "size": [
-        2,
+        3,
         3.5,
         4
       ],
@@ -342,7 +359,8 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.25,
+          "offsetM": 0.7,
+          "widthM": 1.6,
           "locked": false
         }
       ],
@@ -363,11 +381,11 @@
     {
       "id": "ward_04",
       "pos": [
-        11,
-        8
+        13,
+        6
       ],
       "size": [
-        2,
+        3,
         3.5,
         4
       ],
@@ -378,7 +396,8 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.25,
+          "offsetM": 0.7,
+          "widthM": 1.6,
           "locked": false
         }
       ],
@@ -399,11 +418,11 @@
     {
       "id": "ward_05",
       "pos": [
-        13,
-        8
+        16,
+        6
       ],
       "size": [
-        2,
+        3,
         3.5,
         4
       ],
@@ -414,7 +433,8 @@
         {
           "id": "d_south",
           "wall": "south",
-          "offset": 0.25,
+          "offsetM": 0.7,
+          "widthM": 1.6,
           "locked": false
         }
       ],

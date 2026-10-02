@@ -62,6 +62,11 @@ namespace Whisper.Tests.PlayMode
             Assert.IsNotNull(boot.Level, "关卡未加载");
             Assert.AreEqual("asylum_v1", boot.Level.LevelId);
             Assert.AreEqual(11, boot.Level.Rooms.Count, "布局重写后为 11 房间（10 任务房 + 太平间前室）");
+            // pos 是**最小角点**（与灰盒 __m4.rect 一致）；灰盒是本项目唯一已验证行为的参照物
+            var ward01 = boot.Level.Rooms.Find(r => r.Id == "ward_01");
+            Assert.IsNotNull(ward01, "缺 ward_01");
+            Assert.AreEqual(4f, ward01.MinX, 1e-3f, "pos.x 应为最小角点 x0=4");
+            Assert.AreEqual(7f, ward01.MaxX, 1e-3f, "x1 = x0 + 宽 = 4 + 3");
             Assert.IsNotNull(boot.Level.Extraction, "缺撤离双点（V9 §7）");
 
             // ③.5 §13.4 只读状态面（①③④）：玩法层经接口即可读取，无需引用 Net 模块

@@ -98,7 +98,7 @@ namespace Whisper.Gameplay.Level
                     if (MiniJson.Get(rm, "pos") is { } posv)
                     {
                         var pv2 = MiniJson.AsList(posv);
-                        if (pv2.Count != 2) problems.Add($"房间 {room.Id} 的 pos 必须是 [x,z]");
+                        if (pv2.Count != 2) problems.Add($"房间 {room.Id} 的 pos 必须是 [x,z]（最小角点）");
                         else { room.PosX = MiniJson.AsFloat(pv2[0]); room.PosZ = MiniJson.AsFloat(pv2[1]); }
                     }
                     else problems.Add($"房间 {room.Id} 缺 pos:[x,z]（布局必需）");
@@ -112,7 +112,9 @@ namespace Whisper.Gameplay.Level
                             {
                                 Id = MiniJson.Get(dm, "id") is string did ? did : null,
                                 Wall = MiniJson.AsString(MiniJson.Get(dm, "wall")),
-                                Offset = MiniJson.Get(dm, "offset") is { } o ? MiniJson.AsFloat(o) : 0f,
+                                // 灰盒约定：offsetM（米）+ widthM（米）
+                                OffsetM = MiniJson.Get(dm, "offsetM") is { } om ? MiniJson.AsFloat(om) : 0f,
+                                WidthM = MiniJson.Get(dm, "widthM") is { } wm ? MiniJson.AsFloat(wm) : 1.2f,
                                 Locked = MiniJson.Get(dm, "locked") is bool lk && lk,
                             });
                         }
@@ -186,10 +188,11 @@ namespace Whisper.Gameplay.Level
         {
             switch (d.Wall)
             {
-                case "north": axis = "z"; fixedCoord = r.MaxZ; along = r.MinX + d.Offset * r.SizeX; nx = 0f; nz = 1f; break;
-                case "south": axis = "z"; fixedCoord = r.MinZ; along = r.MinX + d.Offset * r.SizeX; nx = 0f; nz = -1f; break;
-                case "west": axis = "x"; fixedCoord = r.MinX; along = r.MinZ + d.Offset * r.SizeZ; nx = -1f; nz = 0f; break;
-                default: axis = "x"; fixedCoord = r.MaxX; along = r.MinZ + d.Offset * r.SizeZ; nx = 1f; nz = 0f; break; // east
+                // 沿墙取**门洞中心**（offsetM + widthM/2）以便与对端对齐比较；口径与灰盒 compileDoors 一致
+                case "north": axis = "z"; fixedCoord = r.MaxZ; along = r.MinX + d.OffsetM + d.WidthM / 2f; nx = 0f; nz = 1f; break;
+                case "south": axis = "z"; fixedCoord = r.MinZ; along = r.MinX + d.OffsetM + d.WidthM / 2f; nx = 0f; nz = -1f; break;
+                case "west": axis = "x"; fixedCoord = r.MinX; along = r.MinZ + d.OffsetM + d.WidthM / 2f; nx = -1f; nz = 0f; break;
+                default: axis = "x"; fixedCoord = r.MaxX; along = r.MinZ + d.OffsetM + d.WidthM / 2f; nx = 1f; nz = 0f; break; // east
             }
         }
 
@@ -217,7 +220,11 @@ namespace Whisper.Gameplay.Level
                 foreach (var d in r.Doors)
                 {
                     if (!ValidWalls.Contains(d.Wall)) problems.Add($"房间 {r.Id} 的门 wall 非法：{d.Wall}");
-                    if (d.Offset < 0f || d.Offset > 1f) problems.Add($"房间 {r.Id} 的门 offset 必须在 0..1：{d.Offset}");
+                    float wallLen = (d.Wall == "north" || d.Wall == "south") ? r.SizeX : r.SizeZ;
+                    if (d.OffsetM < 0f) problems.Add($"房间 {r.Id} 的门 {d.Id} 的 offsetM 不能为负：{d.OffsetM}");
+                    if (d.WidthM <= 0f) problems.Add($"房间 {r.Id} 的门 {d.Id} 的 widthM 必须为正：{d.WidthM}");
+                    if (d.OffsetM + d.WidthM > wallLen + 1e-4f)
+                        problems.Add($"房间 {r.Id} 的门 {d.Id} 门洞越界：offsetM {d.OffsetM} + widthM {d.WidthM} > 墙长 {wallLen}");
                     // D1：门必须有 id（走廊要引用它）
                     if (string.IsNullOrWhiteSpace(d.Id)) problems.Add($"房间 {r.Id} 的门缺 id（走廊需要引用它）");
                     else if (!doorIds.Add(d.Id)) problems.Add($"房间 {r.Id} 门 id 重复：{d.Id}");

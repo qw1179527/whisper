@@ -72,6 +72,11 @@ public final class LevelLoader {
                     Map<String, Object> d = MiniJson.asMap(dv);
                     String wall = MiniJson.asString(MiniJson.get(d, "wall"));
                     if (!WALLS.contains(wall)) throw new IllegalArgumentException("房间 " + rid + " 的门 wall 非法：" + wall);
+                    // 灰盒约定：offsetM（米，沿墙起点）+ widthM（米）；门洞不得越界
+                    float offM = MiniJson.get(d, "offsetM") == null ? 0f : MiniJson.asFloat(MiniJson.get(d, "offsetM"));
+                    float wM = MiniJson.get(d, "widthM") == null ? 1.2f : MiniJson.asFloat(MiniJson.get(d, "widthM"));
+                    if (offM < 0f) throw new IllegalArgumentException("房间 " + rid + " 的门 offsetM 不能为负：" + offM);
+                    if (wM <= 0f) throw new IllegalArgumentException("房间 " + rid + " 的门 widthM 必须为正：" + wM);
                     String did = MiniJson.asString(MiniJson.get(d, "id"));
                     if (did.trim().isEmpty()) throw new IllegalArgumentException("房间 " + rid + " 的门缺 id（D1）");
                     if (!doorIds.add(rid + "/" + did)) throw new IllegalArgumentException("房间 " + rid + " 门 id 重复：" + did);

@@ -25,43 +25,43 @@ const BOXES = [
     doors: [{ id: 'd_east', wall: 'east', at: 1.5 }] },
 
   // ── ② 主干走廊（东西长廊 x=4..18，z=0..3）：承载三个支线的南端 ──
-  { id: 'corridor_main', x0: 4, x1: 18, z0: 0, z1: 3, h: 3.0, floor: 0, kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_main', x0: 4, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 0, kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
     doors: [
       { id: 'd_west', wall: 'west', at: 1.5 },
-      { id: 'd_n_morgue', wall: 'north', at: 17 },
+      { id: 'd_n_morgue', wall: 'north', at: 21 },
       { id: 'd_n_link', wall: 'north', at: 4.5 },
     ] },
 
   // ── ③ 太平间支线：主干北墙 → 地下深处 → 前室（楼梯口即 z=0 共享墙）──
-  { id: 'morgue_deep', x0: 16, x1: 18, z0: 3, z1: 6, h: 3.2, floor: 0, kit: 'morgue', zone: 'high-risk', evidence: false, props: [],
-    doors: [{ id: 'd_south', wall: 'south', at: 17 }, { id: 'd_north', wall: 'north', at: 17 }] },
-  { id: 'morgue_ante', x0: 16, x1: 18, z0: 6, z1: 9, h: 3.2, floor: 0, kit: 'morgue', zone: 'high-risk', evidence: false,
+  { id: 'morgue_deep', x0: 20, x1: 22, z0: 3, z1: 6, h: 3.2, floor: 0, kit: 'morgue', zone: 'high-risk', evidence: false, props: [],
+    doors: [{ id: 'd_south', wall: 'south', at: 21 }, { id: 'd_north', wall: 'north', at: 21 }] },
+  { id: 'morgue_ante', x0: 20, x1: 22, z0: 6, z1: 9, h: 3.2, floor: 0, kit: 'morgue', zone: 'high-risk', evidence: false,
     props: [{ kit: 'cabinet_a', pos: [0, 0, 1.0], rot: 180 }],
-    doors: [{ id: 'd_south', wall: 'south', at: 17 }] },
+    doors: [{ id: 'd_south', wall: 'south', at: 21 }] },
 
   // ── ④ 竖向连接廊（x=4..8，门位 x=4.5；刻意与住院部走廊在 x 上错开）──
   { id: 'corridor_link', x0: 4, x1: 8, z0: 3, z1: 5, h: 3.0, floor: 0, kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
     doors: [{ id: 'd_south', wall: 'south', at: 4.5 }, { id: 'd_north', wall: 'north', at: 4.5 }] },
 
   // ── ⑤ 住院部东西走廊（x=4..18，z=5..6；东段伸出连接廊之外 → 与其北门对齐于 x=4.5）──
-  { id: 'corridor_ward', x0: 4, x1: 15, z0: 5, z1: 6, h: 3.0, floor: 0, kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_ward', x0: 4, x1: 19, z0: 5, z1: 6, h: 3.0, floor: 0, kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
     doors: [
       { id: 'd_south', wall: 'south', at: 4.5 },
-      { id: 'd_n1', wall: 'north', at: 4.5 }, { id: 'd_n2', wall: 'north', at: 7 },
-      { id: 'd_n3', wall: 'north', at: 8.5 }, { id: 'd_n4', wall: 'north', at: 10.5 }, { id: 'd_n5', wall: 'north', at: 12.5 },
+      { id: 'd_n1', wall: 'north', at: 5.5 }, { id: 'd_n2', wall: 'north', at: 8.5 },
+      { id: 'd_n3', wall: 'north', at: 11.5 }, { id: 'd_n4', wall: 'north', at: 14.5 }, { id: 'd_n5', wall: 'north', at: 17.5 },
     ] },
 
   // ── ⑥ 5 间病房（北侧一排，门全在南墙，与走廊北门逐一对齐）──
-  { id: 'ward_01', x0: 4, x1: 6, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 4.5 }] },
-  { id: 'ward_02', x0: 6, x1: 8, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 7 }] },
-  { id: 'ward_03', x0: 8, x1: 10, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+  { id: 'ward_01', x0: 4, x1: 7, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 5.5 }] },
+  { id: 'ward_02', x0: 7, x1: 10, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
     props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 8.5 }] },
-  { id: 'ward_04', x0: 10, x1: 12, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'cabinet_a', pos: [0, 0, 0.8], rot: 270 }], doors: [{ id: 'd_south', wall: 'south', at: 10.5 }] },
-  { id: 'ward_05', x0: 12, x1: 14, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
-    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 12.5 }] },
+  { id: 'ward_03', x0: 10, x1: 13, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 11.5 }] },
+  { id: 'ward_04', x0: 13, x1: 16, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+    props: [{ kit: 'cabinet_a', pos: [0, 0, 0.8], rot: 270 }], doors: [{ id: 'd_south', wall: 'south', at: 14.5 }] },
+  { id: 'ward_05', x0: 16, x1: 19, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+    props: [{ kit: 'bed_b', pos: [0, 0, -0.5], rot: 90 }], doors: [{ id: 'd_south', wall: 'south', at: 17.5 }] },
 ];
 
 /** 走廊连接表：两端门必须贴同一条共享墙且开口对齐（几何由 BOXES 的 at 保证） */
@@ -78,15 +78,38 @@ const LINKS = [
   ['corridor_ward/d_n5', 'ward_05/d_south', 1.6],
 ];
 
+// 门宽由连接表给出（走廊宽度即门宽），避免两处各写一遍导致不一致
+const DOOR_WIDTH = new Map();
+for (const [a, b, w] of LINKS) { DOOR_WIDTH.set(a, w); DOOR_WIDTH.set(b, w); }
+
 const byId = new Map(BOXES.map((b) => [b.id, b]));
 const size = (b) => [b.x1 - b.x0, b.h, b.z1 - b.z0];
-const pos = (b) => [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2];
-/** 由「贴墙 + 沿墙绝对坐标」反算 offset（0..1），保证与对端一致 */
-const offsetOf = (b, d) => {
-  const w = b.x1 - b.x0, dep = b.z1 - b.z0;
-  const v = d.wall === 'north' || d.wall === 'south' ? (d.at - b.x0) / w : (d.at - b.z0) / dep;
-  return Math.round(v * 1000) / 1000;
+/**
+ * pos = 房间**最小角点**（min corner）—— 与灰盒 `__m4.rect()` 的约定一致：
+ *   const [x,,z] = room.pos; x0 = x; z0 = z; x1 = x + w; z1 = z + d
+ * 早期我把它写成"中心点"，与灰盒不兼容（LevelBuilder 会整体错位半间房）。灰盒是本项目
+ * 唯一"已验证行为"的参照物，故此处按灰盒约定输出。
+ */
+const pos = (b) => [b.x0, b.z0];
+/**
+ * 门沿墙位置用**米**（offsetM），与灰盒 `compileWalls` 的 `d.offsetM` 一致：
+ * 沿墙起点 = 该边坐标系较小的那一端（西/东墙沿 z 递增，南/北墙沿 x 递增）。
+ *
+ * 布局表里写的是**门洞中心**的绝对坐标 `at`，这里反算起点并**夹取到墙内**
+ * （与灰盒 `compileWalls` 的 `Math.max(0, Math.min(length - w, d.offsetM))` 同一策略）：
+ * 窄墙（如 2 米宽的病房南墙）上放 1.6 米门时，中心无法正好落在布局表位置，
+ * 必须夹取，否则门洞越界（校验器会拦）。
+ */
+const offsetMOf = (b, d) => {
+  const wallLen = (d.wall === 'north' || d.wall === 'south') ? (b.x1 - b.x0) : (b.z1 - b.z0);
+  const w = d.widthM;
+  const centerLocal = ((d.wall === 'north' || d.wall === 'south') ? (d.at - b.x0) : (d.at - b.z0));
+  const start = Math.max(0, Math.min(wallLen - w, centerLocal - w / 2));
+  return Math.round(start * 1000) / 1000;
 };
+
+// 门宽先定（走廊宽度即门宽），offsetM 依赖它做夹取
+for (const box of BOXES) for (const d of box.doors) d.widthM = DOOR_WIDTH.get(`${box.id}/${d.id}`) ?? 1.2;
 
 const rooms = BOXES.map((b) => ({
   id: b.id,
@@ -95,7 +118,7 @@ const rooms = BOXES.map((b) => ({
   rotY: 0,
   floor: b.floor,
   kit: b.kit,
-  doors: b.doors.map((d) => ({ id: d.id, wall: d.wall, offset: offsetOf(b, d), locked: false })),
+  doors: b.doors.map((d) => ({ id: d.id, wall: d.wall, offsetM: offsetMOf(b, d), widthM: d.widthM ?? 1.2, locked: false })),
   props: b.props,
   evidencePoint: b.evidence,
   lightZone: b.zone,
@@ -125,7 +148,7 @@ for (const [a, c, width] of LINKS) {
   else if (Math.abs(A.wall.at - B.wall.at) > 1e-6) problems.push(`${a}↔${c} 开口未对齐（${A.wall.at} vs ${B.wall.at}）`);
   corridors.push({ from: A.box.id, to: B.box.id, doorA: a, doorB: c, width });
 }
-// 房间重叠自检
+// 房间重叠自检（角点口径：x0..x1 / z0..z1）
 for (let i = 0; i < BOXES.length; i++) for (let j = i + 1; j < BOXES.length; j++) {
   const a = BOXES[i], b = BOXES[j];
   if (a.floor !== b.floor) continue;

@@ -84,7 +84,8 @@ static class Program
             {
                 var r = level.Rooms.First(x => x.Id == "ward_01");
                 r.Doors[0].ToWorld(r, out var x, out var z);
-                return Math.Abs(x - 4.5f) < 1e-3 && Math.Abs(z - 6f) < 1e-3;   // ward_01 南墙(z=6) 上的门位 x=4.5
+                // ward_01：pos=[4,6] 是**最小角点**，宽 3 → 南墙 z=6、x∈[4,7]；门宽 1.6 居中 → 门洞中心 x=5.5
+                return Math.Abs(x - 5.5f) < 1e-3 && Math.Abs(z - 6f) < 1e-3;
             });
             Check("证据点 5 个（住院区）", () => level.Rooms.Count(r => r.EvidencePoint) == 5);
             Check("光区分布 safe=1 / pressure=8 / high-risk=2", () =>
@@ -124,8 +125,17 @@ static class Program
             LevelLoader.Load(levelJson.Replace("\"hospital_ward\"", "\"nope_kit\""), kits));
         CheckThrows<LevelLoader.LevelValidationException>("非法 lightZone 被拦", () =>
             LevelLoader.Load(levelJson.Replace("\"lightZone\": \"pressure\"", "\"lightZone\": \"spooky\""), kits));
-        CheckThrows<LevelLoader.LevelValidationException>("门 offset 越界被拦", () =>
-            LevelLoader.Load(levelJson.Replace("\"offset\": 0.5", "\"offset\": 1.9"), kits));
+        CheckThrows<LevelLoader.LevelValidationException>("门洞越界被拦（offsetM + widthM > 墙长）", () =>
+        {
+            // JSON 里 offsetM/widthM 分行，故用正则只改值（把 1.6 宽的门推到墙外）
+            var broken = System.Text.RegularExpressions.Regex.Replace(levelJson, "\"offsetM\": 0.7", "\"offsetM\": 2.5");
+            LevelLoader.Load(broken, kits);
+        });
+        CheckThrows<LevelLoader.LevelValidationException>("门宽为负被拦", () =>
+        {
+            var broken = System.Text.RegularExpressions.Regex.Replace(levelJson, "\"widthM\": 1.6", "\"widthM\": -1");
+            LevelLoader.Load(broken, kits);
+        });
         CheckThrows<LevelLoader.LevelValidationException>("走廊端点悬空被拦", () =>
             LevelLoader.Load(levelJson.Replace("\"to\": \"corridor_main\"", "\"to\": \"ghost_room\""), kits));
         CheckThrows<LevelLoader.LevelValidationException>("撤离双点同房被拦", () =>
