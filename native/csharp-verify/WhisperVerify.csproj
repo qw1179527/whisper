@@ -19,6 +19,9 @@
     <Compile Include="../../unity/Assets/Scripts/Core/Services.cs" />
     <Compile Include="../../unity/Assets/Scripts/Core/DesignTokens.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Level/*.cs" />
+    <!-- LevelBuilder 引用 UnityEngine（MonoBehaviour/GameObject/Material…），不属于本机跑手范围；
+         它由 tools/unity-syntax-check.sh（Roslyn + Unity 桩）与 Unity Test Framework 覆盖。 -->
+    <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LevelBuilder.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Config/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Voice/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Hearing/*.cs" />

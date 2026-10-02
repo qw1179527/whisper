@@ -2,6 +2,8 @@
 native/dotnet/
 native/android-tools/
 native/csharp-verify/obj/
+native/unity-syntax/obj/
+native/unity-syntax/bin/
 native/csharp-verify/bin/
 native/java-verify/out/
 native/*/out/

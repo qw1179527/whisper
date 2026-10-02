@@ -1,13 +1,15 @@
 #!/data/user/0/app.dsh.mobile/files/engine/bin/bash
 # unity-check.sh — Unity 侧骨架的本机一键检查（不需要 Unity 授权）
 #
-# 链条：asmdef 一致 → manifest 一致 → DesignTokens 一致 → 架构守护 → 关卡校验(+镜像) → C# 静态检查 → 本机真编译真跑断言
+# 链条（15 步）：asmdef 一致 → manifest 一致 → DesignTokens 一致 → 架构守护 → 镜像一致 →
+#   关卡 DSL 校验 → C# 静态检查 → Token 产物自检 → 色彩双射 → 三大机制移植等价性（声纹/听觉/状态机）→
+#   配置符号门禁 → Unity 语法语义检查 → 本机真编译真跑断言
 # 说明：最后一步用 .NET 8 SDK（native/dotnet.sh，Termux arm64/bionic 版）**真编译真运行** Core 契约与 Gameplay 的 Level 层；
 #       依赖 UnityEngine 的 Boot/Bootstrap 由 Unity Test Framework（PlayMode，CI 跑）覆盖。
 set -euo pipefail
 cd "$(dirname "$0")"
 
-step() { printf '\n\033[1m[%s/7] %s\033[0m\n' "$1" "$2"; }
+step() { printf '\n\033[1m[%s/15] %s\033[0m\n' "$1" "$2"; }
 
 step 1 "asmdef 与 V9 §13.1 规则表一致"
 node tools/gen-asmdef.mjs --check
@@ -45,7 +47,13 @@ node tools/hearing-port-vectors.mjs
 step 12 "三怪状态机移植等价性（灰盒 ↔ C#，21 例）"
 node tools/monster-port-vectors.mjs
 
-step 13 "C# 真编译真跑（本机 .NET 8）"
+step 13 "配置表符号约定与量纲门禁"
+node tools/config-lint.mjs
+
+step 14 "Unity 依赖文件的语法+语义检查（Roslyn + 最小 Unity 桩）"
+bash tools/unity-syntax-check.sh
+
+step 15 "C# 真编译真跑（本机 .NET 8）"
 cp unity/Assets/Levels/*.json native/csharp-verify/ 2>/dev/null || true
 (cd native/csharp-verify && ../../native/dotnet.sh run --nologo)
 

@@ -212,11 +212,17 @@ namespace Whisper.Gameplay.Level
             stack.Push((sx, sz)); seen.Add((sx, sz));
             while (stack.Count > 0)
             {
-                var (cx, cz) = stack.Pop();
-                foreach (var (nx, nz) in new[] { (cx + 1, cz), (cx - 1, cz), (cx, cz + 1), (cx, cz - 1) })
+                // 注意：这里刻意不用 `var (cx, cz) = stack.Pop()` 的隐式解构——
+                // Roslyn 在此上下文推不出类型（CS8130），而 dotnet 8.0 主编译器不报，
+                // 于是它只会在 Unity 里才炸。显式取字段最稳。
+                var cur = stack.Pop();
+                int cx = cur.Item1, cz = cur.Item2;
+                var neighbors = new[] { (cx + 1, cz), (cx - 1, cz), (cx, cz + 1), (cx, cz - 1) };
+                for (int i = 0; i < neighbors.Length; i++)
                 {
-                    if (!PassableCell(nx, nz) || seen.Contains((nx, nz))) continue;
-                    seen.Add((nx, nz)); stack.Push((nx, nz));
+                    var n = neighbors[i];
+                    if (!PassableCell(n.Item1, n.Item2) || seen.Contains(n)) continue;
+                    seen.Add(n); stack.Push(n);
                 }
             }
             return seen.Count;
