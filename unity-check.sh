@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 step() { printf '
-\033[1m[%s/20] %s\033[0m\n' "$1" "$2"; }
+\033[1m[%s/21] %s\033[0m\n' "$1" "$2"; }
 
 step 1 "建模门禁（几何 + 资产 · 11 项）"
 node tools/gate-model.mjs
@@ -24,53 +24,56 @@ node tools/gate-code.mjs
 step 4 "资产几何真源门禁（footprint ↔ GLB 实际网格）"
 node tools/gate-asset-bbox.mjs
 
-step 5 "asmdef 与 V9 §13.1 规则表一致"
+step 5 "功能测试门禁（真编译真跑 107 条断言 · 分类计数 · 断言数不得下降）"
+node tools/gate-test.mjs
+
+step 6 "asmdef 与 V9 §13.1 规则表一致"
 node tools/gen-asmdef.mjs --check
 
-step 6 "Packages/manifest.json 与 dependency-lock.json 一致"
+step 7 "Packages/manifest.json 与 dependency-lock.json 一致"
 node tools/gen-manifest.mjs --check
 
-step 7 "DesignTokens.cs 与 data/design-tokens.json 一致"
+step 8 "DesignTokens.cs 与 data/design-tokens.json 一致"
 node tools/gen-design-tokens.mjs --check
 
-step 8 "架构守护（§13.1/§13.2/§19.1）"
+step 9 "架构守护（§13.1/§13.2/§19.1）"
 node tools/arch-guard.mjs
 
-step 9 "真源镜像一致性（data/ ↔ Assets/Data ↔ Resources）"
+step 10 "真源镜像一致性（data/ ↔ Assets/Data ↔ Resources）"
 node tools/data-mirror.mjs
 
-step 10 "关卡 DSL 校验 + Resources 镜像"
+step 11 "关卡 DSL 校验 + Resources 镜像"
 node tools/validate-levels.mjs
 
-step 11 "资产清单准入（C3：产物落地 + 引用/kind 匹配 + 记录齐备）"
+step 12 "资产清单准入（C3：产物落地 + 引用/kind 匹配 + 记录齐备）"
 node tools/validate-assets.mjs
 node tools/gen-kits.mjs --check
 
-step 12 "C# 静态一致性检查"
+step 13 "C# 静态一致性检查"
 node tools/cs-lint.mjs
 
-step 13 "设计 Token 生成物 + 产物自检"
+step 14 "设计 Token 生成物 + 产物自检"
 node tools/gen-design-tokens.mjs --check
 
-step 14 "V9 §11 色彩 Token 对账双射"
+step 15 "V9 §11 色彩 Token 对账双射"
 node tools/tokens-map-check.mjs
 
-step 15 "声纹移植等价性（灰盒 JS ↔ C# 移植，1140 帧）"
+step 16 "声纹移植等价性（灰盒 JS ↔ C# 移植，1140 帧）"
 node tools/voice-port-vectors.mjs
 
-step 16 "听觉索敌移植等价性（灰盒 ↔ C#，1716 例）"
+step 17 "听觉索敌移植等价性（灰盒 ↔ C#，1716 例）"
 node tools/hearing-port-vectors.mjs
 
-step 17 "三怪状态机移植等价性（灰盒 ↔ C#，21 例）"
+step 18 "三怪状态机移植等价性（灰盒 ↔ C#，21 例）"
 node tools/monster-port-vectors.mjs
 
-step 18 "配置表符号约定与量纲门禁"
+step 19 "配置表符号约定与量纲门禁"
 node tools/config-lint.mjs
 
-step 19 "Unity 依赖文件的语法+语义检查（Roslyn + 最小 Unity 桩）"
+step 20 "Unity 依赖文件的语法+语义检查（Roslyn + 最小 Unity 桩）"
 bash tools/unity-syntax-check.sh
 
-step 20 "C# 真编译真跑（本机 .NET 8）"
+step 21 "C# 真编译真跑（本机 .NET 8）"
 cp unity/Assets/Levels/*.json native/csharp-verify/ 2>/dev/null || true
 (cd native/csharp-verify && ../../native/dotnet.sh run --nologo)
 
