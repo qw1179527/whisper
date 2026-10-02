@@ -58,9 +58,18 @@ pathlib.Path(html_path).write_text(h, encoding="utf8")
 print(f"      水印：{info}")
 PY
 
-echo "[4/6] 压缩为 APK（zip；APK 规则）"
-(cd "$OUT/apk" && zip -q -X -r "$OUT/base.apk" . -x 'META-INF/*')
+echo "[4/6] 压缩为 APK（严格按 APK 规则）"
+# ⚠ 关键（真实装机失败换来的教训）：
+#   Android 11+（targetSdk/targeting R+）要求 **resources.arsc 必须未压缩（STORED）且 4 字节对齐**，
+#   否则安装直接失败：-124: Failed parse during installPackageLI: Targeting R+ ... requires the
+#   resources.arsc of installed APKs to be stored uncompressed and aligned on a 4-byte boundary。
+#   我第一版用 `zip -r` 默认压缩了它 → 包在电脑上"构建成功"，在手机上装不上。
+#   修法：先把 resources.arsc 以 -0（store）单独写入，再压其余条目（-n 后缀规则对 arsc 不可靠）。
+(cd "$OUT/apk" && rm -f "$OUT/base.apk" \
+  && zip -q -X -0 "$OUT/base.apk" resources.arsc \
+  && zip -q -X -r "$OUT/base.apk" . -x 'META-INF/*' 'resources.arsc')
 [ -f "$OUT/base.apk" ] || { echo "✗ 打包失败"; exit 1; }
+echo "      resources.arsc 以 STORED 写入（未压缩）"
 
 echo "[5/6] zipalign -p 4 与签名"
 KS="$ROOT/native/micprobe/out/debug.keystore"
@@ -72,7 +81,7 @@ KS="$ROOT/native/micprobe/out/debug.keystore"
 
 echo "[6/6] 门禁：签名 / 对齐 / 结构与基线一致 / 关键资产非空"
 "$EXT/bin/apksigner" verify "$OUT/$NAME" >/dev/null && echo "      ✓ 签名有效"
-"$EXT/bin/zipalign" -c -v 4 "$OUT/$NAME" >/dev/null && echo "      ✓ 4 字节对齐"
+"$EXT/bin/zipalign" -c -p -v 4 "$OUT/$NAME" >/dev/null && echo "      ✓ 4 字节对齐（含未压缩条目的页对齐）"
 python3 - "$OUT/$NAME" "$TPL" "$BUNDLE" <<'PY'
 import sys, zipfile, pathlib, hashlib
 apk, tpl, bundle = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -88,6 +97,18 @@ if gj != pathlib.Path(bundle).read_bytes(): raise SystemExit("✗ APK 内 game.j
 if len(gj) < 1000: raise SystemExit("✗ game.js 异常小")
 html = z.read('assets/web/index.html').decode('utf8')
 if '__buildmark' not in html: raise SystemExit("✗ index.html 未注入版本水印")
+# ③ 硬门禁：resources.arsc 必须 STORED 且 4 字节对齐（Android 11+ 的装机硬要求）
+import struct
+arsc = z.getinfo('resources.arsc')
+if arsc.compress_type != 0:
+    raise SystemExit(f"✗ resources.arsc 被压缩了（compress_type={arsc.compress_type}）——Android 11+ 会拒装（错误码 -124）")
+raw = pathlib.Path(apk).read_bytes()
+off = arsc.header_offset
+sig, ver, flag, m, mt, md, crc, csize, usize, fnlen, extlen = struct.unpack_from('<IHHHHHIIIHH', raw, off)
+data_off = off + 30 + fnlen + extlen
+if data_off % 4 != 0:
+    raise SystemExit(f"✗ resources.arsc 数据偏移 {data_off} 未 4 字节对齐——Android 11+ 会拒装")
+print(f"      ✓ resources.arsc 未压缩且 4 字节对齐（偏移 {data_off}）")
 klass = z.read('classes.dex')
 if len(klass) < 1000: raise SystemExit("✗ classes.dex 异常小")
 print(f"      ✓ 结构含基线全部条目 · game.js {len(gj)}B（与产物逐字节一致）· dex {len(klass)}B · 水印已注入")

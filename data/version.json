@@ -10,11 +10,11 @@
   },
   "history": [
     {
-      "apk": "/storage/emulated/0/DSH专用/whisper-graybox-0.7.0-dev.apk",
-      "bytes": 82785,
-      "sha256_16": "a9c6600e5c0eb982",
+      "apk": "/storage/emulated/0/DSH专用/whisper-graybox-0.7.1-dev.apk",
+      "bytes": 86881,
+      "sha256_16": "b4031efb69ea1519",
       "gameJsBytes": 159516,
-      "note": "与 0.6.0 基线逐行 diff 仅 4 行差异（全为版本横幅注释），零功能改动；新增版本水印便于确证安装版本"
+      "note": "修复装机阻塞：resources.arsc 改为 STORED 且 4 字节对齐（Android 11+ 硬要求）；0.7.0-dev 因此无法安装，已撤下"
     }
   ]
 }
