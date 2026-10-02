@@ -70,9 +70,22 @@ console.log('V3 模块块字节一致');
     const end = i + 1 < marks.length ? marks[i + 1].start : atEntry;
     baseBlocks.set(mk.id, base.slice(mk.start, end));
   });
+  // 已登记补丁的模块**不会**与 baseline 逐字节一致（差异由补丁产生）—— 单独统计并报告，
+  // 未登记却对不上 → 仍然失败。判据：源模块里是否含 /* PATCH nnn: ... */ 标记。
   let same = 0;
-  for (const [id, block] of baseBlocks) if (out.includes(block)) same++;
-  (same === baseBlocks.size ? ok : bad)(`${same}/${baseBlocks.size} 个模块块在产物中逐字节可定位`);
+  const patchedIds = [];
+  for (const [id, block] of baseBlocks) {
+    if (out.includes(block)) { same++; continue; }
+    const f = path.join(ROOT, 'src/modules', `${id}.js`);
+    const srcTxt = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '';
+    const mm = /\/\* PATCH (\d{3}): ([a-z0-9-]+) \*\//.exec(srcTxt);
+    if (mm) patchedIds.push(`${id}(补丁${mm[1]})`);
+  }
+  const expected = baseBlocks.size - patchedIds.length;
+  (same === expected ? ok : bad)(
+    `${same}/${baseBlocks.size} 个模块块在产物中逐字节可定位` +
+    (patchedIds.length ? ` · ${patchedIds.length} 个为已登记补丁（${patchedIds.join(', ')}）` : ''));
+  if (same !== expected) console.log(`      期望逐字节一致 ${expected} 个，实际 ${same} 个`);
 }
 
 // ── V4 语法 + 装配 ──

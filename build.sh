@@ -17,7 +17,7 @@ cd "$(dirname "$0")"
 QUICK=0
 [ "${1:-}" = "--quick" ] && QUICK=1
 
-step() { printf '\n\033[1m[%s/6] %s\033[0m\n' "$1" "$2"; }
+step() { printf '\n\033[1m[%s/7] %s\033[0m\n' "$1" "$2"; }
 
 if [ "$QUICK" = "0" ]; then
   step 1 "抽取模块清单"
@@ -28,6 +28,12 @@ fi
 
 step 2 "切分源树"
 node tools/split-modules.mjs
+
+step 2.5 "应用已登记补丁（必须在切分之后、打包之前）"
+# 为什么放在这里：step 2 会从 baseline 重新切分 src/modules/*，任何直接改在 src/modules 上的修复
+# 都会被覆盖掉（我踩过：补丁应用成功、构建后实测无效，因为构建把它冲掉了）。
+# 补丁必须每次构建都重放，且由 patches/MANIFEST.json 登记（tools/verify-sourcetree.mjs 据此放行差异）。
+node patches/apply-all.mjs | sed 's/^/  /'
 
 step 3 "分离配置表并逐键核对"
 node tools/extract-config.mjs

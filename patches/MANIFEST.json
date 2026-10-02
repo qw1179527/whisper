@@ -1,0 +1,54 @@
+{
+  "note": "补丁台账：凡与 baseline 不再逐字节一致的模块必须登记在此，tools/verify-sourcetree.mjs 据此放行并单独报告。",
+  "patchedModules": [
+    {
+      "module": "__m12.js",
+      "patches": [
+        {
+          "id": "003",
+          "name": "waypoint-advance"
+        }
+      ],
+      "sha256": "5765362984f8e426ea5dec1d5ed91d7bfefaae11e3b424992e86ea76a0160393",
+      "reason": "该模块含已登记补丁，故不再与 baseline 逐字节一致（差异由补丁本身产生，可审计）"
+    },
+    {
+      "module": "__m3.js",
+      "patches": [
+        {
+          "id": "002",
+          "name": "monster-unstick"
+        }
+      ],
+      "sha256": "dbd544e1a421b891facaf75661957e039f26df64ad3875df4c51e02e54fc80a7",
+      "reason": "该模块含已登记补丁，故不再与 baseline 逐字节一致（差异由补丁本身产生，可审计）"
+    },
+    {
+      "module": "__m4.js",
+      "patches": [
+        {
+          "id": "001",
+          "name": "door-cell-support"
+        },
+        {
+          "id": "004",
+          "name": "door-choice-on-path"
+        }
+      ],
+      "sha256": "9fad437bc92a1beabbce22c0901cca78244d1df2e25dc812de37661ffbcc0610",
+      "reason": "该模块含已登记补丁，故不再与 baseline 逐字节一致（差异由补丁本身产生，可审计）"
+    },
+    {
+      "module": "__m5.js",
+      "patches": [
+        {
+          "id": "005",
+          "name": "door-clearance"
+        }
+      ],
+      "sha256": "def197e97fa721209012a73b07496698bf86181fb364451d195d654828da1582",
+      "reason": "该模块含已登记补丁，故不再与 baseline 逐字节一致（差异由补丁本身产生，可审计）"
+    }
+  ],
+  "updatedAt": "2026-10-02T17:10:44.645Z"
+}

@@ -282,7 +282,8 @@
           }
           if (ms.waypoints.length) {
             const wp = ms.waypoints[ms.wpIndex];
-            if (Math.hypot(wp.x - brain.position.x, wp.z - brain.position.z) < 0.6) ms.wpIndex = Math.min(ms.wpIndex + 1, ms.waypoints.length - 1);
+            /* PATCH 003: waypoint-advance */
+            if (shouldAdvanceWaypoint(brain, ms)) ms.wpIndex = Math.min(ms.wpIndex + 1, ms.waypoints.length - 1);
             brain.patrolPoints = [ms.waypoints[ms.wpIndex]];
           }
           const pdist = Math.hypot(brain.position.x - state.pos.x, brain.position.z - state.pos.z);
@@ -330,7 +331,8 @@
                 ms.wpIndex = 0;
               }
               const wp = ms.waypoints[ms.wpIndex];
-              if (wp && Math.hypot(wp.x - brain.position.x, wp.z - brain.position.z) < 0.7) {
+              /* PATCH 003: waypoint-advance */
+              if (wp && shouldAdvanceWaypoint(brain, ms)) {
                 ms.wpIndex = Math.min(ms.wpIndex + 1, ms.waypoints.length - 1);
               }
               if (ms.waypoints.length) brain.patrolPoints = [ms.waypoints[ms.wpIndex]];
@@ -581,6 +583,38 @@
       return { state, stop: () => { running = false; } };
     }
     
+    /* PATCH 003: waypoint-advance */
+    /**
+     * 是否应当推进到下一个路点。
+     *
+     * 判据（不满足第一条就看第二条，避免"硬阈值撞上物理极限"的死锁）：
+     *   ① 已到当前路点附近（<0.9）→ 推进
+     *   ② 只有当**已经不在原房间**（即真的穿过了门）且离下一个路点更近时才提前推进
+     *   ③ 停滞超过 2.5s 的兜底（更保守：早期版本 1.2s 太急，会在门这侧就跳路点，
+     *      把怪指向走廊另一端的门，于是它掉头往回走 —— 实测卡死 57.9s 的直接原因）
+     *
+     * 教训：路点推进不能只看"离下一个更近"。门的两个路点分别位于门的**两侧**，
+     * 怪在门这侧时，离"对面那扇门"确实可能更近（几何上），但穿过去之前不该改目标。
+     */
+    function shouldAdvanceWaypoint(brain, ms) {
+      const wps = ms.waypoints;
+      if (!wps || wps.length === 0) return false;
+      const idx = Math.min(ms.wpIndex, wps.length - 1);
+      const wp = wps[idx];
+      if (!wp) return false;
+      const d = Math.hypot(wp.x - brain.position.x, wp.z - brain.position.z);
+      if (d < 0.9) { ms.wpStallAt = null; return true; }
+      const next = wps[idx + 1];
+      if (next) {
+        const dn = Math.hypot(next.x - brain.position.x, next.z - brain.position.z);
+        if (dn < d * 0.5 && d < 2.0) { ms.wpStallAt = null; return true; }
+      }
+      const now = brain.tick;
+      if (ms.wpStallAt == null) ms.wpStallAt = now;
+      else if (now - ms.wpStallAt > 2.5 * (config.network?.tickRate ?? 60)) { ms.wpStallAt = null; return true; }
+      return false;
+    }
+
     function roomAt(level, x, z) {
       return level.rooms.find((r) => x >= r.rect.x0 && x < r.rect.x1 && z >= r.rect.z0 && z < r.rect.z1)?.id ?? null;
     }

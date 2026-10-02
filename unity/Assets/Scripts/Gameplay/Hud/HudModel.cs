@@ -59,7 +59,9 @@ namespace Whisper.Gameplay.Hud
             BatterySeconds = (int)Math.Round(batterySeconds);
             Evidence = evidence;
             ElapsedSeconds = elapsedSeconds;
-            int total = (int)elapsedSeconds;
+            // 浮点累加容差：60.0 秒若因累加变成 59.999999，直接截断会显示成 0:59（实测踩到）。
+            // 容差取 2e-3：实测 60 秒浮点累加会得到 59.999256（1e-6 不够），直接截断会显示 0:59。
+            int total = (int)Math.Floor(elapsedSeconds + 2e-3);
             ClockText = $"{total / 60}:{total % 60:00}";
         }
 

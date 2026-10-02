@@ -96,7 +96,14 @@ namespace Whisper.Gameplay.Monsters
             _lostContactTicks = cfg.Float("monsterBehavior.lostContactSeconds", 12f) * _tickRate;
         }
 
-        void Enter(string state)
+        /// <summary>外部显式迁移状态（组合根/会话使用）。为什么暴露：状态迁移必须由"看见/听见"的判定方触发，
+        /// 而状态机自身只负责在给定状态下的移动 —— 分工不清会导致"怪永远不追人"这类静默缺陷。</summary>
+        public void Enter(string state) => EnterInternal(state);
+
+        /// <summary>设置导航目标（追击时指向玩家最后已知位置）。</summary>
+        public void SetTarget(Vec2 target) => Target = target;
+
+        void EnterInternal(string state)
         {
             if (State == state) return;
             History.Add(new StateTransition { Tick = Tick, From = State, To = state });
@@ -111,8 +118,8 @@ namespace Whisper.Gameplay.Monsters
             LastStimulus = stim;
             LastHeardTick = t;
             Target = new Vec2(stim.X, stim.Z);
-            if (AggroLockUntil.HasValue && t < AggroLockUntil.Value) { Enter("chase"); return; }
-            if (State != "chase") Enter("investigate");
+            if (AggroLockUntil.HasValue && t < AggroLockUntil.Value) { EnterInternal("chase"); return; }
+            if (State != "chase") EnterInternal("investigate");
         }
 
         /// <summary>挑衅者人格：锁定仇恨（5 秒，由配置 personaPacks.taunter 的 traits 决定）。</summary>
@@ -159,13 +166,13 @@ namespace Whisper.Gameplay.Monsters
                 }
                 case "investigate":
                 {
-                    if (!Target.HasValue) { Enter("patrol"); break; }
+                    if (!Target.HasValue) { EnterInternal("patrol"); break; }
                     var r = MoveToward(Target.Value, SpeedMps * dt, out moved, out movedTo);
                     Position = r;
                     if (Distance(Position, Target.Value) <= _investigateArriveRadiusM)
                     {
                         Target = null; arrived = true;
-                        Enter("return");   // 到达声源后短暂停留再回归巡逻（回归态承担"停留"语义）
+                        EnterInternal("return");   // 到达声源后短暂停留再回归巡逻（回归态承担"停留"语义）
                     }
                     break;
                 }
@@ -186,7 +193,7 @@ namespace Whisper.Gameplay.Monsters
                 {
                     var p = PatrolPoints[PatrolIndex % PatrolPoints.Count];
                     Position = MoveToward(p, SpeedMps * dt, out moved, out movedTo);
-                    if (Distance(Position, p) <= _investigateArriveRadiusM) { PatrolIndex++; Enter("patrol"); }
+                    if (Distance(Position, p) <= _investigateArriveRadiusM) { PatrolIndex++; EnterInternal("patrol"); }
                     break;
                 }
                 default:
@@ -200,7 +207,7 @@ namespace Whisper.Gameplay.Monsters
                 {
                     LastStimulus = null;
                     Target = null;
-                    Enter("return");
+                    EnterInternal("return");
                 }
             }
 

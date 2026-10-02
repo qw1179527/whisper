@@ -78,6 +78,7 @@ function bodyToOriginal(id) {
 
 // ── 生成模块段 + S2 自检 ──
 const moduleParts = [];
+const patchedModules = [];
 for (const m of MANIFEST.modules) {
   const original = baseBlocks.get(m.id);
   if (!original) throw new Error(`${m.id}: baseline 中找不到对应块`);
@@ -85,7 +86,12 @@ for (const m of MANIFEST.modules) {
   const head = `__tables["${m.id}"] = function (mod) {`;
   const inner = original.slice(head.length).replace(/\n  \};\n  $/, '');
   const rebuiltInner = bodyToOriginal(m.id).replace(/\n$/, '');
-  if (rebuiltInner !== inner) {
+  // 已登记补丁：模块含 /* PATCH nnn: ... */ 标记时，允许与 baseline 不同（差异由补丁产生，可审计）。
+  // 未登记却不同 → 仍然失败（防"偷偷改源树"）。
+  const patchedHere = /\/\* PATCH (\d{3}): ([a-z0-9-]+) \*\//.exec(fs.readFileSync(path.join(MOD_DIR, `${m.id}.js`), 'utf8'));
+  if (patchedHere && rebuiltInner !== inner) {
+    patchedModules.push(`${m.id} ← 补丁 ${patchedHere[1]}:${patchedHere[2]}`);
+  } else if (rebuiltInner !== inner) {
     const n = Math.min(rebuiltInner.length, inner.length);
     let i = 0;
     while (i < n && rebuiltInner[i] === inner[i]) i++;

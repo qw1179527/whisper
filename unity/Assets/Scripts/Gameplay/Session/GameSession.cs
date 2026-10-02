@@ -63,6 +63,14 @@ namespace Whisper.Gameplay.Session
 
         readonly List<Stimulus> _pending = new List<Stimulus>();
 
+        // ── 可观测性：把每帧的视觉判定分量暴露出来 ──
+        // 为什么：端到端用例里"怪为什么没进追击"曾无法判断（距离/朝向/保护期/阈值四个条件互相耦合），
+        // 只能靠反复猜测。把这些分量显式暴露后，断言与调试都能直接看到是哪一项不成立。
+        public float LastSightDistance { get; private set; }
+        public float LastSightRange { get; private set; }
+        public bool LastSeenEligible { get; private set; }
+        public bool LastChaseCondition { get; private set; }
+
         public GameSession(LevelData level, GameConfigReader cfg, int matchSeed = 0, VoiceAnchors? voiceAnchors = null)
         {
             Level = level;
@@ -172,8 +180,29 @@ namespace Whisper.Gameplay.Session
                     EventLog.Add(Hud.FormatHearing(new HearingNotice
                     { MonsterLabel = Hud.MonsterLabel(brain.Id), DistanceM = det.DistanceM, EffectiveThreshold = det.EffectiveThreshold }));
                 }
-                bool seen = chaseAllowed && SeenByPlayer;
-                var r = brain.Step(tick, seen, seen ? new Vec2(PlayerX, PlayerZ) : (Vec2?)null);
+                // 看见的三个条件（与灰盒 __m12 一致）：玩家侧"看见"、距离在阈值内、保护期已过。
+                // 灰盒还用 12m 作为"这段时间内可被看见"的硬上限（sightRange 另算阈值），这里同样保留。
+                float pdist = Distance(brain.Position.X, brain.Position.Z, PlayerX, PlayerZ);
+                LastSightDistance = pdist;
+                LastSightRange = Cfg.Float($"monsters.{brain.Id}.sightRangeM", 0f);
+                LastSeenEligible = SeenByPlayer;
+                bool seenCond = chaseAllowed && SeenByPlayer;
+                LastChaseCondition = seenCond && pdist <= 12f && LastSightRange >= pdist;
+
+                // **状态迁移必须显式做**：MonsterBrain 只在已处于 chase 时才消费 seenPlayer，
+                // 它自己没有"看见 → 进入追击"的迁移（灰盒由 __m12 的 updateMonsters 显式 _enter('chase')）。
+                // 我第一版漏了这一步，后果是"怪永远不追人"——端到端用例把它逼出来了。
+                if (LastChaseCondition)
+                {
+                    brain.SetTarget(new Vec2(PlayerX, PlayerZ));
+                    brain.Enter("chase");
+                }
+                else if (brain.State == "chase")
+                {
+                    // 看不见了：去最后已知位置搜索（而不是继续贴着玩家坐标），V9 §7
+                    brain.Enter("investigate");
+                }
+                var r = brain.Step(tick, false, null);
                 // 接触判定：保护期内不判（V9 §7）
                 if (Director.ContactEnabled && Distance(r.Position.X, r.Position.Z, PlayerX, PlayerZ) < 1.0f)
                 {

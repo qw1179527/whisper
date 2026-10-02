@@ -11,6 +11,7 @@
  * 用法：node tools/verify-sourcetree.mjs
  */
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +57,14 @@ console.log('G1.5 字节级可逆性');
 
   let byteExact = 0;
   const problems = [];
+  const patchedOk = [];
+  // 已登记补丁：patches/MANIFEST.json 记录的模块**允许**与 baseline 不同（差异由补丁本身产生）。
+  // 未登记却不同 → 仍然失败。这样"有人偷偷改了源树"不会被放行，而"有意修复"也不会被误拦。
+  let patched = new Map();
+  try {
+    const ledger = JSON.parse(fs.readFileSync(path.join(ROOT, 'patches/MANIFEST.json'), 'utf8'));
+    for (const e of ledger.patchedModules ?? []) patched.set(e.module.replace(/\.js$/, ''), e);
+  } catch { /* 无台账 → 不允许任何差异 */ }
   for (const m of MANIFEST.modules) {
     const src = fs.readFileSync(path.join(MOD_DIR, `${m.id}.js`), 'utf8');
     const bodyAt = src.indexOf("'use strict';\n");
@@ -74,10 +83,21 @@ console.log('G1.5 字节级可逆性');
       const a = original ?? '';
       let i = 0;
       while (i < Math.min(a.length, candidate.length) && a[i] === candidate[i]) i++;
-      problems.push(`${m.id} 拼回后与原块不同（首个差异在第 ${i} 字节：原=${JSON.stringify(a.slice(i, i + 40))} 拼=${JSON.stringify(candidate.slice(i, i + 40))}）`);
+      const led = patched.get(m.id);
+      if (led) {
+        const cur = crypto.createHash('sha256').update(fs.readFileSync(path.join(MOD_DIR, `${m.id}.js`))).digest('hex');
+        if (cur !== led.sha256) {
+          problems.push(`${m.id} 已登记补丁的内容与台账哈希不符（台账 ${led.sha256.slice(0, 12)} vs 现 ${cur.slice(0, 12)}）—— 有人绕过补丁脚本改了它`);
+        } else {
+          patchedOk.push(`${m.id} ← 补丁 ${led.patches.map((p) => p.id + ':' + p.name).join(', ')}（已登记，允许与 baseline 不同）`);
+        }
+      } else {
+        problems.push(`${m.id} 拼回后与原块不同（首个差异在第 ${i} 字节：原=${JSON.stringify(a.slice(i, i + 40))} 拼=${JSON.stringify(candidate.slice(i, i + 40))}）`);
+      }
     }
   }
-  if (problems.length === 0) ok(`14/14 模块逐字节可拼回原产物块（无信息丢失，非文本相似）`);
+  for (const x of patchedOk) console.log('  · ' + x);
+  if (problems.length === 0) ok(`${byteExact} 个模块逐字节可拼回原产物块${patchedOk.length ? ` · ${patchedOk.length} 个为已登记补丁（差异可审计）` : ''}`);
   else problems.forEach(bad);
   void MOD_REF;
 }

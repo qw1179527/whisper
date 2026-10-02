@@ -300,9 +300,7 @@ static class Program
             var cfg0 = cfgReader();
             var lv0 = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
             var s0 = new Whisper.Gameplay.Session.GameSession(lv0, cfg0, 1);
-            Console.WriteLine($"      [诊断E2E] 开局 sanity={s0.Sanity.Value} 证据点={s0.Items.EvidencePoints.Count} 撤离点={s0.Items.ExtractionPoints.Count} 怪={s0.Monsters.Count} 玩家=({s0.PlayerX},{s0.PlayerZ})");
             for (int i = 0; i < 60 * 60; i++) s0.Tick(1f / 60f);
-            Console.WriteLine($"      [诊断E2E] 60s 后 ended={s0.Outcome.Ended} survived={s0.Outcome.Survived} sanity={s0.Sanity.Value:0.00} stage={s0.Director.Stage} clock={s0.Hud.ClockText} 日志末3={string.Join(" | ", s0.EventLog.GetRange(Math.Max(0,s0.EventLog.Count-3), Math.Min(3,s0.EventLog.Count)))}");
         }
         Check("空跑 60 秒：保护期→主阶段、HUD 有时钟、无崩溃（不静止崩溃）", () =>
         {
@@ -360,9 +358,11 @@ static class Program
             var s4 = new Whisper.Gameplay.Session.GameSession(level, cfg, 9);
             s4.SeenByPlayer = true;                       // 玩家「看见」怪物（模拟视觉触发条件）
             s4.PlayerX = s4.Monsters[0].Position.X; s4.PlayerZ = s4.Monsters[0].Position.Z;
-            s4.Tick(1f / 60f);                            // 仍在 20s 保护期内
+            for (int i = 0; i < 30; i++) { s4.PlayerX = s4.Monsters[0].Position.X; s4.PlayerZ = s4.Monsters[0].Position.Z; s4.Tick(1f / 60f); }  // 仍在 20s 保护期内
             bool noChaseInGrace = s4.Monsters[0].State != "chase";
             // 越过保护期后再看一次
+            // 注意：必须每帧把玩家挪到怪身边。若站着不动，怪会走远，pdist>12 后视觉条件本就不成立
+            // —— 那是测试设计问题，不是"保护期语义"的问题（我第一版就是这么写错的）。
             for (int i = 0; i < 21 * 60; i++) { s4.PlayerX = s4.Monsters[0].Position.X; s4.PlayerZ = s4.Monsters[0].Position.Z; s4.Tick(1f / 60f); }
             bool chaseAfterGrace = s4.Monsters[0].State == "chase";
             return noChaseInGrace && chaseAfterGrace;

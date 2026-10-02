@@ -42,20 +42,33 @@
        */
       for (const room of rooms) {
         const { x0, x1, z0, z1 } = room.rect;
+        /* PATCH 005: door-clearance */
+        // 门洞余量：与门格相邻的墙段端部各让出 doorMargin，否则胶囊半径会把 1m 门洞吃成 0.32m
+        // （实测可用窗口只剩 3cm，怪贴门框磨而进不去）。
+        const doorMargin = Math.max(0, opts.doorMargin ?? 0.34);
         const cut = (orientation, line, from, to, doorCoord) => {
+          const doorAt = (t) => isDoor(
+            orientation === 'h' ? t : doorCoord,
+            orientation === 'h' ? doorCoord : t,
+          );
           let runStart = null;
+          const flush = (endT, startT) => {
+            // 仅当该段端部紧邻门格时才收缩
+            const shrinkStart = startT > from && doorAt(startT - 1) ? doorMargin : 0;
+            const shrinkEnd = doorAt(endT) ? doorMargin : 0;
+            const a = startT + shrinkStart;
+            const b = endT - shrinkEnd;
+            if (b - a > 0.02) spans.push(mkSpan(orientation, line, a, b));
+          };
           for (let t = from; t <= to; t++) {
-            const cellIsDoor = t < to && isDoor(
-              orientation === 'h' ? t : doorCoord,
-              orientation === 'h' ? doorCoord : t,
-            );
+            const cellIsDoor = t < to && doorAt(t);
             if (cellIsDoor) {
-              if (runStart !== null) { spans.push(mkSpan(orientation, line, runStart, t)); runStart = null; }
+              if (runStart !== null) { flush(t, runStart); runStart = null; }
             } else if (runStart === null) {
               runStart = t;
             }
           }
-          if (runStart !== null) spans.push(mkSpan(orientation, line, runStart, to));
+          if (runStart !== null) flush(to, runStart);
         };
     
         cut('h', z0 - 0.5, x0, x1, z0 - 1);   // 北墙：门格在 z0-1 那一行

@@ -36,6 +36,9 @@
     
     /** AABB 房间矩形 */
     function rect(room) {
+      /* PATCH 001: door-cell-support */
+      // 已编译房间直接带 rect（buildLevel 会给每个房间补 rect）；只有原始 DSL 才需要由 pos/size 推导。
+      if (room.rect && typeof room.rect.x0 === 'number') return room.rect;
       const [w, , d] = room.size;
       const [x, , z] = room.pos;
       return { x0: x, z0: z, x1: x + w, z1: z + d, w, d };
@@ -85,18 +88,37 @@
       for (const room of level.rooms) {
         const r = rect(room);
         for (const d of room.doors ?? []) {
-          const w = d.widthM ?? 1.2;
-          const mid = d.offsetM + w / 2;
+          /* PATCH 001: door-cell-support */
+          // 门有两种写法：格子形式 {id, cell}（关卡 DSL 实际用法）与墙面形式 {wall, offsetM, widthM}。
+          // 只认后者时，格子门会落进 else 分支被摆到东墙且 z=NaN —— 这正是"房间图零边、怪直线撞墙"的根因。
+          let w = d.widthM ?? 1.2;
           let pos;
           let normal;
-          if (d.wall === 'north') { pos = { x: r.x0 + mid, z: r.z0 }; normal = { x: 0, z: -1 }; }
-          else if (d.wall === 'south') { pos = { x: r.x0 + mid, z: r.z1 }; normal = { x: 0, z: 1 }; }
-          else if (d.wall === 'west') { pos = { x: r.x0, z: r.z0 + mid }; normal = { x: -1, z: 0 }; }
-          else { pos = { x: r.x1, z: r.z0 + mid }; normal = { x: 1, z: 0 }; }
+          let wall = d.wall;
+          if (Array.isArray(d.cell)) {
+            const [cx, cz] = d.cell;
+            pos = { x: cx + 0.5, z: cz + 0.5 };
+            // 门格本身是 1×1；用「格中心相对房间矩形的位置」判断贴在哪面墙上
+            if (Math.abs(pos.x - r.x0) <= 0.6) { wall = 'west'; normal = { x: -1, z: 0 }; }
+            else if (Math.abs(pos.x - r.x1) <= 0.6) { wall = 'east'; normal = { x: 1, z: 0 }; }
+            else if (Math.abs(pos.z - r.z0) <= 0.6) { wall = 'north'; normal = { x: 0, z: -1 }; }
+            else if (Math.abs(pos.z - r.z1) <= 0.6) { wall = 'south'; normal = { x: 0, z: 1 }; }
+            else { wall = null; normal = null; }
+            w = 1.0;   // 格子门洞口宽 = 1 格
+          } else {
+            const mid = d.offsetM + w / 2;
+            if (d.wall === 'north') { pos = { x: r.x0 + mid, z: r.z0 }; normal = { x: 0, z: -1 }; }
+            else if (d.wall === 'south') { pos = { x: r.x0 + mid, z: r.z1 }; normal = { x: 0, z: 1 }; }
+            else if (d.wall === 'west') { pos = { x: r.x0, z: r.z0 + mid }; normal = { x: -1, z: 0 }; }
+            else { pos = { x: r.x1, z: r.z0 + mid }; normal = { x: 1, z: 0 }; }
+          }
+          // 位置不可解（NaN / 无法判断贴墙）→ 跳过：宁可少一扇门，也不要一扇位置是 NaN 的门
+          if (!normal || !Number.isFinite(pos.x) || !Number.isFinite(pos.z)) continue;
           out.push({
             id: d.id,
             room: room.id,
-            wall: d.wall,
+            wall: wall,
+            cell: Array.isArray(d.cell) ? d.cell : null,
             widthM: w,
             locked: !!d.locked,
             blocksSight: true,           // 门体遮挡视线
@@ -262,15 +284,33 @@
     
     /** 路径 → 世界坐标路点序列（经门中心，供实际移动使用） */
     function roomPathToWaypoints(level, path) {
+      /* PATCH 004: door-choice-on-path */
       if (!path) return [];
       const pts = [];
+      const ca = (id) => roomCenter(level, id);
+      // 点到线段的垂距（用于判断哪扇门"在这条路上"）
+      const perpDist = (p, s, e) => {
+        const vx = e.x - s.x, vz = e.z - s.z;
+        const len2 = vx * vx + vz * vz;
+        if (len2 === 0) return Math.hypot(p.x - s.x, p.z - s.z);
+        let t = ((p.x - s.x) * vx + (p.z - s.z) * vz) / len2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (s.x + vx * t), p.z - (s.z + vz * t));
+      };
       for (let i = 0; i < path.length - 1; i++) {
         const [a, b] = [path[i], path[i + 1]];
-        const link = level.graph.links.find((l) => (l.a === a && l.b === b) || (l.a === b && l.b === a));
-        if (link) {
-          const door = level.doors.find((d) => d.id === link.door);
-          if (door) pts.push({ x: door.pos.x, z: door.pos.z });
+        // 同两房之间可能有多扇门：取「门中心离两房中心连线最近」的那扇。
+        // 原来的 .find() 取第一条匹配 —— 实测把怪送去走廊另一端（lobby 的门在 6.5，却选到 14.5）。
+        const cands = level.graph.links.filter((l) => (l.a === a && l.b === b) || (l.a === b && l.b === a));
+        const sa = ca(a), sb = ca(b);
+        let bestDoor = null, bestD = Infinity;
+        for (const l of cands) {
+          const door = level.doors.find((d) => d.id === l.door);
+          if (!door) continue;
+          const d = perpDist(door.pos, sa, sb);
+          if (d < bestD) { bestD = d; bestDoor = door; }
         }
+        if (bestDoor) pts.push({ x: bestDoor.pos.x, z: bestDoor.pos.z });
       }
       pts.push(roomCenter(level, path[path.length - 1]));
       return pts;
