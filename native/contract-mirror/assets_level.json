@@ -1,0 +1,139 @@
+{
+  "levelId": "asylum_v1",
+  "_note": "V9 §19.2 疗养院（首发，单层 10 房三区：入口区安全教学 / 住院区 5 证据点主压力区 / 地下太平间深处撤离点）。kit 必须存在于 Assets/Data/asset-manifest.json。",
+  "_zones": {
+    "entrance": ["entrance_safe"],
+    "pressure": ["ward_01", "ward_02", "ward_03", "ward_04", "ward_05"],
+    "deep": ["morgue_ante", "morgue_deep"]
+  },
+  "rooms": [
+    {
+      "id": "entrance_safe",
+      "size": [8, 3.5, 6],
+      "kit": "hall_main",
+      "doors": [
+        { "wall": "north", "offset": 0.5, "locked": false },
+        { "wall": "east", "offset": 0.4, "locked": false }
+      ],
+      "props": [{ "kit": "cabinet_a", "pos": [2.4, 0, -2.2], "rot": 180 }],
+      "evidencePoint": false,
+      "lightZone": "safe"
+    },
+    {
+      "id": "corridor_main",
+      "size": [3, 3.0, 14],
+      "kit": "hall_main",
+      "doors": [
+        { "wall": "south", "offset": 0.5, "locked": false },
+        { "wall": "north", "offset": 0.5, "locked": false }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "corridor_ward",
+      "size": [10, 3.0, 3],
+      "kit": "hall_main",
+      "doors": [
+        { "wall": "south", "offset": 0.5, "locked": false },
+        { "wall": "north", "offset": 0.2, "locked": false },
+        { "wall": "north", "offset": 0.5, "locked": false },
+        { "wall": "north", "offset": 0.8, "locked": false }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_01",
+      "size": [8, 3.5, 6],
+      "kit": "hospital_ward",
+      "doors": [{ "wall": "south", "offset": 0.2, "locked": false }],
+      "props": [{ "kit": "bed_b", "pos": [1.2, 0, -2.0], "rot": 90 }],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_02",
+      "size": [8, 3.5, 6],
+      "kit": "hospital_ward",
+      "doors": [{ "wall": "south", "offset": 0.5, "locked": false }],
+      "props": [
+        { "kit": "bed_b", "pos": [-1.4, 0, -1.8], "rot": 90 },
+        { "kit": "cabinet_a", "pos": [3.0, 0, 2.4], "rot": 0 }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_03",
+      "size": [8, 3.5, 6],
+      "kit": "hospital_ward",
+      "doors": [{ "wall": "south", "offset": 0.8, "locked": false }],
+      "props": [{ "kit": "bed_b", "pos": [1.2, 0, -2.0], "rot": 90 }],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_04",
+      "size": [8, 3.5, 6],
+      "kit": "hospital_ward",
+      "doors": [{ "wall": "west", "offset": 0.5, "locked": false }],
+      "props": [{ "kit": "cabinet_a", "pos": [-2.6, 0, 1.8], "rot": 270 }],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_05",
+      "size": [8, 3.5, 6],
+      "kit": "hospital_ward",
+      "doors": [{ "wall": "east", "offset": 0.5, "locked": false }],
+      "props": [{ "kit": "bed_b", "pos": [0.8, 0, -2.2], "rot": 90 }],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "morgue_ante",
+      "size": [6, 3.2, 6],
+      "kit": "morgue",
+      "doors": [
+        { "wall": "north", "offset": 0.5, "locked": false },
+        { "wall": "south", "offset": 0.5, "locked": true }
+      ],
+      "props": [{ "kit": "cabinet_a", "pos": [2.0, 0, -2.0], "rot": 180 }],
+      "evidencePoint": false,
+      "lightZone": "high-risk"
+    },
+    {
+      "id": "morgue_deep",
+      "size": [7, 3.2, 7],
+      "kit": "morgue",
+      "doors": [{ "wall": "north", "offset": 0.5, "locked": false }],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "high-risk"
+    }
+  ],
+  "corridors": [
+    { "from": "entrance_safe", "to": "corridor_main", "width": 2.2 },
+    { "from": "corridor_main", "to": "corridor_ward", "width": 2.2 },
+    { "from": "corridor_ward", "to": "ward_01", "width": 1.6 },
+    { "from": "corridor_ward", "to": "ward_02", "width": 1.6 },
+    { "from": "corridor_ward", "to": "ward_03", "width": 1.6 },
+    { "from": "corridor_ward", "to": "ward_04", "width": 1.6 },
+    { "from": "corridor_ward", "to": "ward_05", "width": 1.6 },
+    { "from": "corridor_main", "to": "morgue_ante", "width": 2.0 },
+    { "from": "morgue_ante", "to": "morgue_deep", "width": 1.8 }
+  ],
+  "events": [
+    { "type": "blackout", "minute": 6, "durationSec": 10 },
+    { "type": "doorlock", "minute": 9, "durationSec": 20 },
+    { "type": "laugh", "minute": 12, "durationSec": 6 }
+  ],
+  "extraction": {
+    "standard": "entrance_safe",
+    "deep": "morgue_deep",
+    "_note": "V9 §7：撤离双点制（标准点安全 / 深处点 +30%）"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "dependencies": {
+    "com.unity.addressables": "2.2.2",
+    "com.unity.ide.rider": "3.0.31",
+    "com.unity.ide.visualstudio": "2.0.22",
+    "com.unity.inputsystem": "1.11.2",
+    "com.unity.memoryprofiler": "1.1.6",
+    "com.unity.mobile.android-logcat": "1.4.5",
+    "com.unity.render-pipelines.universal": "17.0.3",
+    "com.unity.test-framework": "1.4.5",
+    "com.unity.ugui": "2.0.0"
+  },
+  "note": "本文件由 tools/gen-manifest.mjs 从 unity/dependency-lock.json 生成，请勿手改（CI 以 --check 校验一致性）。",
+  "scopedRegistries": [],
+  "thirdPartySlots": {
+    "photonFusion2": {
+      "version": "2.x（免费档 100 CCU 硬上限 ≈ DAU 2,000）",
+      "slot": "Assets/Scripts/Net（唯一允许 import 第三方命名空间的位置）"
+    },
+    "unityVivox": {
+      "version": "16.6.2",
+      "slot": "Assets/Scripts/Audio"
+    },
+    "firebaseUnity": {
+      "version": "12.10.0",
+      "slot": "Assets/Scripts/Backend"
+    },
+    "burst": {
+      "version": "1.8.21",
+      "slot": "Assets/Scripts/Core（仅数值密集处；本作默认不用 Burst）"
+    }
+  }
+}

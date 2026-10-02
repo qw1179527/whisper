@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 1,
+  "authority": "V9 §19.1 C3（资产零导入操作：CC0 资产经脚本化管线入库）+ §19.3（CI 资产管线）",
+  "note": "本清单是资产的唯一入口：AI 生成清单 → CI 的 editor batchmode 执行导入、打 Tag、设 Addressables 分组。禁止手工拖拽入库。",
+  "sourceRoot": "Assets/ThirdParty/CC0",
+  "kits": [
+    { "id": "hospital_ward", "kind": "room", "file": "kits/hospital_ward.glb", "tags": ["level", "asylum"], "addressablesGroup": "kits_rooms" },
+    { "id": "hall_main", "kind": "room", "file": "kits/hall_main.glb", "tags": ["level", "asylum"], "addressablesGroup": "kits_rooms" },
+    { "id": "morgue", "kind": "room", "file": "kits/morgue.glb", "tags": ["level", "asylum"], "addressablesGroup": "kits_rooms" },
+    { "id": "bed_b", "kind": "prop", "file": "props/bed_b.glb", "tags": ["prop"], "addressablesGroup": "kits_props" },
+    { "id": "cabinet_a", "kind": "prop", "file": "props/cabinet_a.glb", "tags": ["prop", "evidence"], "addressablesGroup": "kits_props" }
+  ],
+  "contentPipeline": {
+    "entry": "Whisper.Editor.ContentPipeline.GenerateAll",
+    "steps": ["导入清单内资产", "打 Tag", "按 addressablesGroup 建组", "引用完整性校验", "DSL schema 校验"]
+  }
+}

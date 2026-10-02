@@ -1,0 +1,104 @@
+{
+  "meta": {
+    "source": "V9 §11 前端设计系统（V6 §17~§23 浓缩）",
+    "note": "设计 Token 的直接落为代码（V9 §19.1 C2）：UI 零编辑器，Token 与代码一一对应"
+  },
+  "color": {
+    "paper": "#F0E6D2",
+    "ink": "#1A1A1A",
+    "blood": "#8B1E1E",
+    "mold": "#5C8C6E",
+    "bone": "#D8CFBB",
+    "soot": "#0E0D0C",
+    "rust": "#6E4A2F",
+    "signal": "#C9A227",
+    "danger": "#C0392B",
+    "safe": "#4E7A5A",
+    "hud": "rgba(240,230,210,0.86)",
+    "hudDim": "rgba(240,230,210,0.42)"
+  },
+  "font": {
+    "family": "'Courier New', 'Noto Serif SC', monospace",
+    "title": {
+      "sizePx": 30,
+      "weight": 700,
+      "letterSpacing": "0.14em"
+    },
+    "hud": {
+      "sizePx": 15,
+      "weight": 600,
+      "letterSpacing": "0.10em"
+    },
+    "body": {
+      "sizePx": 14,
+      "weight": 400,
+      "letterSpacing": "0.02em"
+    },
+    "diegetic": {
+      "sizePx": 13,
+      "weight": 400,
+      "letterSpacing": "0.06em"
+    }
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 16,
+    "lg": 24,
+    "xl": 40
+  },
+  "radius": {
+    "none": 0,
+    "sm": 2,
+    "md": 4
+  },
+  "layers": {
+    "L0_fatal": {
+      "readSeconds": 0.1,
+      "examples": [
+        "怪物仇恨闪烁",
+        "撤离倒计时"
+      ]
+    },
+    "L1_tactical": {
+      "readSeconds": 0.5,
+      "examples": [
+        "队友方位点",
+        "理智环",
+        "轮盘"
+      ]
+    },
+    "L2_status": {
+      "examples": [
+        "手电电量",
+        "道具栏",
+        "证据计数"
+      ]
+    },
+    "L3_diegetic": {
+      "examples": [
+        "环境沉浸层"
+      ]
+    }
+  },
+  "motion": {
+    "uiFadeMs": 180,
+    "hudPulseMs": 900,
+    "damageFlashMs": 220,
+    "blackoutFadeMs": 600,
+    "monsterStingerMs": 1400,
+    "reduceMotionRespect": true
+  },
+  "touch": {
+    "minHitTargetPx": 44,
+    "lookSensitivityDefault": 0.0032,
+    "deadZonePx": 8,
+    "stickRadiusPx": 68
+  },
+  "accessibility": {
+    "contrastMinRatio": 4.5,
+    "subtitleForAllVoiceLines": true,
+    "colorblindSafeIcons": true,
+    "hapticsToggle": true
+  }
+}

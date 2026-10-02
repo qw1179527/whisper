@@ -1,0 +1,113 @@
+# unity-build.yml — Unity 6 代码优先骨架的 CI（V9 §19.3 资产管线 + §20.2 构建分钟预算）
+#
+# 纪律（V9 §20.2）：
+#   · PR 阶段只跑测试（Edit Mode 为主，快），合并后才出包
+#   · 私有仓库 2,000 分钟/月：夜间 dev 构建每日 1 次 ≈1,200 分钟 + 里程碑 ≈450 + AAB ≈100 = ≈1,750
+#   · Unity 版本与第三方版本全部读 unity/dependency-lock.json，禁止 workflow 内硬编码
+#
+# 需要配置的仓库 Secrets（**本机无法代劳，必须在有网环境点一次**）：
+#   UNITY_LICENSE      —— Unity Personal 授权文件内容（game-ci/unity-request-activation-file 生成）
+#   UNITY_EMAIL        —— Unity 账号邮箱
+#   UNITY_PASSWORD     —— Unity 账号密码
+# 参考：https://game.ci/docs/github/activation
+
+name: unity-build
+
+on:
+  push:
+    branches: [main]
+    paths: ['unity/**', '.github/workflows/unity-build.yml']
+  pull_request:
+    paths: ['unity/**']
+  schedule:
+    - cron: '0 18 * * *'   # 每日夜间 dev 构建（「第二天的基线」，V9 §19.5）
+  workflow_dispatch:
+
+concurrency:
+  group: unity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 快检查：不消耗 Unity 授权，秒级完成 ──
+  static-guard:
+    name: 静态守护（asmdef / manifest / 架构）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: asmdef 与 V9 §13.1 规则表一致？
+        run: node tools/gen-asmdef.mjs --check
+      - name: Packages/manifest.json 与 dependency-lock.json 一致？
+        run: node tools/gen-manifest.mjs --check
+      - name: 架构守护（三接口纪律 / 第三方槽位 / C1-C4 / 未注册 asmdef）
+        run: node tools/arch-guard.mjs
+      - name: 真源镜像一致性（管线 data/ ↔ Unity Assets/Data）
+        run: node tools/data-mirror.mjs
+      - name: DesignTokens 一致 + 产物可编译性自检 + 镜像
+        run: node tools/gen-design-tokens.mjs --check
+      - name: Level DSL 校验（schema / 引用完整性 / V9 结构 / 镜像）
+        run: node tools/validate-levels.mjs
+      - name: C# 静态一致性（括号 / interface 分号 / using↔asmdef / 资源路径）
+        run: node tools/cs-lint.mjs
+
+  test:
+    name: Edit Mode 测试（PR 阶段唯一消耗授权的一步）
+    needs: static-guard
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-${{ hashFiles('unity/Packages/manifest.json') }}
+          restore-keys: Library-
+      - name: 读取锁定版本
+        id: lock
+        run: |
+          node -e "const l=require('./unity/dependency-lock.json');console.log('unity='+l.unity.editor);console.log('targetSdk='+l.stores.targetSdk)" >> "$GITHUB_OUTPUT"
+      - uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: unity
+          unityVersion: ${{ steps.lock.outputs.unity }}
+          testMode: editmode      # §20.2：测试优先 Edit Mode（快）
+
+  build:
+    name: 出 dev APK / 里程碑 AAB
+    needs: static-guard
+    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-${{ hashFiles('unity/Packages/manifest.json') }}
+          restore-keys: Library-
+      - name: 读取锁定版本与目标 SDK
+        id: lock
+        run: |
+          node -e "const l=require('./unity/dependency-lock.json');console.log('unity='+l.unity.editor);console.log('target='+l.stores.targetSdk);console.log('min='+l.stores.minSdk)" >> "$GITHUB_OUTPUT"
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: unity
+          unityVersion: ${{ steps.lock.outputs.unity }}
+          targetPlatform: Android
+          androidTargetSdkVersion: ${{ steps.lock.outputs.target }}
+          androidMinSdkVersion: ${{ steps.lock.outputs.min }}
+          buildMethod: Whisper.Editor.BuildPipeline.BuildAndroidDev
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whisper-dev-apk
+          path: build/Android

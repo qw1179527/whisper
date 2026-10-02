@@ -1,0 +1,68 @@
+{
+  "lockFormatVersion": 1,
+  "authority": "V9.0 §12 表12-1（技术栈总表）+ §16 平台硬性要求（2026-10-02 核验）",
+  "note": "本文件是依赖版本的唯一真源：CI 与 ProjectSettings 都必须与它一致；不一致即视为漂移（tools/arch-guard.mjs 会 fail）。",
+  "unity": {
+    "editor": "6000.0.38f1",
+    "editorMin": "6000.0.38f1",
+    "reason": "16KB 页对齐要求 Unity ≥ 6000.0.38f1（V9 §12 依赖版本锁定）",
+    "license": "Personal（年收入 < 20 万美元免费；Android 出包无分成）",
+    "modules": ["android", "android-sdk-ndk-tools", "android-sdk-platform-tools", "android-sdk-build-tools"]
+  },
+  "packages": {
+    "com.unity.render-pipelines.universal": "17.0.3",
+    "com.unity.addressables": "2.2.2",
+    "com.unity.inputsystem": "1.11.2",
+    "com.unity.test-framework": "1.4.5",
+    "com.unity.memoryprofiler": "1.1.6",
+    "com.unity.mobile.android-logcat": "1.4.5",
+    "com.unity.ide.rider": "3.0.31",
+    "com.unity.ide.visualstudio": "2.0.22",
+    "com.unity.ugui": "2.0.0"
+  },
+  "thirdParty": {
+    "photonFusion2": {
+      "version": "2.x（免费档 100 CCU 硬上限 ≈ DAU 2,000）",
+      "licenseTier": "free",
+      "slot": "Assets/Scripts/Net（唯一允许 import 第三方命名空间的位置）",
+      "why": "联机同步；升级付费后不可降回免费档，属单向门（V9 §14）",
+      "integrity16KB": "由 Unity 6000.0.38f1+ 覆盖"
+    },
+    "unityVivox": {
+      "version": "16.6.2",
+      "licenseTier": "free（每月前 5,000 PCU）",
+      "slot": "Assets/Scripts/Audio",
+      "why": "3D 位置语音 + AEC；16KB 页对齐要求 ≥ 16.6.2（V9 §12）",
+      "integrity16KB": "≥ 16.6.2 为硬下限"
+    },
+    "firebaseUnity": {
+      "version": "12.10.0",
+      "licenseTier": "Spark/Blaze（量内 $0，封顶 1 美元/月）",
+      "slot": "Assets/Scripts/Backend",
+      "why": "Auth / Firestore / Functions / Analytics / Crashlytics / Remote Config / App Distribution",
+      "integrity16KB": "≥ 12.10.0 为硬下限"
+    },
+    "burst": {
+      "version": "1.8.21",
+      "licenseTier": "随 Unity",
+      "slot": "Assets/Scripts/Core（仅数值密集处；本作默认不用 Burst）",
+      "integrity16KB": "≥ 1.8.21 为硬下限"
+    }
+  },
+  "stores": {
+    "playBillingVersion": 8,
+    "targetSdk": 36,
+    "minSdk": 26,
+    "pageAlign16KB": true,
+    "apkMaxMB": 200,
+    "aabInstallTimeMaxMB": 150
+  },
+  "remoteConfigKeys": {
+    "monster_speed_multiplier": "number",
+    "daily_free_room_limit": "number",
+    "event_pool_enabled": "boolean",
+    "min_version": "string",
+    "ccu_warn_rooms": 20,
+    "ccu_full_rooms": 25
+  }
+}

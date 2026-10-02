@@ -1,0 +1,21 @@
+# ── 本机工具链产物（体积大且可重装；实测 native/dotnet 472MB、android-sdk 数百 MB）──
+native/dotnet/
+native/android-tools/
+native/csharp-verify/obj/
+native/csharp-verify/bin/
+native/java-verify/out/
+native/*/out/
+native/deliver/*.apk
+androidsdk/
+
+# ── 构建与临时 ──
+build/
+tmp/
+*.log
+*.deb
+*.bak
+
+# ── 平台噪声（若将来在桌面机上也开这个仓库）──
+.DS_Store
+Thumbs.db
+*.swp

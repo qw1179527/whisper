@@ -1,0 +1,24 @@
+{
+  "_note": "V9 §11 表11-1 色彩 Token ↔ 产品 data/design-tokens.json 的对账表（机器可读）。由 tools/tokens-map-check.mjs 做双射校验：两侧任一新 token 未分类即红。独立验证轨指出：DesignTokens.cs 是从产品 json 生成的，因此『生成物==真源』这类断言是同义反复，结构上够不着『产品漂离 V9』——必须靠本表。",
+  "_authority": "V9.0 §11 表11-1（7 个色彩 Token）；产品真源 data/design-tokens.json（源自 0.6.0 产物内嵌 __TOK）",
+  "_decision_policy": "原则：以产品真实值为准，绝不静默改名去对齐 §11；无法自动判定的归入 unresolved，等人类裁决。",
+  "v9": [
+    { "token": "color-paper", "hex": "#F0E6D2", "class": "matched", "product": "paper", "note": "同名同值" },
+    { "token": "color-ink", "hex": "#1A1A1A", "class": "matched", "product": "ink", "note": "同名同值" },
+    { "token": "color-blood", "hex": "#8B1E1E", "class": "matched", "product": "blood", "note": "同名同值" },
+    { "token": "color-ghost", "hex": "#5C8C6E", "class": "renamed", "product": "mold", "note": "同值异名；V9 内部即有两个名字：§11 表11-1 写 color-ghost，§28.1 STYLE_ANCHOR 写 'mold green #5C8C6E'。故『改名对齐』无唯一答案，产品取 mold 有 V9 内部依据。" },
+    { "token": "color-faded", "hex": "#8C7E66", "class": "unresolved", "product": null, "note": "产品侧名值皆无。用于『次级文字/禁用态』。裁决选项：a) 补进产品色板 b) 记为 V9 未落地项并接受 c) 用某个现有色替代（需人工定）" },
+    { "token": "color-warning", "hex": "#C46A1A", "class": "unresolved", "product": null, "note": "产品侧名值皆无。产品有近义色 danger #C0392B（值不等）。裁决：warning 与 danger 是有意区分（中危 vs 危险）还是漏对齐？" },
+    { "token": "color-dark", "hex": "#0D0D0D", "class": "unresolved", "product": null, "note": "★优先裁决：产品 soot=#0E0D0C 与之 ΔRGB=1/0/1 —— 这是唯一『近似但不等值』的一条，会造成实际视觉偏差；不能与 ghost 的『同值异名』混为一谈。" }
+  ],
+  "productOnly": [
+    { "token": "bone", "hex": "#D8CFBB", "v9": null, "note": "V9 §11 未定义；产品自有（档案残页纸色）" },
+    { "token": "soot", "hex": "#0E0D0C", "v9": "color-dark 的近值候选（Δ1/0/1，待裁决）" },
+    { "token": "rust", "hex": "#6E4A2F", "v9": null },
+    { "token": "signal", "hex": "#C9A227", "v9": null },
+    { "token": "danger", "hex": "#C0392B", "v9": "color-warning 的近义候选（值不等，待裁决）" },
+    { "token": "safe", "hex": "#4E7A5A", "v9": null },
+    { "token": "hud", "hex": "rgba(240,230,210,0.86)", "v9": null, "note": "HUD 专用透明度色" },
+    { "token": "hudDim", "hex": "rgba(240,230,210,0.42)", "v9": null }
+  ]
+}

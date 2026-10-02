@@ -1,0 +1,251 @@
+{
+  "meta": {
+    "generatedBy": "tools/split-modules.mjs",
+    "generatedAt": "2026-10-02T14:41:11.077Z",
+    "source": "baseline/game-0.6.0.js",
+    "moduleCount": 14
+  },
+  "files": [
+    {
+      "id": "__m0",
+      "file": "src/modules/__m0.js",
+      "bytes": 17143,
+      "verbatimBytes": 15008,
+      "sha256": "6afa70f6e9406f08",
+      "deps": [],
+      "exports": [
+        "cfg",
+        "designTokens",
+        "installConfig",
+        "loadConfig",
+        "resetConfig",
+        "stimulusSource"
+      ]
+    },
+    {
+      "id": "__m1",
+      "file": "src/modules/__m1.js",
+      "bytes": 22794,
+      "verbatimBytes": 18635,
+      "sha256": "3059e6a061a531b0",
+      "deps": [
+        "__m0"
+      ],
+      "exports": [
+        "BAND_IDS",
+        "BAND_SOURCE_KEY",
+        "Ring",
+        "SILENCE_DBFS",
+        "VoiceBandClassifier",
+        "VoiceCalibrator",
+        "__internals",
+        "anchorFromFrames",
+        "bandToStimulus",
+        "crossDeviceAgreement",
+        "median",
+        "percentile",
+        "personaFixedIntensity"
+      ]
+    },
+    {
+      "id": "__m2",
+      "file": "src/modules/__m2.js",
+      "bytes": 7822,
+      "verbatimBytes": 5666,
+      "sha256": "f10d100354ab5a1e",
+      "deps": [
+        "__m0"
+      ],
+      "exports": [
+        "MONSTER_IDS",
+        "canHear",
+        "effectiveHearingThreshold",
+        "hearStimulus",
+        "makeStimulus",
+        "makeVoiceStimulus",
+        "movementStimulusKey",
+        "stimulusIntensity",
+        "stimulusRadiusTable"
+      ]
+    },
+    {
+      "id": "__m3",
+      "file": "src/modules/__m3.js",
+      "bytes": 10165,
+      "verbatimBytes": 8457,
+      "sha256": "48b7527277f1c92c",
+      "deps": [
+        "__m0",
+        "__m2"
+      ],
+      "exports": [
+        "MonsterBrain",
+        "STATES",
+        "axisClear",
+        "finalRageActive"
+      ]
+    },
+    {
+      "id": "__m4",
+      "file": "src/modules/__m4.js",
+      "bytes": 13317,
+      "verbatimBytes": 11126,
+      "sha256": "4de513e0c28d6c9d",
+      "deps": [],
+      "exports": [
+        "WALL_SIDES",
+        "buildLevel",
+        "buildLevelFromData",
+        "buildRoomGraph",
+        "compileDoors",
+        "compileWalls",
+        "distanceFrom",
+        "doorConnections",
+        "findRoomPath",
+        "hasLineOfSight",
+        "installLevel",
+        "levelBounds",
+        "roomAt",
+        "roomCenter",
+        "roomPathToWaypoints",
+        "segmentsIntersect",
+        "spawnPointOf"
+      ]
+    },
+    {
+      "id": "__m5",
+      "file": "src/modules/__m5.js",
+      "bytes": 11331,
+      "verbatimBytes": 8839,
+      "sha256": "71fe5425513f8b1d",
+      "deps": [],
+      "exports": [
+        "KIT_FOOTPRINT",
+        "buildWallBoxes",
+        "doorBlockers",
+        "floorQuad",
+        "levelBoundsOf",
+        "makeCollider",
+        "makeRoomCollider",
+        "mergeStrips",
+        "propBoxes",
+        "roomWalls",
+        "wallCells"
+      ]
+    },
+    {
+      "id": "__m6",
+      "file": "src/modules/__m6.js",
+      "bytes": 10324,
+      "verbatimBytes": 9067,
+      "sha256": "9a713274e9e18533",
+      "deps": [],
+      "exports": [
+        "createRenderer",
+        "makeCamera"
+      ]
+    },
+    {
+      "id": "__m7",
+      "file": "src/modules/__m7.js",
+      "bytes": 5447,
+      "verbatimBytes": 4526,
+      "sha256": "fad3816c04b81e15",
+      "deps": [],
+      "exports": [
+        "parseGLB"
+      ]
+    },
+    {
+      "id": "__m8",
+      "file": "src/modules/__m8.js",
+      "bytes": 11207,
+      "verbatimBytes": 9517,
+      "sha256": "8d5df101b830459f",
+      "deps": [
+        "__m5",
+        "__m7"
+      ],
+      "exports": [
+        "WALL_COLORS",
+        "bakeInstances",
+        "bakeMonster",
+        "buildStructure",
+        "kitInstances"
+      ]
+    },
+    {
+      "id": "__m9",
+      "file": "src/modules/__m9.js",
+      "bytes": 6688,
+      "verbatimBytes": 4886,
+      "sha256": "c8a35bcb39ad9673",
+      "deps": [],
+      "exports": [
+        "createInput"
+      ]
+    },
+    {
+      "id": "__m10",
+      "file": "src/modules/__m10.js",
+      "bytes": 3893,
+      "verbatimBytes": 2417,
+      "sha256": "55510ead7607c7f4",
+      "deps": [],
+      "exports": [
+        "createVoiceInput"
+      ]
+    },
+    {
+      "id": "__m11",
+      "file": "src/modules/__m11.js",
+      "bytes": 14732,
+      "verbatimBytes": 13347,
+      "sha256": "4fc0959424d17514",
+      "deps": [],
+      "exports": [
+        "createHud"
+      ]
+    },
+    {
+      "id": "__m12",
+      "file": "src/modules/__m12.js",
+      "bytes": 33121,
+      "verbatimBytes": 28712,
+      "sha256": "8fb0db6e489585c6",
+      "deps": [
+        "__m1",
+        "__m2",
+        "__m3",
+        "__m4",
+        "__m5",
+        "__m6",
+        "__m7",
+        "__m8",
+        "__m9",
+        "__m10",
+        "__m11"
+      ],
+      "exports": [
+        "startGame"
+      ]
+    },
+    {
+      "id": "__m13",
+      "file": "src/modules/__m13.js",
+      "bytes": 2550,
+      "verbatimBytes": 1377,
+      "sha256": "6c00653591b04755",
+      "deps": [
+        "__m12"
+      ],
+      "exports": [
+        "startGame"
+      ]
+    }
+  ],
+  "entry": {
+    "file": "src/entry.js",
+    "bytes": 255
+  }
+}

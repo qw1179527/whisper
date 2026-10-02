@@ -1,0 +1,548 @@
+{
+  "levelId": "asylum_v1",
+  "_note": "V9 §19.2 疗养院（单层 + 地下太平间；入口区安全教学 / 住院区 5 证据点主压力区 / 地下太平间深处撤离点）。",
+  "_layout": "坐标单位米，XZ 平面；房间 pos=[中心x,中心z] + size=[宽,高,深]，rotY 全 0（轴对齐）。走廊以 doorA/doorB 引用具体门（房间id/门id），两端门必须贴同一条共享墙且开口对齐——由 tools/validate-levels.mjs 强制校验。**本文件由 tools/gen-asylum-v1.mjs 从布局表生成，手改会被覆盖。**",
+  "_zones": {
+    "entrance": [
+      "entrance_safe"
+    ],
+    "pressure": [
+      "corridor_main",
+      "corridor_link",
+      "corridor_ward",
+      "ward_01",
+      "ward_02",
+      "ward_03",
+      "ward_04",
+      "ward_05"
+    ],
+    "deep": [
+      "morgue_deep",
+      "morgue_ante"
+    ]
+  },
+  "rooms": [
+    {
+      "id": "entrance_safe",
+      "pos": [
+        2,
+        1.5
+      ],
+      "size": [
+        4,
+        3.5,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hall_main",
+      "doors": [
+        {
+          "id": "d_east",
+          "wall": "east",
+          "offset": 0.5,
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            1.5,
+            0,
+            0.6
+          ],
+          "rot": 180
+        }
+      ],
+      "evidencePoint": false,
+      "lightZone": "safe"
+    },
+    {
+      "id": "corridor_main",
+      "pos": [
+        11,
+        1.5
+      ],
+      "size": [
+        14,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hall_main",
+      "doors": [
+        {
+          "id": "d_west",
+          "wall": "west",
+          "offset": 0.5,
+          "locked": false
+        },
+        {
+          "id": "d_n_morgue",
+          "wall": "north",
+          "offset": 0.929,
+          "locked": false
+        },
+        {
+          "id": "d_n_link",
+          "wall": "north",
+          "offset": 0.036,
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "morgue_deep",
+      "pos": [
+        17,
+        4.5
+      ],
+      "size": [
+        2,
+        3.2,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "morgue",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.5,
+          "locked": false
+        },
+        {
+          "id": "d_north",
+          "wall": "north",
+          "offset": 0.5,
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "high-risk"
+    },
+    {
+      "id": "morgue_ante",
+      "pos": [
+        17,
+        7.5
+      ],
+      "size": [
+        2,
+        3.2,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "morgue",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.5,
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            0,
+            0,
+            1
+          ],
+          "rot": 180
+        }
+      ],
+      "evidencePoint": false,
+      "lightZone": "high-risk"
+    },
+    {
+      "id": "corridor_link",
+      "pos": [
+        6,
+        4
+      ],
+      "size": [
+        4,
+        3,
+        2
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hall_main",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.125,
+          "locked": false
+        },
+        {
+          "id": "d_north",
+          "wall": "north",
+          "offset": 0.125,
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "corridor_ward",
+      "pos": [
+        9.5,
+        5.5
+      ],
+      "size": [
+        11,
+        3,
+        1
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hall_main",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.045,
+          "locked": false
+        },
+        {
+          "id": "d_n1",
+          "wall": "north",
+          "offset": 0.045,
+          "locked": false
+        },
+        {
+          "id": "d_n2",
+          "wall": "north",
+          "offset": 0.273,
+          "locked": false
+        },
+        {
+          "id": "d_n3",
+          "wall": "north",
+          "offset": 0.409,
+          "locked": false
+        },
+        {
+          "id": "d_n4",
+          "wall": "north",
+          "offset": 0.591,
+          "locked": false
+        },
+        {
+          "id": "d_n5",
+          "wall": "north",
+          "offset": 0.773,
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_01",
+      "pos": [
+        5,
+        8
+      ],
+      "size": [
+        2,
+        3.5,
+        4
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.25,
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "bed_b",
+          "pos": [
+            0,
+            0,
+            -0.5
+          ],
+          "rot": 90
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_02",
+      "pos": [
+        7,
+        8
+      ],
+      "size": [
+        2,
+        3.5,
+        4
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.5,
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "bed_b",
+          "pos": [
+            0,
+            0,
+            -0.5
+          ],
+          "rot": 90
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_03",
+      "pos": [
+        9,
+        8
+      ],
+      "size": [
+        2,
+        3.5,
+        4
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.25,
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "bed_b",
+          "pos": [
+            0,
+            0,
+            -0.5
+          ],
+          "rot": 90
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_04",
+      "pos": [
+        11,
+        8
+      ],
+      "size": [
+        2,
+        3.5,
+        4
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.25,
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            0,
+            0,
+            0.8
+          ],
+          "rot": 270
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "ward_05",
+      "pos": [
+        13,
+        8
+      ],
+      "size": [
+        2,
+        3.5,
+        4
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offset": 0.25,
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "bed_b",
+          "pos": [
+            0,
+            0,
+            -0.5
+          ],
+          "rot": 90
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    }
+  ],
+  "corridors": [
+    {
+      "from": "entrance_safe",
+      "to": "corridor_main",
+      "doorA": "entrance_safe/d_east",
+      "doorB": "corridor_main/d_west",
+      "width": 2
+    },
+    {
+      "from": "corridor_main",
+      "to": "morgue_deep",
+      "doorA": "corridor_main/d_n_morgue",
+      "doorB": "morgue_deep/d_south",
+      "width": 2
+    },
+    {
+      "from": "morgue_deep",
+      "to": "morgue_ante",
+      "doorA": "morgue_deep/d_north",
+      "doorB": "morgue_ante/d_south",
+      "width": 1.8
+    },
+    {
+      "from": "corridor_main",
+      "to": "corridor_link",
+      "doorA": "corridor_main/d_n_link",
+      "doorB": "corridor_link/d_south",
+      "width": 2
+    },
+    {
+      "from": "corridor_link",
+      "to": "corridor_ward",
+      "doorA": "corridor_link/d_north",
+      "doorB": "corridor_ward/d_south",
+      "width": 2
+    },
+    {
+      "from": "corridor_ward",
+      "to": "ward_01",
+      "doorA": "corridor_ward/d_n1",
+      "doorB": "ward_01/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "corridor_ward",
+      "to": "ward_02",
+      "doorA": "corridor_ward/d_n2",
+      "doorB": "ward_02/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "corridor_ward",
+      "to": "ward_03",
+      "doorA": "corridor_ward/d_n3",
+      "doorB": "ward_03/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "corridor_ward",
+      "to": "ward_04",
+      "doorA": "corridor_ward/d_n4",
+      "doorB": "ward_04/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "corridor_ward",
+      "to": "ward_05",
+      "doorA": "corridor_ward/d_n5",
+      "doorB": "ward_05/d_south",
+      "width": 1.6
+    }
+  ],
+  "events": [
+    {
+      "type": "blackout",
+      "minute": 6,
+      "durationSec": 10,
+      "params": {
+        "scope": "ward_zone"
+      },
+      "sanityEffect": -3,
+      "counterplay": "手电筒照走廊地面确认出口；黑暗持续掉理智，回到安全区（+2/s）可恢复"
+    },
+    {
+      "type": "doorlock",
+      "minute": 9,
+      "durationSec": 20,
+      "params": {
+        "rooms": [
+          "ward_03",
+          "ward_04"
+        ]
+      },
+      "sanityEffect": -2,
+      "counterplay": "锁门期间走住院部东西走廊绕行；砸窗会产生 70 强度声纹（半径 20 米），代价明确"
+    },
+    {
+      "type": "laugh",
+      "minute": 12,
+      "durationSec": 6,
+      "params": {
+        "source": "morgue_ante"
+      },
+      "sanityEffect": -5,
+      "counterplay": "笑声期间蹲行（声纹 8/强度、3 米半径）避免叠加暴露；可借声源方位判断怪物大致位置"
+    }
+  ],
+  "extraction": {
+    "standard": "entrance_safe",
+    "deep": "morgue_deep",
+    "_note": "V9 §7 撤离双点制（标准点安全 / 深处点 +30%）。**已知缺口**：morgue_* 在 V9 里是「地下太平间」，但当前 DSL/校验器不支持跨层走廊（stairs）——本版把两间记为 floor:0、靠位置与命名表达「深处」，待 stair 能力实现后改回 floor:-1"
+  }
+}

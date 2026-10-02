@@ -1,0 +1,20 @@
+{
+  "name": "Whisper.Runtime",
+  "rootNamespace": "Whisper.Runtime",
+  "references": [
+    { "name": "Whisper.Core" },
+    { "name": "Whisper.Gameplay" },
+    { "name": "Whisper.Net" },
+    { "name": "Whisper.Audio" },
+    { "name": "Whisper.Backend" }
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

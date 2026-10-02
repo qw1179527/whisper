@@ -1,0 +1,17 @@
+{
+  "name": "Whisper.Net",
+  "rootNamespace": "Whisper.Net",
+  "references": [
+    { "name": "Whisper.Core" },
+    { "name": "Whisper.Gameplay" }
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

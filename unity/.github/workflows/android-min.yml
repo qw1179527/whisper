@@ -1,0 +1,63 @@
+# android-min.yml — 不消耗 Unity 授权的最小 Android 产物（本机链路在 CI 上的复刻）
+#
+# 为什么单独一条：本机已验证「javac + d8 + aapt + zipalign + apksigner」可在**零 gradle/零网络依赖**下
+# 产出可安装 APK（见 native/micprobe/build-apk.sh）。本 workflow 把同一条链搬到 CI，
+# 用于出**验证件**（如 V9 §13.5 麦克风单源探针），不占用 2,000 分钟 Unity 预算。
+#
+# 本机环境注意（已实测，写在这里避免以后重复踩）：
+#   · Google 只发 x86-64 版 SDK build-tools；arm64 上的 d8/aapt2 需从 Termux 官方源取
+#   · 本机 node 走 DoH 可联网，但 go/dns 解析受限（[::1]:53 拒答）
+# CI（ubuntu-latest，x86-64）无需这些绕法，直接用官方 SDK 即可。
+
+name: android-min
+
+on:
+  push:
+    branches: [main]
+    paths: ['native/**', '.github/workflows/android-min.yml']
+  workflow_dispatch:
+
+jobs:
+  probe-apk:
+    name: 构建验证件 APK（javac + d8 + aapt2 + apksigner）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+
+      - uses: android-actions/setup-android@v3
+
+      - name: 安装 platform 与 build-tools（版本读 dependency-lock.json）
+        run: |
+          TARGET=$(node -e "console.log(require('./unity/dependency-lock.json').stores.targetSdk)")
+          sdkmanager --install "platforms;android-$TARGET" "build-tools;36.0.0" "platform-tools"
+          yes | sdkmanager --licenses > /dev/null
+
+      - name: 构建探针 APK
+        working-directory: native/micprobe
+        run: |
+          TARGET=$(node -e "console.log(require('../../unity/dependency-lock.json').stores.targetSdk)")
+          ANDROID_JAR="$ANDROID_SDK_ROOT/platforms/android-$TARGET/android.jar"
+          BT="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+          mkdir -p out/classes out/dex
+          find src -name '*.java' > out/sources.txt
+          javac --release 8 -encoding UTF-8 -classpath "$ANDROID_JAR" -d out/classes @out/sources.txt
+          "$BT/d8" --min-api 26 --lib "$ANDROID_JAR" --output out/dex $(find out/classes -name '*.class')
+          "$BT/aapt2" compile --dir res -o out/res.zip
+          "$BT/aapt2" link -I "$ANDROID_JAR" --manifest AndroidManifest.xml -o out/base.apk \
+            --min-sdk-version 26 --target-sdk-version "$TARGET" out/res.zip
+          cp out/base.apk out/unsigned.apk
+          (cd out/dex && zip -q -X ../unsigned.apk classes.dex)
+          keytool -genkeypair -keystore out/ks.jks -storepass android -keypass android -alias w \
+            -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Whisper CI" > /dev/null 2>&1
+          "$BT/zipalign" -f -p 4 out/unsigned.apk out/aligned.apk
+          "$BT/apksigner" sign --ks out/ks.jks --ks-pass pass:android --key-pass pass:android \
+            --ks-key-alias w --out out/whisper-micprobe.apk out/aligned.apk
+          "$BT/apksigner" verify --print-certs out/whisper-micprobe.apk | head -3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whisper-micprobe-apk
+          path: native/micprobe/out/whisper-micprobe.apk

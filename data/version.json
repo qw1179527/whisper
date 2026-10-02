@@ -1,0 +1,12 @@
+{
+  "version": "0.6.0",
+  "channel": "graybox",
+  "note": "工程化重构轮：重建源树与打包链，可玩基线未变，故不进位（对齐 DSH专用/whisper-graybox-0.6.0.apk）",
+  "baseline": {
+    "apk": "/storage/emulated/0/DSH专用/whisper-graybox-0.6.0.apk",
+    "gameJsSha256": "7e38398322952880",
+    "gameJsBytes": 159378,
+    "moduleCount": 14
+  },
+  "history": []
+}

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    纯 C# 验证工程：把 Unity 仓库里的**真实源文件**直接链接进来编译并断言。
+    为什么不复制：复制会验证副本而不是真货；用 <Compile Include> 链接同一份文件才是真验证。
+    哪些源文件能进来：不引用 UnityEngine 的那些（Core 契约 / DesignTokens / Gameplay 的 Level 层）。
+    Boot/Bootstrap 依赖 UnityEngine，不在本工程内 —— 它由 Unity Test Framework（PlayMode）覆盖。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>whisper-verify</AssemblyName>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/Scripts/Core/Contracts/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Core/Services.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Core/DesignTokens.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Gameplay/Level/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Gameplay/Config/*.cs" />
+    <!-- 三个模块的本机桩实现（零第三方依赖 → 可在本机真编译真跑；真 SDK 实现将来放同目录） -->
+    <Compile Include="../../unity/Assets/Scripts/Net/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Audio/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Backend/*.cs" />
+  </ItemGroup>
+</Project>

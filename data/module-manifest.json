@@ -1,0 +1,542 @@
+{
+  "meta": {
+    "source": "baseline/game-0.6.0.js",
+    "sourceBytes": 159378,
+    "sourceSha256": "7e383983229528800d9c229fa943b10d99e2ba3faca22be69eeb1dde12bdb8c9",
+    "moduleCount": 14,
+    "generatedBy": "tools/extract-modules.mjs",
+    "generatedAt": "2026-10-02T14:25:57.683Z",
+    "note": "本文件是灰盒源码反拆的事实基准：后续分包源树重建、打包链重建、逐模块等价对拍均以此为准。"
+  },
+  "graph": {
+    "acyclic": true,
+    "cycles": [],
+    "roots": [
+      "__m13"
+    ],
+    "leaves": [
+      "__m0",
+      "__m4",
+      "__m5",
+      "__m6",
+      "__m7",
+      "__m9",
+      "__m10",
+      "__m11"
+    ],
+    "reverse": {
+      "__m0": [
+        "__m1",
+        "__m2",
+        "__m3"
+      ],
+      "__m1": [
+        "__m12"
+      ],
+      "__m2": [
+        "__m3",
+        "__m12"
+      ],
+      "__m3": [
+        "__m12"
+      ],
+      "__m4": [
+        "__m12"
+      ],
+      "__m5": [
+        "__m8",
+        "__m12"
+      ],
+      "__m6": [
+        "__m12"
+      ],
+      "__m7": [
+        "__m8",
+        "__m12"
+      ],
+      "__m8": [
+        "__m12"
+      ],
+      "__m9": [
+        "__m12"
+      ],
+      "__m10": [
+        "__m12"
+      ],
+      "__m11": [
+        "__m12"
+      ],
+      "__m12": [
+        "__m13"
+      ],
+      "__m13": []
+    }
+  },
+  "entry": {
+    "line": 3476,
+    "source": "var __entry = __req(\"__m13\");",
+    "exportedGlobal": "startGame"
+  },
+  "modules": [
+    {
+      "id": "__m0",
+      "file": "m0.js",
+      "summary": "无文档注释：由顶层声明 `__CFG` 推断为数据/配置模块（首字符 {）",
+      "summarySource": "declaration-fallback",
+      "deps": [],
+      "exports": [
+        "cfg",
+        "designTokens",
+        "installConfig",
+        "loadConfig",
+        "resetConfig",
+        "stimulusSource"
+      ],
+      "locals": [],
+      "evidence": {
+        "startLine": 15,
+        "endLine": 523,
+        "bytes": 15008,
+        "depsRaw": 0,
+        "depSites": []
+      }
+    },
+    {
+      "id": "__m1",
+      "file": "m1.js",
+      "summary": "声纹判定链（V9 §6 / V8 N2 整改：个人校准 + 相对电平） 已废弃（禁止复活）：V6 §12.2 的绝对 dBFS 硬阈值（-45/-25dB）。 原因：不同机型麦克风增益 / AGC 策略 / 握持姿势差异可达 10~25dB—— 同一句话在 A 机是\"耳语\"，在 B 机可能是\"喊叫\"，核心机制公平性被摧毁。 本模块是**纯函数 + 确定性状态机**，零依赖、零 DOM：浏览器侧只负责把 AnalyserNode 的 dBFS 帧喂进来（见 web/src/audio/voice-input.js）， C# 侧（unity/）必须通过同一批一致性向量 data/vectors/voice-classification.json。",
+      "summarySource": "doc-comment",
+      "deps": [
+        "__m0"
+      ],
+      "exports": [
+        "BAND_IDS",
+        "BAND_SOURCE_KEY",
+        "Ring",
+        "SILENCE_DBFS",
+        "VoiceBandClassifier",
+        "VoiceCalibrator",
+        "__internals",
+        "anchorFromFrames",
+        "bandToStimulus",
+        "crossDeviceAgreement",
+        "median",
+        "percentile",
+        "personaFixedIntensity"
+      ],
+      "locals": [
+        "framesFor"
+      ],
+      "evidence": {
+        "startLine": 523,
+        "endLine": 999,
+        "bytes": 18635,
+        "depsRaw": 1,
+        "depSites": [
+          {
+            "dep": "__m0",
+            "line": 535
+          }
+        ]
+      }
+    },
+    {
+      "id": "__m2",
+      "file": "m2.js",
+      "summary": "声纹 → 听觉索敌（V9 §6 表6-1 + §7 表7-2） 判定模型（配置表驱动，代码不含数值）： 可听 ⟺ 刺激强度 ≥ 该怪有效的听觉阈值 且 距离 ≤ 该刺激的感知半径（globalBroadcast 刺激不受半径限制） 有效阈值 = monsters[].hearingThreshold × (1 − 恐惧加成) × 人格定位修正 设计后果（必须保持，否则\"声纹即风险\"退化）： 低语者阈值 10 < 耳语强度 10×人格乘子 → 耳语它也听得见（安静时几乎失明，只靠听觉） 缝匠阈值 30 → 听不见耳语，听得见正常说话/脚步 → 教学怪的压力来自\"别跑别喊\" 收殓人阈值 55 → 只对喊叫、砸窗、崩溃尖叫有反应，主体靠视野",
+      "summarySource": "doc-comment",
+      "deps": [
+        "__m0"
+      ],
+      "exports": [
+        "MONSTER_IDS",
+        "canHear",
+        "effectiveHearingThreshold",
+        "hearStimulus",
+        "makeStimulus",
+        "makeVoiceStimulus",
+        "movementStimulusKey",
+        "stimulusIntensity",
+        "stimulusRadiusTable"
+      ],
+      "locals": [],
+      "evidence": {
+        "startLine": 999,
+        "endLine": 1138,
+        "bytes": 5666,
+        "depsRaw": 1,
+        "depSites": [
+          {
+            "dep": "__m0",
+            "line": 1013
+          }
+        ]
+      }
+    },
+    {
+      "id": "__m3",
+      "file": "m3.js",
+      "summary": "三怪行为状态机（V9 §7：三段式 巡逻 → 调查 → 追逐 → 回归，失联 12 秒回归） 这是 Host 权威端的确定性状态机：同一条刺激序列 + 同一初态 → 同一状态轨迹（可回归测试）。 本文件不碰 Unity、不碰网络，只吃\"每 tick 的输入\"吐\"每 tick 的输出\"。",
+      "summarySource": "doc-comment",
+      "deps": [
+        "__m0",
+        "__m2"
+      ],
+      "exports": [
+        "MonsterBrain",
+        "STATES",
+        "axisClear",
+        "finalRageActive"
+      ],
+      "locals": [],
+      "evidence": {
+        "startLine": 1138,
+        "endLine": 1360,
+        "bytes": 8457,
+        "depsRaw": 2,
+        "depSites": [
+          {
+            "dep": "__m0",
+            "line": 1145
+          },
+          {
+            "dep": "__m2",
+            "line": 1147
+          }
+        ]
+      }
+    },
+    {
+      "id": "__m4",
+      "file": "m4.js",
+      "summary": "Level DSL Builder（V9 §19.2：关卡即数据，运行时拼装，编辑器零参与） 输入：data/levels/*.json（房间矩形 + 门洞 + 道具 + 证据点 + 事件） 输出：编译后的几何契约（轴对齐墙段 / 门 / 套件实例 / 巡逻路点 / 连通图） 三个消费者： ① web/ 灰盒渲染器（2.5D 射线投射）与碰撞 ② 怪物导航（路点图 A*）与视线/隔音判定 ③ 内容工厂（新地图 = 一份新 JSON，边际成本 ≤40 小时，V9 §14 P1）",
+      "summarySource": "doc-comment",
+      "deps": [],
+      "exports": [
+        "WALL_SIDES",
+        "buildLevel",
+        "buildLevelFromData",
+        "buildRoomGraph",
+        "compileDoors",
+        "compileWalls",
+        "distanceFrom",
+        "doorConnections",
+        "findRoomPath",
+        "hasLineOfSight",
+        "installLevel",
+        "levelBounds",
+        "roomAt",
+        "roomCenter",
+        "roomPathToWaypoints",
+        "segmentsIntersect",
+        "spawnPointOf"
+      ],
+      "locals": [
+        "cross",
+        "pointNearSegment",
+        "rect"
+      ],
+      "evidence": {
+        "startLine": 1360,
+        "endLine": 1666,
+        "bytes": 11126,
+        "depsRaw": 0,
+        "depSites": []
+      }
+    },
+    {
+      "id": "__m5",
+      "file": "m5.js",
+      "summary": "关卡几何编译（渲染与碰撞共用，浏览器/Node 双端零依赖） 关键取舍：**不逐格画墙**。30×30 网格里若每格都画立方体，仅外墙就有上千个面， 移动端 WebGL 立刻掉帧（V9 §14 P2 的\"性能过程阈值\"正是为拦这类实现）。 做法：把同向相邻的墙格合并成\"条带\"，内部被房间包围的墙格直接剔除。",
+      "summarySource": "doc-comment",
+      "deps": [],
+      "exports": [
+        "KIT_FOOTPRINT",
+        "buildWallBoxes",
+        "doorBlockers",
+        "floorQuad",
+        "levelBoundsOf",
+        "makeCollider",
+        "makeRoomCollider",
+        "mergeStrips",
+        "propBoxes",
+        "roomWalls",
+        "wallCells"
+      ],
+      "locals": [
+        "mkSpan",
+        "resolve"
+      ],
+      "evidence": {
+        "startLine": 1666,
+        "endLine": 1908,
+        "bytes": 8839,
+        "depsRaw": 0,
+        "depSites": []
+      }
+    },
+    {
+      "id": "__m6",
+      "file": "m6.js",
+      "summary": "极简 WebGL2 渲染器：顶点色 + 单向雾 + 手电光锥叠加。 刻意不做 PBR/阴影：恐怖氛围由\"浓雾 + 手电锥形光 + 近黑环境\"承担（V9 §11 设计哲学）， 这也是低端机 30fps 红线的现实前提（V9 §14 P2）。",
+      "summarySource": "doc-comment",
+      "deps": [],
+      "exports": [
+        "createRenderer",
+        "makeCamera"
+      ],
+      "locals": [
+        "beginFrame",
+        "compile",
+        "draw",
+        "upload",
+        "uploadMerged",
+        "uploadRanges"
+      ],
+      "evidence": {
+        "startLine": 1908,
+        "endLine": 2123,
+        "bytes": 9067,
+        "depsRaw": 0,
+        "depSites": []
+      }
+    },
+    {
+      "id": "__m7",
+      "file": "m7.js",
+      "summary": "极简 GLB 解析器（零依赖）。 只支持本仓库 Blender 导出的子集：单场景、mesh 节点、POSITION/NORMAL/COLOR_0、材质 baseColorFactor。 为什么自己写而不引 three.js：本机无包管理器兜底（V9 §19 零依赖纪律）， 且解析产物直接喂给自写渲染器，比引入 600KB 运行时更可控。",
+      "summarySource": "doc-comment",
+      "deps": [],
+      "exports": [
+        "parseGLB"
+      ],
+      "locals": [
+        "buildScene",
+        "getColorFactor",
+        "readAccessor"
+      ],
+      "evidence": {
+        "startLine": 2123,
+        "endLine": 2222,
+        "bytes": 4526,
+        "depsRaw": 0,
+        "depSites": []
+      }
+    },
+    {
+      "id": "__m8",
+      "file": "m8.js",
+      "summary": "世界装配：Level DSL + Blender 套件 + 共享几何 → 可渲染网格与碰撞体。 V9 §19.1 C4「烘焙零编辑器」：没有 NavMesh 烘焙、没有 lightmap，全部运行时生成。",
+      "summarySource": "doc-comment",
+      "deps": [
+        "__m5",
+        "__m7"
+      ],
+      "exports": [
+        "WALL_COLORS",
+        "bakeInstances",
+        "bakeMonster",
+        "buildStructure",
+        "kitInstances"
+      ],
+      "locals": [],
+      "evidence": {
+        "startLine": 2222,
+        "endLine": 2427,
+        "bytes": 9517,
+        "depsRaw": 2,
+        "depSites": [
+          {
+            "dep": "__m7",
+            "line": 2227
+          },
+          {
+            "dep": "__m5",
+            "line": 2229
+          }
+        ]
+      }
+    },
+    {
+      "id": "__m9",
+      "file": "m9.js",
+      "summary": "输入层：键盘 + 触屏 + 桌面鼠标。 首版有一个致命缺陷（用户报告\"能转视角但无法移动\"）： `consume()` 每帧调用 `recomputeKeys()`，而它**无条件用键盘状态覆盖** forward/strafe。 触屏刚在 pointermove 里设好的移动值，下一帧就被清成 0 —— 于是永远无法移动。 正确做法：**键盘与触屏各存一份状态**，输出时按绝对值取大者合并，互不覆盖。 触屏布局：左半屏拖动 = 移动轴；右半屏拖动 = 视角。 桌面：WASD/方向键移动 + 鼠标拖动转视角；点击画面锁定指针后可直接推鼠标转视角。",
+      "summarySource": "doc-comment",
+      "deps": [],
+      "exports": [
+        "createInput"
+      ],
+      "locals": [
+        "consume"
+      ],
+      "evidence": {
+        "startLine": 2427,
+        "endLine": 2542,
+        "bytes": 4886,
+        "depsRaw": 0,
+        "depSites": []
+      }
+    },
+    {
+      "id": "__m10",
+      "file": "m10.js",
+      "summary": "声纹采集（浏览器 WebAudio 等价验证，V8 N1 的替代路径） 为什么要写成可替换件：本机没有 Unity/Vivox，真正的采集源待 Unity 侧决定 （V8 N1 优先级 ① Vivox 本地能量回调 ② external audio input ③ 轮盘降级）。 这里用 getUserMedia + AnalyserNode 走**同一条判定链**（core/src/voiceprint.mjs）， 因此校准参数与分档语义在换实现后依然可比——这正是 V9 §19 解耦架构的用处。 关键：必须关闭浏览器的自动增益/降噪/回声消除，否则 AGC 会把\"耳语\"拉成\"正常\"， 跨机型一致率实验就失去意义（同一句悄悄话在两台手机上必须是两个绝对电平）。",
+      "summarySource": "doc-comment",
+      "deps": [],
+      "exports": [
+        "createVoiceInput"
+      ],
+      "locals": [
+        "init",
+        "readDb"
+      ],
+      "evidence": {
+        "startLine": 2542,
+        "endLine": 2614,
+        "bytes": 2417,
+        "depsRaw": 0,
+        "depSites": []
+      }
+    },
+    {
+      "id": "__m11",
+      "file": "m11.js",
+      "summary": "HUD（V9 §11 设计系统）：全部代码构建，零编辑器（§19.1 C2），Token 直接落为样式。 信息层级：Layer0 致命（怪物仇恨闪烁）/ Layer1 战术（理智环·轮盘·声纹）/ Layer2 状态（电量·证据）",
+      "summarySource": "doc-comment",
+      "deps": [],
+      "exports": [
+        "createHud"
+      ],
+      "locals": [
+        "drawMinimap",
+        "endScreen",
+        "flashHeard",
+        "log",
+        "setCalibProgress",
+        "setPhase",
+        "update"
+      ],
+      "evidence": {
+        "startLine": 2614,
+        "endLine": 2834,
+        "bytes": 13347,
+        "depsRaw": 0,
+        "depSites": []
+      }
+    },
+    {
+      "id": "__m12",
+      "file": "m12.js",
+      "summary": "灰盒可玩端主循环：把已实现并测试过的四块接起来 —— ① Level DSL 关卡（13 房间 / 已编译校验） ② 声纹判定链（个人校准 + 分段归一化相对电平） ③ 声纹 → 听觉索敌（三怪阈值梯度） ④ 三怪三段式状态机 玩家侧：手电电量、理智、证据、撤离。V9 §19.5 三层调参在此体现：数值全部走 config。",
+      "summarySource": "doc-comment",
+      "deps": [
+        "__m1",
+        "__m2",
+        "__m3",
+        "__m4",
+        "__m5",
+        "__m6",
+        "__m7",
+        "__m8",
+        "__m9",
+        "__m10",
+        "__m11"
+      ],
+      "exports": [
+        "startGame"
+      ],
+      "locals": [
+        "beginCalibration",
+        "classifyReset",
+        "directPathClear",
+        "emitStimulus",
+        "frame",
+        "hasSight",
+        "pickPatrolRoom",
+        "randomRoom",
+        "roomAt",
+        "stepCalibration",
+        "updateMonsters"
+      ],
+      "evidence": {
+        "startLine": 2834,
+        "endLine": 3434,
+        "bytes": 28712,
+        "depsRaw": 11,
+        "depSites": [
+          {
+            "dep": "__m1",
+            "line": 2843
+          },
+          {
+            "dep": "__m2",
+            "line": 2848
+          },
+          {
+            "dep": "__m3",
+            "line": 2852
+          },
+          {
+            "dep": "__m4",
+            "line": 2854
+          },
+          {
+            "dep": "__m5",
+            "line": 2857
+          },
+          {
+            "dep": "__m6",
+            "line": 2859
+          },
+          {
+            "dep": "__m7",
+            "line": 2862
+          },
+          {
+            "dep": "__m8",
+            "line": 2864
+          },
+          {
+            "dep": "__m9",
+            "line": 2869
+          },
+          {
+            "dep": "__m10",
+            "line": 2871
+          },
+          {
+            "dep": "__m11",
+            "line": 2873
+          }
+        ]
+      }
+    },
+    {
+      "id": "__m13",
+      "file": "m13.js",
+      "summary": "启动引导（服务端与 APK 资产两种形态共用）。 两条加载路径： ① 若页面已内联 `window.__WHISPER_BOOTSTRAP__`（APK 资产形态，出包时由 tools/embed-bootstrap.mjs 注入）， 直接用内联数据，**零网络请求**； ② 否则走 HTTP（本机灰盒服务形态），并显式检查状态码——404 静默失败曾导致\"点击开始无反应\"。 绝对路径纪律：`/src/...` 在两种形态下都能解析（WebView 的资产源根 = https://appassets.../）。",
+      "summarySource": "doc-comment",
+      "deps": [
+        "__m12"
+      ],
+      "exports": [
+        "startGame"
+      ],
+      "locals": [
+        "getJSON"
+      ],
+      "evidence": {
+        "startLine": 3434,
+        "endLine": 3476,
+        "bytes": 1377,
+        "depsRaw": 1,
+        "depSites": [
+          {
+            "dep": "__m12",
+            "line": 3445
+          }
+        ]
+      }
+    }
+  ]
+}
