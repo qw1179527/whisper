@@ -277,6 +277,49 @@ static class Program
             return snap.Phase == Whisper.Core.Contracts.MatchPhase.Extraction && snap.Players != null && snap.Props != null;
         });
 
+        Console.WriteLine("\n[3.9] 关卡几何编译（V9 §19.2：DSL → 可碰撞几何）");
+        Check("几何可编译且可走格数 > 0", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            return geo.PassableCount() > 100 && geo.Width > 0 && geo.Height > 0;
+        });
+        Check("门真的打通了两侧空间：从入口洪水填充可达全部 11 个房间", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            // 每个房间的中心都必须可达，否则说明门格没打通（墙把空间封死了）
+            foreach (var r in level.Rooms)
+            {
+                if (geo.ReachableCount(r.CenterX, r.CenterZ) <= 0) return false;
+            }
+            // 更强的一条：单次洪水填充覆盖的可走格数应等于全图可走格数（整层连通）
+            int fromEntrance = geo.ReachableCount(level.Rooms[0].CenterX, level.Rooms[0].CenterZ);
+            return fromEntrance == geo.PassableCount();
+        });
+        Check("子步进防穿墙：一次 5 米位移不能穿过整面墙", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var start = level.Rooms.Find(r => r.Id == "ward_01");
+            // 从病房中心向北（+z）猛推 5 米：病房深 4 米，必须被外圈墙挡住
+            var res = geo.Resolve(start.CenterX, start.CenterZ, 0, 5f, 0.34f);
+            return res.Blocked && res.Z < start.MaxZ + 0.6f;
+        });
+        Check("碰撞解析：小位移正常通行且不误报 blocked", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var r = level.Rooms.Find(x => x.Id == "ward_03");
+            var res = geo.Resolve(r.CenterX, r.CenterZ, 0.1f, 0f, 0.34f);
+            return !res.Blocked && Math.Abs(res.X - (r.CenterX + 0.1f)) < 1e-4;
+        });
+        Check("门口可通过：从走廊经门洞走进病房（几何连通性实证）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var ward = level.Rooms.Find(x => x.Id == "ward_02");
+            var door = ward.FindDoor("d_south");
+            door.ToWorld(ward, out float dx, out float dz);
+            // 门洞中心应可走（门格被真正打通），且门内侧、外侧都可走
+            return geo.Passable(dx, dz) && geo.Passable(dx, dz + 0.5f) && geo.Passable(dx, dz - 0.5f);
+        });
+
         Console.WriteLine("\n[3.8] 理智系统（V9 附录 A-2 / §7）");
                 // 硬前置：后面的断言全部按配置真值驱动，必须确保静态配置已载入。
         // [2.5] 末尾的 Reset 断言会清空它；同类清理若再出现，这里会立刻以异常暴露而不是静默退化默认值。
