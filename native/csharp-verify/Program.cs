@@ -38,6 +38,7 @@ static class Program
     static int Main(string[] rawArgs)
     {
         if (Array.IndexOf(rawArgs, "--emit-voice-vectors") >= 0) return EmitVoiceVectors();
+        if (Array.IndexOf(rawArgs, "--emit-hearing-vectors") >= 0) return EmitHearingVectors();
 
         Console.WriteLine("Project Whisper · 本机 C# 验证（真实源文件 + 真实关卡数据）");
 
@@ -465,6 +466,50 @@ static class Program
         }
         W(v);
         return sb.ToString();
+    }
+
+
+    /// <summary>听觉向量产出模式（供 tools/hearing-port-vectors.mjs 比对）。</summary>
+    static int EmitHearingVectors()
+    {
+        var cfgPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data", "config.json"));
+        Whisper.Gameplay.Config.GameConfig.LoadFromJson(File.ReadAllText(cfgPath));
+        var cfg = new Whisper.Gameplay.Config.GameConfigReader();
+        var hearing = new Whisper.Gameplay.Hearing.Hearing(cfg);
+
+        var inputPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data", "vectors", "hearing.inputs.json"));
+        var spec = MiniJson.AsMap(MiniJson.Parse(File.ReadAllText(inputPath)));
+        var list = new List<object>();
+        foreach (var cObj in MiniJson.AsList(MiniJson.Get(spec, "cases")))
+        {
+            var c = MiniJson.AsMap(cObj);
+            var mp = MiniJson.AsList(MiniJson.Get(c, "monsterPos"));
+            var sp = MiniJson.AsList(MiniJson.Get(c, "stimPos"));
+            float? radius = MiniJson.Get(c, "radiusM") == null ? (float?)null : MiniJson.AsFloat(MiniJson.Get(c, "radiusM"));
+            var stim = new Whisper.Gameplay.Hearing.Stimulus(
+                MiniJson.AsString(MiniJson.Get(c, "sourceKey")), "voice",
+                MiniJson.AsFloat(MiniJson.Get(c, "intensity")), radius,
+                MiniJson.Get(c, "globalBroadcast") is bool g && g,
+                MiniJson.AsFloat(sp[0]), MiniJson.AsFloat(sp[1]), 0);
+            var ctx = new Whisper.Gameplay.Hearing.HearingContext
+            {
+                PerceptionBonus = MiniJson.AsFloat(MiniJson.Get(c, "perceptionBonus")),
+                LocalizationPenalty = MiniJson.AsFloat(MiniJson.Get(c, "localizationPenalty")),
+            };
+            var r = hearing.CanHear(MiniJson.AsString(MiniJson.Get(c, "monsterId")), stim,
+                MiniJson.AsFloat(mp[0]), MiniJson.AsFloat(mp[1]), ctx);
+            list.Add(new Dictionary<string, object> {
+                ["audible"] = r.Audible,
+                ["reason"] = r.Reason,
+                ["distanceM"] = Math.Round(r.DistanceM, 6),
+                ["threshold"] = Math.Round(r.EffectiveThreshold, 6),
+                ["margin"] = Math.Round(r.Margin, 6),
+                // 与灰盒一致：全局广播/阈值不足路径给字面 0，半径路径给实际衰减值
+                ["attenuationDb"] = Math.Round(r.AttenuationDb, 6),
+            });
+        }
+        Console.WriteLine(JsonWrite(new Dictionary<string, object> { ["cases"] = list }));
+        return 0;
     }
 
 }
