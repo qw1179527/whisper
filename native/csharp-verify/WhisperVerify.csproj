@@ -30,6 +30,10 @@
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Extraction/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Match/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Items/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Gameplay/Hud/*.cs" />
+    <!-- HudBuilder 引用 UnityEngine（Canvas/Text/RectTransform）→ 由 tools/unity-syntax-check.sh 覆盖 -->
+    <Compile Remove="../../unity/Assets/Scripts/Gameplay/Hud/HudBuilder.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Gameplay/Session/*.cs" />
     <!-- 三个模块的本机桩实现（零第三方依赖 → 可在本机真编译真跑；真 SDK 实现将来放同目录） -->
     <Compile Include="../../unity/Assets/Scripts/Net/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Audio/*.cs" />

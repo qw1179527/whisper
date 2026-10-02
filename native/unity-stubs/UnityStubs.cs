@@ -84,6 +84,8 @@ namespace UnityEngine
         public Transform transform => null;
         public T AddComponent<T>() where T : Component => default;
         public T GetComponent<T>() => default;
+        public void SetActive(bool value) { }
+        public bool activeSelf => false;
         public static GameObject CreatePrimitive(PrimitiveType type) => null;
     }
 
@@ -154,6 +156,9 @@ namespace UnityEngine
         public Vector2 anchorMax { get; set; }
         public Vector2 offsetMin { get; set; }
         public Vector2 offsetMax { get; set; }
+        public Vector2 pivot { get; set; }
+        public Vector2 anchoredPosition { get; set; }
+        public Vector2 sizeDelta { get; set; }
     }
 
     public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
@@ -167,12 +172,17 @@ namespace UnityEngine.UI
 {
     public class Graphic : Behaviour { public Color color { get; set; } public RectTransform rectTransform => null; }
 
+    public enum HorizontalWrapMode { Wrap, Overflow }
+    public enum VerticalWrapMode { Truncate, Overflow }
+
     public class Text : Graphic
     {
         public string text { get; set; }
         public int fontSize { get; set; }
         public TextAnchor alignment { get; set; }
         public Font font { get; set; }
+        public HorizontalWrapMode horizontalOverflow { get; set; }
+        public VerticalWrapMode verticalOverflow { get; set; }
     }
 
     public class Font : Object { }

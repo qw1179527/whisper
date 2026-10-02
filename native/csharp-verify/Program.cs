@@ -295,6 +295,153 @@ static class Program
             throw new InvalidOperationException("配置表未载入：按配置真值驱动的断言会静默退化");
         Console.WriteLine($"      [前置] sanity.max={Whisper.Gameplay.Config.GameConfig.GetFloat("sanity.max", -1f)} · 事件池={((Whisper.Gameplay.Config.GameConfig.Get("level.eventPool") as System.Collections.Generic.List<object>)?.Count ?? 0)} · 怪物={((Whisper.Gameplay.Config.GameConfig.Get("monsters") as System.Collections.Generic.Dictionary<string, object>)?.Count ?? 0)}");
 
+        Console.WriteLine("\n[3.14] 端到端集成：真跑一整局（把各系统接起来跑，而不只是各自断言）");
+        {
+            var cfg0 = cfgReader();
+            var lv0 = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
+            var s0 = new Whisper.Gameplay.Session.GameSession(lv0, cfg0, 1);
+            Console.WriteLine($"      [诊断E2E] 开局 sanity={s0.Sanity.Value} 证据点={s0.Items.EvidencePoints.Count} 撤离点={s0.Items.ExtractionPoints.Count} 怪={s0.Monsters.Count} 玩家=({s0.PlayerX},{s0.PlayerZ})");
+            for (int i = 0; i < 60 * 60; i++) s0.Tick(1f / 60f);
+            Console.WriteLine($"      [诊断E2E] 60s 后 ended={s0.Outcome.Ended} survived={s0.Outcome.Survived} sanity={s0.Sanity.Value:0.00} stage={s0.Director.Stage} clock={s0.Hud.ClockText} 日志末3={string.Join(" | ", s0.EventLog.GetRange(Math.Max(0,s0.EventLog.Count-3), Math.Min(3,s0.EventLog.Count)))}");
+        }
+        Check("空跑 60 秒：保护期→主阶段、HUD 有时钟、无崩溃（不静止崩溃）", () =>
+        {
+            var cfg = cfgReader();
+            var level = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
+            var s1 = new Whisper.Gameplay.Session.GameSession(level, cfg, 1);
+            for (int i = 0; i < 60 * 60; i++) s1.Tick(1f / 60f);
+            return !s1.Outcome.Ended
+                && s1.Director.Stage == Whisper.Gameplay.Match.MatchStage.Main
+                && s1.Hud.ClockText == "1:00"
+                && s1.Sanity.Value > 0f
+                && s1.Monsters.Count == 3;
+        });
+        Check("完整闭环：走到 5 个证据点 → 到撤离点 → 存活结算（碎片 = 5×200+150+100 = 1250）", () =>
+        {
+            var cfg = cfgReader();
+            var level = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
+            var s2 = new Whisper.Gameplay.Session.GameSession(level, cfg, 7);
+            // 简化导航：直接瞬移到每个证据点（本用例验证的是"闭环成立"，不是寻路）
+            foreach (var ep in s2.Items.EvidencePoints)
+            {
+                s2.PlayerX = ep.X; s2.PlayerZ = ep.Z;
+                s2.Tick(1f / 60f);
+            }
+            if (s2.Items.EvidenceCount != s2.Items.EvidenceTotal) return false;
+            var target = s2.Items.ExtractionPoints[0];      // 标准撤离点
+            s2.PlayerX = target.X; s2.PlayerZ = target.Z;
+            s2.SurvivingAllies = 1;
+            s2.Tick(1f / 60f);
+            var o = s2.Outcome;
+            return o.Ended && o.Survived && o.EvidenceCollected == 5 && o.Fragments == 1250
+                && o.Extraction == Whisper.Gameplay.Extraction.ExtractionKind.Standard;
+        });
+        Check("声纹闭环：喊叫 → 低语者听见（刺激→可听性→日志三段都真的跑通）", () =>
+        {
+            var cfg = cfgReader();
+            var level = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
+            var s3 = new Whisper.Gameplay.Session.GameSession(level, cfg, 3);
+            // 把玩家挪到低语者附近，制造一次必然可听的喊叫
+            var brain = s3.Monsters.Find(b => b.Id == "whisperer");
+            s3.PlayerX = brain.Position.X + 2f; s3.PlayerZ = brain.Position.Z;
+            float intensity = cfg.Float("stimulusSources.voice_shout.intensity", 80f);
+            float radius = cfg.Float("stimulusSources.voice_shout.radiusM", 25f);
+            s3.EmitStimulus(new Whisper.Gameplay.Hearing.Stimulus("voice_shout", "voice", intensity, radius, false, s3.PlayerX, s3.PlayerZ, 0));
+            s3.Tick(1f / 60f);
+            bool logged = false;
+            foreach (var l in s3.EventLog) if (l.Contains("低语者 听见了")) logged = true;
+            // 听见 → 调查（不是直接追击），这是 V9 的核心语义纪律
+            return logged && brain.State == "investigate";
+        });
+        Check("保护期内怪物不因「看见」入追击（V9 §7 保护期语义）", () =>
+        {
+            var cfg = cfgReader();
+            var level = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
+            var s4 = new Whisper.Gameplay.Session.GameSession(level, cfg, 9);
+            s4.SeenByPlayer = true;                       // 玩家「看见」怪物（模拟视觉触发条件）
+            s4.PlayerX = s4.Monsters[0].Position.X; s4.PlayerZ = s4.Monsters[0].Position.Z;
+            s4.Tick(1f / 60f);                            // 仍在 20s 保护期内
+            bool noChaseInGrace = s4.Monsters[0].State != "chase";
+            // 越过保护期后再看一次
+            for (int i = 0; i < 21 * 60; i++) { s4.PlayerX = s4.Monsters[0].Position.X; s4.PlayerZ = s4.Monsters[0].Position.Z; s4.Tick(1f / 60f); }
+            bool chaseAfterGrace = s4.Monsters[0].State == "chase";
+            return noChaseInGrace && chaseAfterGrace;
+        });
+        Check("理智崩溃会产生尖叫声纹并被写进日志（代价可见）", () =>
+        {
+            var cfg = cfgReader();
+            var level = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
+            var s5 = new Whisper.Gameplay.Session.GameSession(level, cfg, 11);
+            // 直接压低理智到会被接触打崩的程度
+            for (int i = 0; i < 60; i++) s5.Sanity.MonsterContact();
+            s5.PlayerX = s5.Monsters[0].Position.X; s5.PlayerZ = s5.Monsters[0].Position.Z;
+            s5.Tick(1f / 60f);
+            bool screamed = false;
+            foreach (var l in s5.EventLog) if (l.Contains("尖叫")) screamed = true;
+            return screamed;
+        });
+
+        Console.WriteLine("\n[3.13] HUD 数据模型（§19.1 C2：编辑器零参与；显示口径与灰盒一致）");
+        Check("时钟格式 mm:ss（灰盒口径：62s → 1:02；600s → 10:00）", () =>
+        {
+            var cfg = cfgReader();
+            var hud = new Whisper.Gameplay.Hud.HudModel(cfg, 5);
+            hud.Update(null, 120f, 0, 62f);
+            bool a = hud.ClockText == "1:02";
+            hud.Update(null, 120f, 0, 600f);
+            bool b = hud.ClockText == "10:00";
+            hud.Update(null, 120f, 0, 5f);
+            bool c = hud.ClockText == "0:05";
+            return a && b && c;
+        });
+        Check("理智文案 = 档位名 + 四舍五入百分比（恐惧 30/100 → 「恐惧 30」）", () =>
+        {
+            var cfg = cfgReader();
+            var sanity = new Whisper.Gameplay.Sanity.SanitySystem(cfg, 30f);
+            var hud = new Whisper.Gameplay.Hud.HudModel(cfg, 5);
+            hud.Update(sanity, 90f, 2, 100f);
+            return hud.SanityBandLabel == "恐惧" && hud.SanityPercent == 30 && hud.BatterySeconds == 90 && hud.Evidence == 2;
+        });
+        Check("怪物名取自配置 label（低语者/缝匠/收殓人）", () =>
+        {
+            var hud = new Whisper.Gameplay.Hud.HudModel(cfgReader(), 5);
+            return hud.MonsterLabel("whisperer") == "低语者"
+                && hud.MonsterLabel("stitcher") == "缝匠"
+                && hud.MonsterLabel("coroner") == "收殓人";
+        });
+        Check("听见提示格式与灰盒一致（距离一位小数 / 阈值一位小数）", () =>
+        {
+            var hud = new Whisper.Gameplay.Hud.HudModel(cfgReader(), 5);
+            var line = hud.FormatHearing(new Whisper.Gameplay.Hud.HearingNotice
+            { MonsterLabel = "低语者", DistanceM = 12.34f, EffectiveThreshold = 10f });
+            return line == "【低语者 听见了】距离 12.3m（阈值 10.0）";
+        });
+        Check("日志新的在上、且不超过上限（丢最旧）", () =>
+        {
+            var hud = new Whisper.Gameplay.Hud.HudModel(cfgReader(), 5) { MaxLogLines = 3 };
+            hud.Log("A"); hud.Log("B"); hud.Log("C"); hud.Log("D");
+            return hud.LogLines.Count == 3 && hud.LogLines[0] == "D" && hud.LogLines[2] == "B";
+        });
+        Check("状态行包含档位/电量/证据/时钟/阶段（便于 HUD 与日志对拍）", () =>
+        {
+            var cfg = cfgReader();
+            var sanity = new Whisper.Gameplay.Sanity.SanitySystem(cfg, 90f);
+            var hud = new Whisper.Gameplay.Hud.HudModel(cfg, 5);
+            hud.Update(sanity, 118f, 3, 250f);
+            hud.SetStageText("主阶段");
+            var line = hud.FormatStatusLine();
+            return line.Contains("镇定 90") && line.Contains("电量 118s") && line.Contains("证据 3/5") && line.Contains("4:10") && line.Contains("主阶段");
+        });
+        Check("结算页正文口径与灰盒一致（撤离点×系数 / 证据 / 用时 / 碎片）", () =>
+        {
+            var cfg = cfgReader();
+            var r = Whisper.Gameplay.Extraction.Settlement.Compute(cfg, new Whisper.Gameplay.Extraction.MissionOutcome
+            { Survived = true, Extraction = Whisper.Gameplay.Extraction.ExtractionKind.Standard, EvidenceCollected = 3, EvidenceTotal = 5, SurvivingAllies = 1, ElapsedSeconds = 412.3f });
+            var hud = new Whisper.Gameplay.Hud.HudModel(cfg, 5);
+            var text = hud.FormatSettlement(r);
+            return text.Contains("标准撤离点（×1）") && text.Contains("证据 3/5") && text.Contains("412.3s") && text.Contains("残响碎片 850");
+        });
+
         Console.WriteLine("\n[3.12] 道具与交互（V9 §7；交互半径逐条照抄灰盒）");
         Check("初始电量 = 配置 items.flashlight.batterySeconds（120s）", () =>
         {

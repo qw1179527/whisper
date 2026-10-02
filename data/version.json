@@ -1,12 +1,20 @@
 {
-  "version": "0.6.0",
-  "channel": "graybox",
-  "note": "工程化重构轮：重建源树与打包链，可玩基线未变，故不进位（对齐 DSH专用/whisper-graybox-0.6.0.apk）",
+  "version": "0.7.0",
+  "channel": "graybox-dev",
+  "note": "把灰盒已验证机制移植到 Unity 主线的开发轮：PlayMode 未跑过，本包仍是 WebView 灰盒（可玩基线），仅资产与数据更新 + 版本水印",
   "baseline": {
     "apk": "/storage/emulated/0/DSH专用/whisper-graybox-0.6.0.apk",
     "gameJsSha256": "7e38398322952880",
     "gameJsBytes": 159378,
     "moduleCount": 14
   },
-  "history": []
+  "history": [
+    {
+      "apk": "/storage/emulated/0/DSH专用/whisper-graybox-0.7.0-dev.apk",
+      "bytes": 82785,
+      "sha256_16": "a9c6600e5c0eb982",
+      "gameJsBytes": 159516,
+      "note": "与 0.6.0 基线逐行 diff 仅 4 行差异（全为版本横幅注释），零功能改动；新增版本水印便于确证安装版本"
+    }
+  ]
 }
