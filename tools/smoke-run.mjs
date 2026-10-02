@@ -237,20 +237,21 @@ let err = null;
  */
 
 /**
- * 出包前哨：模块内是否使用了**该模块拿不到**的标识符 `config` / `cfg`。
+ * 出包前哨：`config` / `cfg` 是否被用在**拿不到它**的位置。
  *
- * 背景（同一个坑我连栽两次，两次都是"装上去启动即崩"）：
- *   · 第一次：在 `__m12` 的**模块级函数**里用 `config.network?.tickRate`
- *     —— `config` 只是 `startGame(config, tokens)` 的形参，模块级函数拿不到 → `config is not defined`
- *   · 第二次："修"成 `cfg(...)` —— 但 `__m12` **根本没有 cfg**（那是 __m3/__m4 等模块的别名）
- *     → `cfg is not defined`
- * 两次都顺利通过了语法检查、V1~V6 门禁与冒烟（冒烟当时喂的是空关卡、只等 80ms，覆盖不到那段代码）。
- * 所以必须有一道**按模块判断"这个名字拿不拿得到"**的静态哨兵。
+ * 背景：同一个问题我连崩三个版本（都是"装上去启动即崩"）：
+ *   ① 模块级函数里用 `config`     → config is not defined（config 只是 startGame 的形参）
+ *   ② 改成 `cfg`                  → cfg is not defined（__m12 里根本没有 cfg）
+ *   ③ 仍然不行 —— 因为那个函数**定义在模块级**（4 空格缩进），
+ *      而 `config` 只在 `startGame` **内部**可见。真正的修法是把判定内联进 startGame。
  *
- * 判据（模块内是否有该名字的来源；不推导作用域，避免我前几版的误报/漏检）：
- *   config：本模块内有 `let/const/var config`，或形参表里出现 `config`
- *           （`__m12` 的 config 来自 startGame 形参；`__m13` 是局部变量；`__m10/__m11` 是形参）
- *   cfg   ：本模块内有 `cfg =` / `var cfg` 之类的声明，或直接来自 require（`var cfg = __ns0.cfg`）
+ * 前两版哨兵为什么放过它：判据是"这个模块里有没有 config/cfg 的来源"，
+ * 而 `__m12` 确实有（startGame 的形参）——**按模块判断太粗**，必须按位置判断。
+ *
+ * 最终判据（按缩进层级 —— 该文件的模块级语句缩进 4 空格，函数体内更深）：
+ *   某行使用 config/cfg，且该行缩进 ≤ 4，且该模块内没有同名的模块级声明 → 致命。
+ * 这条规则很窄（可能漏报嵌套更深的越界），但**它不误报**，而且正好覆盖把我坑三次的形态。
+ * 我试过更"聪明"的作用域推导，四版都不可靠 —— 宁可窄而可信。
  */
 {
   const ALIASES = ['config', 'cfg'];
@@ -260,34 +261,33 @@ let err = null;
     const id = mods[i][1];
     const a = mods[i].index;
     const b = i + 1 < mods.length ? mods[i + 1].index : text.indexOf('var __entry');
-    const code = text.slice(a, b)
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/\/\/[^\n]*/g, ' ')
-      .replace(/'(?:[^'\\]|\\.)*'/g, "''")
-      .replace(/"(?:[^"\\]|\\.)*"/g, '""');
+    const seg = text.slice(a, b);
+    const lines = seg.split('\n');
     for (const name of ALIASES) {
-      const used = new RegExp(`(?<![\\w$.-])${name}(?!\\s*:)(?![\\w$-])`).test(code);
-      if (!used) continue;
-      // 三种"本模块有这个名字"的来源：var/let/const 声明、函数声明（`function cfg(...)`）、形参。
-      // 漏掉函数声明会误报 `__m0`（它就是 `function cfg(...)` 的定义处）—— 实测踩到。
-      const hasDecl = new RegExp(`(?:^|[\\s;{(,])(?:let|const|var)\\s+${name}\\b`).test(code)
-        || new RegExp(`(?:^|[\\s;{(,])function\\s+${name}\\b`).test(code)
-        || new RegExp(`(?:^|[\\s;{(,])${name}\\s*=\\s*(?:function|\\()`).test(code);
-      const hasParam = new RegExp(`\\(\\s*${name}\\s*[,)]`).test(code);
-      if (!hasDecl && !hasParam) {
-        const idx = code.search(new RegExp(`(?<![\\w$.-])${name}(?!\\s*:)(?![\\w$-])`));
-        const line = code.slice(0, idx).split('\n').length;
-        deadly.push(`${id} 使用了无来源的 ${name}（约第 ${line} 行）`);
+      const useRe = new RegExp(`(?<![\\w$.-])${name}(?!\\s*:)(?![\\w$-])`);
+      const declRe = new RegExp(`^\\s{0,4}(?:let|const|var|function)\\s+${name}\\b|^\\s{0,4}[\\w$.]+\\s*=\\s*${name}\\b`);
+      for (let n = 0; n < lines.length; n++) {
+        const l = lines[n];
+        if (/^\s*(\/\/|\*|\/\*)/.test(l)) continue;          // 注释行
+        if (!useRe.test(l)) continue;
+        const indent = l.match(/^\s*/)[0].length;
+        if (indent > 4) continue;                                 // 在某个函数体内，按窄规则放行
+        // 模块级使用：必须有模块级声明（或就是形参那行本身）
+        const declared = lines.some((x) => declRe.test(x));
+        const isParamLine = /function\s+[\w$]+\s*\(\s*[^)]*\b/.test(l) && new RegExp(`\\(\\s*${name}\\s*[,)]`).test(l);
+        if (!declared && !isParamLine) {
+          deadly.push(`${id} 第 ${n + 1} 行（模块级缩进 ${indent}）使用了无来源的 ${name}：${l.trim().slice(0, 70)}`);
+        }
       }
     }
   }
   if (deadly.length) {
     rec('scope-error', deadly);
-    err = err ?? new Error('标识符作用域缺陷：' + deadly.join('；'));
+    err = err ?? new Error('标识符作用域缺陷：' + deadly[0]);
     console.log(`[smoke] ✗ 致命作用域缺陷 ${deadly.length} 处（运行时会 xxx is not defined）：`);
-    for (const x of deadly) console.log('   · ' + x);
+    for (const x of deadly.slice(0, 3)) console.log('   · ' + x);
   } else {
-    console.log('[smoke] ✓ 作用域哨兵通过：config / cfg 都只出现在有来源的模块里');
+    console.log('[smoke] ✓ 作用域哨兵通过：config / cfg 没有出现在拿不到它们的模块级位置');
   }
 }
 

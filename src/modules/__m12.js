@@ -283,7 +283,25 @@
           if (ms.waypoints.length) {
             const wp = ms.waypoints[ms.wpIndex];
             /* PATCH 003: waypoint-advance */
-            if (shouldAdvanceWaypoint(brain, ms)) ms.wpIndex = Math.min(ms.wpIndex + 1, ms.waypoints.length - 1);
+            // 三判据推进（内联：本段在 startGame 内，config 可见）。注释必须独占一行 ——
+            // 我把中文说明跟在块注释后面写过一次，直接成了非法 token（源树执行失败）。
+            if ((() => {
+              const __wps = ms.waypoints;
+              if (!__wps || !__wps.length) return false;
+              const __idx = Math.min(ms.wpIndex, __wps.length - 1);
+              const __wp = __wps[__idx];
+              if (!__wp) return false;
+              const __d = Math.hypot(__wp.x - brain.position.x, __wp.z - brain.position.z);
+              if (__d < 0.9) { ms.wpStallAt = null; return true; }
+              const __next = __wps[__idx + 1];
+              if (__next) {
+                const __dn = Math.hypot(__next.x - brain.position.x, __next.z - brain.position.z);
+                if (__dn < __d * 0.5 && __d < 2.0) { ms.wpStallAt = null; return true; }
+              }
+              if (ms.wpStallAt == null) ms.wpStallAt = brain.tick;
+              else if (ms.wpStallAt != null && brain.tick - ms.wpStallAt > 2.5 * (config.network?.tickRate ?? 60)) { ms.wpStallAt = null; return true; }
+              return false;
+            })()) ms.wpIndex = Math.min(ms.wpIndex + 1, ms.waypoints.length - 1);
             brain.patrolPoints = [ms.waypoints[ms.wpIndex]];
           }
           const pdist = Math.hypot(brain.position.x - state.pos.x, brain.position.z - state.pos.z);
@@ -332,7 +350,24 @@
               }
               const wp = ms.waypoints[ms.wpIndex];
               /* PATCH 003: waypoint-advance */
-              if (wp && shouldAdvanceWaypoint(brain, ms)) {
+              // 三判据推进（内联同上）
+              if (wp && (() => {
+              const __wps = ms.waypoints;
+              if (!__wps || !__wps.length) return false;
+              const __idx = Math.min(ms.wpIndex, __wps.length - 1);
+              const __wp = __wps[__idx];
+              if (!__wp) return false;
+              const __d = Math.hypot(__wp.x - brain.position.x, __wp.z - brain.position.z);
+              if (__d < 0.9) { ms.wpStallAt = null; return true; }
+              const __next = __wps[__idx + 1];
+              if (__next) {
+                const __dn = Math.hypot(__next.x - brain.position.x, __next.z - brain.position.z);
+                if (__dn < __d * 0.5 && __d < 2.0) { ms.wpStallAt = null; return true; }
+              }
+              if (ms.wpStallAt == null) ms.wpStallAt = brain.tick;
+              else if (ms.wpStallAt != null && brain.tick - ms.wpStallAt > 2.5 * (config.network?.tickRate ?? 60)) { ms.wpStallAt = null; return true; }
+              return false;
+            })()) {
                 ms.wpIndex = Math.min(ms.wpIndex + 1, ms.waypoints.length - 1);
               }
               if (ms.waypoints.length) brain.patrolPoints = [ms.waypoints[ms.wpIndex]];
@@ -583,45 +618,6 @@
       return { state, stop: () => { running = false; } };
     }
     
-    /* PATCH 003: waypoint-advance */
-    /**
-     * 是否应当推进到下一个路点。
-     *
-     * 判据（不满足第一条就看第二条，避免"硬阈值撞上物理极限"的死锁）：
-     *   ① 已到当前路点附近（<0.9）→ 推进
-     *   ② 只有当**已经不在原房间**（即真的穿过了门）且离下一个路点更近时才提前推进
-     *   ③ 停滞超过 2.5s 的兜底（更保守：早期版本 1.2s 太急，会在门这侧就跳路点，
-     *      把怪指向走廊另一端的门，于是它掉头往回走 —— 实测卡死 57.9s 的直接原因）
-     *
-     * 教训：路点推进不能只看"离下一个更近"。门的两个路点分别位于门的**两侧**，
-     * 怪在门这侧时，离"对面那扇门"确实可能更近（几何上），但穿过去之前不该改目标。
-     */
-    function shouldAdvanceWaypoint(brain, ms) {
-      const wps = ms.waypoints;
-      if (!wps || wps.length === 0) return false;
-      const idx = Math.min(ms.wpIndex, wps.length - 1);
-      const wp = wps[idx];
-      if (!wp) return false;
-      const d = Math.hypot(wp.x - brain.position.x, wp.z - brain.position.z);
-      if (d < 0.9) { ms.wpStallAt = null; return true; }
-      const next = wps[idx + 1];
-      if (next) {
-        const dn = Math.hypot(next.x - brain.position.x, next.z - brain.position.z);
-        if (dn < d * 0.5 && d < 2.0) { ms.wpStallAt = null; return true; }
-      }
-      const now = brain.tick;
-      if (ms.wpStallAt == null) ms.wpStallAt = now;
-      // 作用域纪律（我在这上面连栽两次，两次都是"启动即崩"）：
-      //   · __m12 **没有** cfg（那是 __m3/__m4 等模块的别名）；
-      //   · __m12 用的是 config —— 它是 startGame(config, tokens) 的**形参**，
-      //     本函数（startGame 内部的嵌套函数）能访问，模块级函数则不能。
-      // 第一版写 config.* 到模块级函数 → config is not defined；
-      // 第二版改成 cfg(...) → cfg is not defined。这里是第三版，用本模块真正可用的写法。
-      // （注意：这段注释位于模板字符串内部，不能出现反引号，否则会把模板提前闭合 —— 我又踩了一次）
-      else if (now - ms.wpStallAt > 2.5 * (config.network?.tickRate ?? 60)) { ms.wpStallAt = null; return true; }
-      return false;
-    }
-
     function roomAt(level, x, z) {
       return level.rooms.find((r) => x >= r.rect.x0 && x < r.rect.x1 && z >= r.rect.z0 && z < r.rect.z1)?.id ?? null;
     }

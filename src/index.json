@@ -1,7 +1,7 @@
 {
   "meta": {
     "generatedBy": "tools/split-modules.mjs",
-    "generatedAt": "2026-10-02T17:28:06.856Z",
+    "generatedAt": "2026-10-02T17:32:32.974Z",
     "source": "baseline/game-0.6.0.js",
     "moduleCount": 14
   },

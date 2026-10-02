@@ -1,7 +1,7 @@
 {
-  "version": "0.7.4",
+  "version": "0.7.5",
   "channel": "graybox-dev",
-  "note": "修 cfg is not defined（上一版把 config 改成了本模块不存在的 cfg）；作用域哨兵扩为同时盯 config/cfg",
+  "note": "真正修掉作用域崩溃：路点判定内联进 startGame（前两版都建了模块级函数，config/cfg 都拿不到）；哨兵改为按缩进层级判断",
   "baseline": {
     "apk": "/storage/emulated/0/DSH专用/whisper-graybox-0.6.0.apk",
     "gameJsSha256": "7e38398322952880",
