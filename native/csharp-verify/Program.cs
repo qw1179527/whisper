@@ -37,6 +37,15 @@ static class Program
 
     static Whisper.Gameplay.Config.GameConfigReader cfgReader() => new Whisper.Gameplay.Config.GameConfigReader();
 
+    /// <summary>事件类型是否在配置 eventPool 内（断言用）。</summary>
+    static bool cfgPoolContains(string t)
+    {
+        var raw = Whisper.Gameplay.Config.GameConfig.Get("level.eventPool");
+        if (raw is System.Collections.Generic.List<object> list)
+            foreach (var o in list) if (o as string == t) return true;
+        return false;
+    }
+
     static int Main(string[] rawArgs)
     {
         if (Array.IndexOf(rawArgs, "--emit-voice-vectors") >= 0) return EmitVoiceVectors();
@@ -277,6 +286,84 @@ static class Program
             return snap.Phase == Whisper.Core.Contracts.MatchPhase.Extraction && snap.Players != null && snap.Props != null;
         });
 
+        // 硬前置：以下所有断言都按**配置真值**驱动，必须先确保静态配置已载入。
+        // [2.5] 末尾的 Reset 断言会清空它；早期版本的 LoadFromJson 落在 [3.8] 内部，
+        // 导致 3.11/3.10/3.9 三段静默读到空配置并退化成默认值（档位表变 unknown、事件池为空）。
+        // 现在把它提到最前，并做一次显式校验。
+        Whisper.Gameplay.Config.GameConfig.LoadFromJson(cfgJson);
+        if (!Whisper.Gameplay.Config.GameConfig.IsLoaded)
+            throw new InvalidOperationException("配置表未载入：按配置真值驱动的断言会静默退化");
+        Console.WriteLine($"      [前置] sanity.max={Whisper.Gameplay.Config.GameConfig.GetFloat("sanity.max", -1f)} · 事件池={((Whisper.Gameplay.Config.GameConfig.Get("level.eventPool") as System.Collections.Generic.List<object>)?.Count ?? 0)} · 怪物={((Whisper.Gameplay.Config.GameConfig.Get("monsters") as System.Collections.Generic.Dictionary<string, object>)?.Count ?? 0)}");
+
+        Console.WriteLine("\n[3.11] 对局调度（V9 §7 保护期 → 主阶段 → 终局狂暴；§19.2 动态事件）");
+        Check("开局处于保护期，20 秒后进入主阶段（保护期秒数取自配置）", () =>
+        {
+            var d = new Whisper.Gameplay.Match.MatchDirector(cfgReader());
+            if (d.Stage != Whisper.Gameplay.Match.MatchStage.Grace || !d.InGrace) return false;
+            if (d.ChaseBySightAllowed || d.ContactEnabled) return false;   // 保护期内不允许看见入追击、不判接触
+            for (int i = 0; i < 20 * 60; i++) d.Tick(1f / 60f);            // 恰 20 秒（仍在期内）
+            if (!d.InGrace) return false;
+            d.Tick(1f / 60f);                                             // 越过 20 秒
+            return d.Stage == Whisper.Gameplay.Match.MatchStage.Main && d.ChaseBySightAllowed && d.ContactEnabled;
+        });
+        Check("终局狂暴在撤离前 60 秒开启（配置 finalRageWindowBeforeExtractionSec）", () =>
+        {
+            var d = new Whisper.Gameplay.Match.MatchDirector(cfgReader(), 7);
+            while (d.Stage != Whisper.Gameplay.Match.MatchStage.FinalRage && d.ElapsedSeconds < 700f) d.Tick(1f);
+            return d.Stage == Whisper.Gameplay.Match.MatchStage.FinalRage
+                && d.FinalRageActive
+                && Math.Abs(d.RemainingSeconds - 60f) < 1.5f;
+        });
+        Check("动态事件数在配置区间 [2,3] 内，且时间落在保护期之后、狂暴窗口之前", () =>
+        {
+            for (int seed = 0; seed < 12; seed++)
+            {
+                var d = new Whisper.Gameplay.Match.MatchDirector(cfgReader(), seed);
+                if (d.Schedule.Count < 2 || d.Schedule.Count > 3) return false;
+                foreach (var e in d.Schedule)
+                {
+                    if (e.AtSecond <= d.GraceSeconds) return false;
+                    if (e.AtSecond >= d.MatchMaxSeconds - d.FinalRageWindowSec) return false;
+                    if (!cfgPoolContains(e.Type)) return false;
+                }
+            }
+            return true;
+        });
+        Check("调度确定性：同种子两次构建得到同一条时间线", () =>
+        {
+            var a = new Whisper.Gameplay.Match.MatchDirector(cfgReader(), 42);
+            var b = new Whisper.Gameplay.Match.MatchDirector(cfgReader(), 42);
+            if (a.Schedule.Count != b.Schedule.Count) return false;
+            for (int i = 0; i < a.Schedule.Count; i++)
+                if (a.Schedule[i].Type != b.Schedule[i].Type || Math.Abs(a.Schedule[i].AtSecond - b.Schedule[i].AtSecond) > 1e-6) return false;
+            return true;
+        });
+        Check("事件只在到点后触发一次（不重复、不提前）", () =>
+        {
+            var d = new Whisper.Gameplay.Match.MatchDirector(cfgReader(), 3);
+            if (d.Schedule.Count == 0) return false;
+            float firstAt = d.Schedule[0].AtSecond;
+            for (int i = 0; i < (int)(firstAt * 60f) - 1; i++) d.Tick(1f / 60f);
+            if (d.Fired.Count != 0) return false;                 // 未到点
+            while (d.ElapsedSeconds <= firstAt + 1f) d.Tick(1f / 60f);
+            return d.Fired.Count == 1;                            // 恰好触发一次
+        });
+        Check("对局超过上限秒数进入撤离阶段（配置 matchSeconds 下界）", () =>
+        {
+            var d = new Whisper.Gameplay.Match.MatchDirector(cfgReader(), 5, 30f);   // 覆盖为 30 秒便于断言
+            while (d.Stage != Whisper.Gameplay.Match.MatchStage.Extraction && d.ElapsedSeconds < 60f) d.Tick(1f);
+            return d.Stage == Whisper.Gameplay.Match.MatchStage.Extraction && d.RemainingSeconds <= 0f;   // 越界时恰好为 0
+        });
+        Check("理智档位通过 ApplyTo 传导到怪物感知（恐惧档 +0.2）", () =>
+        {
+            var cfg = cfgReader();
+            var sanity = new Whisper.Gameplay.Sanity.SanitySystem(cfg, 30f);   // fear 档
+            var brain = new Whisper.Gameplay.Monsters.MonsterBrain("whisperer", cfg);
+            var d = new Whisper.Gameplay.Match.MatchDirector(cfg, 1);
+            d.ApplyTo(sanity, brain);
+            return Math.Abs(brain.PerceptionBonus - 0.2f) < 1e-6;
+        });
+
         Console.WriteLine("\n[3.10] 撤离与结算（V9 §7 / economy 配置）");
         Check("满配结算 = 证据3×200 + 队友150 + 效率100 = 850（与灰盒公式独立复算一致）", () =>
         {
@@ -366,18 +453,7 @@ static class Program
         });
 
         Console.WriteLine("\n[3.8] 理智系统（V9 附录 A-2 / §7）");
-                // 硬前置：后面的断言全部按配置真值驱动，必须确保静态配置已载入。
-        // [2.5] 末尾的 Reset 断言会清空它；同类清理若再出现，这里会立刻以异常暴露而不是静默退化默认值。
-        Whisper.Gameplay.Config.GameConfig.LoadFromJson(cfgJson);
-        if (!Whisper.Gameplay.Config.GameConfig.IsLoaded)
-            throw new InvalidOperationException("配置表未载入：后续按配置真值驱动的断言会静默退化，必须先 LoadFromJson");
-        {
-            var bandProbe = new Whisper.Gameplay.Sanity.SanitySystem(new Whisper.Gameplay.Config.GameConfigReader());
-            int bandCount = Whisper.Gameplay.Config.GameConfig.Get("sanity.bands") is System.Collections.Generic.List<object> bl ? bl.Count : 0;
-            Console.WriteLine($"      [前置检查] sanity.max={bandProbe.Max} 档位={bandProbe.Band.Id} 可用档位数={bandCount}");
-        }
-
-        Check("初始理智 = 配置 sanity.max（100）", () =>
+                Check("初始理智 = 配置 sanity.max（100）", () =>
         {
             var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader());
             return Math.Abs(sy.Value - 100f) < 1e-6 && sy.Band.Id == "composed";
