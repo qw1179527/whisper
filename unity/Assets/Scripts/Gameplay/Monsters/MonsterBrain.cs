@@ -85,8 +85,10 @@ namespace Whisper.Gameplay.Monsters
             if (float.IsNaN(speed)) throw new ArgumentException($"unknown monster: {monsterId}");
             Id = monsterId;
             SpeedMps = speed;
-            float behaviorScale = cfg.Float("monsterBehavior.chaseSpeedScale", 1.6f);
-            ChaseSpeedScale = chaseSpeedScale ?? behaviorScale;
+            // 追击倍率：per-monster 优先（配置只在 monsters.* 下有；monsterBehavior 下没有该键），
+            // 再回落 V9 §7 表7-2 的全局值 1.6（与灰盒 `?? 1.6` 兜底一致）
+            float perMonsterScale = cfg.Float($"monsters.{monsterId}.chaseSpeedScale", 1.6f);
+            ChaseSpeedScale = chaseSpeedScale ?? perMonsterScale;
             Position = position ?? new Vec2(0f, 0f);
             PatrolPoints = patrolPoints ?? new List<Vec2> { new Vec2(0f, 0f) };
             _investigateArriveRadiusM = cfg.Float("monsterBehavior.investigateArriveRadiusM", 1.5f);

@@ -35,6 +35,8 @@ static class Program
         catch (Exception ex) { failed++; failures.Add($"{name}（抛了 {ex.GetType().Name} 而非 {typeof(T).Name}）"); Console.WriteLine($"  ✗ {name}（抛 {ex.GetType().Name}）"); }
     }
 
+    static Whisper.Gameplay.Config.GameConfigReader cfgReader() => new Whisper.Gameplay.Config.GameConfigReader();
+
     static int Main(string[] rawArgs)
     {
         if (Array.IndexOf(rawArgs, "--emit-voice-vectors") >= 0) return EmitVoiceVectors();
@@ -263,6 +265,90 @@ static class Program
             ((Whisper.Net.LocalNetService)iface).SetPhase(Whisper.Core.Contracts.MatchPhase.Extraction);
             var snap = iface.Snapshot;
             return snap.Phase == Whisper.Core.Contracts.MatchPhase.Extraction && snap.Players != null && snap.Props != null;
+        });
+
+        Console.WriteLine("\n[3.8] 理智系统（V9 附录 A-2 / §7）");
+                // 硬前置：后面的断言全部按配置真值驱动，必须确保静态配置已载入。
+        // [2.5] 末尾的 Reset 断言会清空它；同类清理若再出现，这里会立刻以异常暴露而不是静默退化默认值。
+        Whisper.Gameplay.Config.GameConfig.LoadFromJson(cfgJson);
+        if (!Whisper.Gameplay.Config.GameConfig.IsLoaded)
+            throw new InvalidOperationException("配置表未载入：后续按配置真值驱动的断言会静默退化，必须先 LoadFromJson");
+        {
+            var bandProbe = new Whisper.Gameplay.Sanity.SanitySystem(new Whisper.Gameplay.Config.GameConfigReader());
+            int bandCount = Whisper.Gameplay.Config.GameConfig.Get("sanity.bands") is System.Collections.Generic.List<object> bl ? bl.Count : 0;
+            Console.WriteLine($"      [前置检查] sanity.max={bandProbe.Max} 档位={bandProbe.Band.Id} 可用档位数={bandCount}");
+        }
+
+        Check("初始理智 = 配置 sanity.max（100）", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader());
+            return Math.Abs(sy.Value - 100f) < 1e-6 && sy.Band.Id == "composed";
+        });
+        Check("暗处 10 秒 → -10（配置 darknessPerSec=-1）", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader());
+            for (int i = 0; i < 600; i++) sy.Tick(1f / 60f, torchOn: false, inSafeZone: false);
+            // 100 → 90 仍在 composed 档（80-100）；档位迁移另有一条断言
+            return Math.Abs(sy.Value - 90f) < 0.01 && sy.Band.Id == "composed";
+        });
+        Check("暗处 25 秒 → 75 且跨档到 uneasy（档位迁移真的发生）", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader());
+            for (int i = 0; i < 1500; i++) sy.Tick(1f / 60f, torchOn: false, inSafeZone: false);
+            return Math.Abs(sy.Value - 75f) < 0.02 && sy.Band.Id == "uneasy";
+        });
+        Check("灯灭额外流失 ×1.5（灰盒两段叠加语义）", () =>
+        {
+            var a = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader());
+            var b = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader());
+            for (int i = 0; i < 60; i++) { a.Tick(1f / 60f, false, false, lightsOut: false); b.Tick(1f / 60f, false, false, lightsOut: true); }
+            // 灯灭是**两段叠加**：常暗 -1/s 与灯灭 -1.5/s 同时生效 = -2.5/s；1 秒 → 100→99 与 100→97.5
+            return Math.Abs(a.Value - 99f) < 0.01 && Math.Abs(b.Value - 97.5f) < 0.01;
+        });
+        Check("安全区恢复 0.5/s（配置 2 × 0.25）", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader(), 50f);
+            for (int i = 0; i < 120; i++) sy.Tick(1f / 60f, torchOn: true, inSafeZone: true);
+            return Math.Abs(sy.Value - 51f) < 0.01;
+        });
+        Check("档位效果：恐惧档感知 +0.2（喂给怪物的 PerceptionBonus）", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader(), 30f);
+            return sy.Band.Id == "fear" && Math.Abs(sy.MonsterPerceptionBonus - 0.2f) < 1e-6 && sy.MoveSpeedScale == 1f;
+        });
+        Check("档位效果：崩溃边缘移速 ×0.85", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader(), 10f);
+            return sy.Band.Id == "brink" && Math.Abs(sy.MoveSpeedScale - 0.85f) < 1e-6;
+        });
+        Check("怪物接触扣 35（配置 contactSanityLoss；接触不是即死）", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader());
+            sy.MonsterContact();
+            return Math.Abs(sy.Value - 65f) < 1e-6;
+        });
+        Check("理智归零 → 崩溃（尖叫 3 秒）→ 恢复到 25", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader(), 5f);
+            sy.MonsterContact();                       // 5-35 → 0，触发崩溃
+            bool collapsed = sy.Collapsed && sy.TriggerCollapse;
+            for (int i = 0; i < 200; i++) sy.Tick(1f / 60f, torchOn: true, inSafeZone: false);   // >3s
+            // 恢复到配置的 restoreTo=25，正好落在 fear 档下沿（25-49）
+            return collapsed && !sy.Collapsed && Math.Abs(sy.Value - 25f) < 0.01 && sy.Band.Id == "fear";
+        });
+        Check("崩溃时产生 sanity_scream 声纹 key（供怪物听觉使用）", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader(), 5f);
+            sy.MonsterContact();
+            return sy.CollapseStimulusKey == "sanity_scream";
+        });
+        Check("理智台账记录各来源累计变化（死亡归因）", () =>
+        {
+            var sy = new Whisper.Gameplay.Sanity.SanitySystem(cfgReader(), 50f);
+            sy.AllyDied();
+            sy.Jumpscare();
+            return Math.Abs(sy.Ledger[Whisper.Gameplay.Sanity.SanitySource.AllyDeath] + 15f) < 1e-6
+                && Math.Abs(sy.Ledger[Whisper.Gameplay.Sanity.SanitySource.Jumpscare] + 10f) < 1e-6;
         });
 
         Console.WriteLine("\n[4] DesignTokens（C2：设计与代码一一对应）");
