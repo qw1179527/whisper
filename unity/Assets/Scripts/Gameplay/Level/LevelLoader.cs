@@ -25,9 +25,16 @@ namespace Whisper.Gameplay.Level
 
         static readonly HashSet<string> ValidWalls = new HashSet<string>(StringComparer.Ordinal) { "north", "south", "east", "west" };
         static readonly HashSet<string> ValidLightZones = new HashSet<string>(StringComparer.Ordinal) { "safe", "pressure", "high-risk" };
-        /// <summary>内建事件类型（V9 §5/§11 的 6 个风味条目）。</summary>
+        /// <summary>
+        /// 内建事件类型 —— **必须与 data/config.json 的 level.eventPool 逐字一致**。
+        ///
+        /// 踩过的坑：这里曾写成 blackout/doorlock/static/mirror/overload/laugh（想当然的简名），
+        /// 而配置真源是 blackout/door_lock_shift/radio_static/mirror_flicker/power_surge/child_laughter。
+        /// 后果是**合法的关卡事件会被判非法**（校验器说谎）。现由 tools/config-lint.mjs
+        /// 与 tools/validate-levels.mjs 双向守住这条一致性。
+        /// </summary>
         static readonly HashSet<string> BuiltinEventTypes = new HashSet<string>(StringComparer.Ordinal)
-        { "blackout", "doorlock", "static", "mirror", "overload", "laugh" };
+        { "blackout", "door_lock_shift", "radio_static", "mirror_flicker", "power_surge", "child_laughter" };
 
         /// <summary>事件类型是否允许：内建 6 型，或以 x- / ext- / ns: 前缀的扩展类型（V9 §30.2 要求可扩展）。</summary>
         static bool IsEventTypeAllowed(string t)

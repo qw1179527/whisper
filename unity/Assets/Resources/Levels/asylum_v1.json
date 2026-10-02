@@ -537,7 +537,7 @@
       "counterplay": "手电筒照走廊地面确认出口；黑暗持续掉理智，回到安全区（+2/s）可恢复"
     },
     {
-      "type": "doorlock",
+      "type": "door_lock_shift",
       "minute": 9,
       "durationSec": 20,
       "params": {
@@ -550,7 +550,7 @@
       "counterplay": "锁门期间走住院部东西走廊绕行；砸窗会产生 70 强度声纹（半径 20 米），代价明确"
     },
     {
-      "type": "laugh",
+      "type": "child_laughter",
       "minute": 12,
       "durationSec": 6,
       "params": {

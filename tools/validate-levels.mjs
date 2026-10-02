@@ -24,7 +24,18 @@ const VALID_WALLS = new Set(['north', 'south', 'east', 'west']);
 const VALID_LIGHT_ZONES = new Set(['safe', 'pressure', 'high-risk']);
 // 事件类型策略（D3 修复）：内建 6 型 + 允许扩展前缀 x- / ext- / ns:
 // V9 §30.2 明确要求"AI 生成 5 个新类型"，旧版硬编码闭集会把新事件一律判死。
-const BUILTIN_EVENT_TYPES = new Set(['blackout', 'doorlock', 'static', 'mirror', 'overload', 'laugh']);
+// 事件类型真源 = data/config.json 的 level.eventPool。
+// 曾用想当然的简名（doorlock/laugh…），导致**合法事件被判非法**；C# 侧由 tools/config-lint.mjs 守同一一致性。
+const CONFIG_PATH = path.join(ROOT, 'data/config.json');
+let BUILTIN_EVENT_TYPES;
+try {
+  const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  BUILTIN_EVENT_TYPES = new Set(cfg.level.eventPool);
+} catch (e) {
+  console.error(`[levels] 无法读取配置事件池（${CONFIG_PATH}）：${e.message}`);
+  console.error('[levels] 事件类型校验无法进行，拒绝静默通过');
+  process.exit(1);
+}
 const isEventTypeAllowed = (t) =>
   typeof t === 'string' && (BUILTIN_EVENT_TYPES.has(t.replace(/^x-/, '').replace(/^ext-/, '').replace(/^ns:/, '')) || /^(x-|ext-|ns:)/.test(t));
 

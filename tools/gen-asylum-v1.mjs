@@ -176,9 +176,9 @@ const level = {
   events: [
     { type: 'blackout', minute: 6, durationSec: 10, params: { scope: 'ward_zone' }, sanityEffect: -3,
       counterplay: '手电筒照走廊地面确认出口；黑暗持续掉理智，回到安全区（+2/s）可恢复' },
-    { type: 'doorlock', minute: 9, durationSec: 20, params: { rooms: ['ward_03', 'ward_04'] }, sanityEffect: -2,
+    { type: 'door_lock_shift', minute: 9, durationSec: 20, params: { rooms: ['ward_03', 'ward_04'] }, sanityEffect: -2,
       counterplay: '锁门期间走住院部东西走廊绕行；砸窗会产生 70 强度声纹（半径 20 米），代价明确' },
-    { type: 'laugh', minute: 12, durationSec: 6, params: { source: 'morgue_ante' }, sanityEffect: -5,
+    { type: 'child_laughter', minute: 12, durationSec: 6, params: { source: 'morgue_ante' }, sanityEffect: -5,
       counterplay: '笑声期间蹲行（声纹 8/强度、3 米半径）避免叠加暴露；可借声源方位判断怪物大致位置' },
   ],
   extraction: {

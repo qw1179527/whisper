@@ -73,6 +73,23 @@ for (let i = 0; i < bands.length; i++)
     if (bands[i].min <= bands[j].max && bands[j].min <= bands[i].max)
       problems.push(`理智档位区间重叠：${bands[i].id}[${bands[i].min},${bands[i].max}] 与 ${bands[j].id}[${bands[j].min},${bands[j].max}]`);
 
+// 事件池 ↔ C# 内建事件类型必须逐字一致（曾因想当然的简名导致「合法事件被判非法」）
+{
+  const pool = (get('level.eventPool') ?? []).slice().sort();
+  const csPath = path.join(ROOT, 'unity/Assets/Scripts/Gameplay/Level/LevelLoader.cs');
+  const cs = fs.readFileSync(csPath, 'utf8');
+  const m = cs.match(/BuiltinEventTypes = new HashSet<string>\(StringComparer\.Ordinal\)\s*\{([^}]*)\}/);
+  if (!m) problems.push('未能在 LevelLoader.cs 中定位 BuiltinEventTypes（门禁失效，请检查实现）');
+  else {
+    const csTypes = m[1].split(',').map((x) => x.trim().replace(/^"|"$/g, '')).filter(Boolean).sort();
+    const onlyCs = csTypes.filter((t) => !pool.includes(t));
+    const onlyCfg = pool.filter((t) => !csTypes.includes(t));
+    if (onlyCs.length) problems.push(`C# 内建事件类型多出配置里没有的：${onlyCs.join(', ')}`);
+    if (onlyCfg.length) problems.push(`配置事件池里有 C# 未内建的：${onlyCfg.join(', ')}`);
+    if (!onlyCs.length && !onlyCfg.length) notes.push(`事件类型 ↔ 配置 eventPool 逐字一致（${pool.length} 个）`);
+  }
+}
+
 console.log('[config-lint] 符号约定与量纲门禁');
 console.log(`  规则 ${RULES.length} 条 · 刺激源 ${srcKeys.length} 个 · 怪物 ${monsters.length} 个 · 理智档位 ${bands.length} 档`);
 for (const n of notes) console.log('  · ' + n);
