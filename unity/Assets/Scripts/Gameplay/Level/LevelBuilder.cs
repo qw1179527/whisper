@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Whisper.Core;   // DesignTokens（V9 §11 光分区配色）——漏了这行时 DesignTokens 解析不到，几何配色会全部落到兜底色
@@ -25,6 +26,8 @@ namespace Whisper.Gameplay.Level
     {
         public LevelData Level { get; private set; }
         public LevelGeometry Geometry { get; private set; }
+        /// <summary>装配计划（纯 C# 计算，可本机断言；本类按它建对象）。</summary>
+        public LevelAssembly.Plan Plan { get; private set; }
         public readonly List<GameObject> RoomObjects = new List<GameObject>();
         public readonly List<GameObject> DoorObjects = new List<GameObject>();
         public readonly List<GameObject> PropObjects = new List<GameObject>();
@@ -39,6 +42,11 @@ namespace Whisper.Gameplay.Level
                 throw new LevelLoader.LevelValidationException(problems);
 
             Geometry = LevelGeometry.Compile(level);
+            // 装配计划由 LevelAssembly（纯 C#）计算 —— 本类只负责"把计划变成 GameObject"。
+            // 为什么这样拆：装配计算必须能**在本机无引擎环境断言**（V9 §19 代码优先），
+            // 而 GameObject 创建只能靠引擎。独立复核 F2b 指出几何层此前根本没接进产品，
+            // 拆分后计算部分有 5 条本机断言覆盖（墙段数/贴边界/占地/越界/确定性）。
+            Plan = LevelAssembly.Build(level);
             foreach (var room in level.Rooms) BuildRoom(room);
             foreach (var room in level.Rooms) BuildDoors(room);
             foreach (var room in level.Rooms) BuildProps(room);
@@ -159,7 +167,14 @@ namespace Whisper.Gameplay.Level
                 go.transform.SetParent(transform, false);
                 go.transform.position = new Vector3(r.MinX + p.X, r.Floor * 3.5f + p.Y, r.MinZ + p.Z);
                 go.transform.rotation = Quaternion.Euler(0f, p.Rot, 0f);
-                AddBox(go, "Body", new Vector3(0f, 0.4f, 0f), new Vector3(0.8f, 0.8f, 0.8f),
+                // 尺寸取装配计划的占地盒（footprint+rot），而不是固定 0.8³ ——
+                // 否则"看得见的道具"与"撞得到的道具"又不一致（本项目反复踩过的双口径问题）。
+                var part = Plan != null
+                    ? Plan.Props.Find(x => x.RoomId == r.Id && x.Kit == p.Kit && Math.Abs(x.CenterX - (r.MinX + p.X)) < 1e-3f)
+                    : default;
+                float sx = part.Kit != null ? part.SizeX : 0.8f;
+                float sz = part.Kit != null ? part.SizeZ : 0.8f;
+                AddBox(go, "Body", new Vector3(0f, 0.4f, 0f), new Vector3(sx, 0.8f, sz),
                     LightZoneColor(r.LightZone) * 0.8f);
                 PropObjects.Add(go);
             }

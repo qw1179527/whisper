@@ -129,6 +129,119 @@ static class Program
             });
         }
 
+        Console.WriteLine($"\n[装配] 关卡装配计划（纯 C#：LevelAssembly 不碰引擎，本机可验证）");
+        {
+            var plan = Whisper.Gameplay.Level.LevelAssembly.Build(level);
+            Check("装配计划：墙段/门板/道具数量与独立复算一致", () =>
+            {
+                int doors = 0, props = 0, manualWalls = 0;
+                foreach (var r in level.Rooms)
+                {
+                    doors += r.Doors.Count; props += r.Props.Count;
+                    foreach (var wall in new[] { "north", "south", "west", "east" })
+                    {
+                        float len = (wall == "north" || wall == "south") ? r.SizeX : r.SizeZ;
+                        var gaps = new List<(float a, float b)>();
+                        foreach (var d in r.Doors) { if (d.Wall == wall) { d.SpanOnWall(r, out float a, out float b); gaps.Add((a, b)); } }
+                        gaps.Sort((x, y) => x.a.CompareTo(y.a));
+                        float cursor = 0; int seg = 0;
+                        foreach (var (a, b) in gaps) { if (a - cursor > 0.001f) seg++; cursor = Math.Max(cursor, b); }
+                        if (len - cursor > 0.001f) seg++;
+                        manualWalls += seg;
+                    }
+                }
+                Console.WriteLine($"      [装配] 墙段 {plan.Walls.Count}（复算 {manualWalls}）· 门板 {plan.Doors.Count}（门 {doors}）· 道具 {plan.Props.Count}（道具 {props}）");
+                return plan.Walls.Count == manualWalls && plan.Doors.Count == doors && plan.Props.Count == props;
+            });
+            Check("装配计划：墙段贴在房间边界（不是房间中心）", () =>
+            {
+                int bad = 0;
+                foreach (var w in plan.Walls)
+                {
+                    var r = level.Rooms.Find(x => x.Id == w.RoomId);
+                    bool hz = w.Wall == "north" || w.Wall == "south";
+                    float mid = hz ? (r.MinZ + r.MaxZ) / 2f : (r.MinX + r.MaxX) / 2f;
+                    float val = hz ? w.CenterZ : w.CenterX;
+                    if (Math.Abs(val - mid) < 0.4f) { bad++; continue; }
+                    bool onEdge = hz ? (Math.Abs(val - r.MinZ) < 0.3f || Math.Abs(val - r.MaxZ) < 0.3f)
+                                     : (Math.Abs(val - r.MinX) < 0.3f || Math.Abs(val - r.MaxX) < 0.3f);
+                    if (!onEdge) bad++;
+                }
+                if (bad > 0) Console.WriteLine($"      [装配] {bad} 个墙段不在房间边界上");
+                return bad == 0;
+            });
+            Check("装配计划：道具占地按 footprint+rot（bed_b rot90 → 2.0×0.9）", () =>
+            {
+                var (w1, d1) = Whisper.Gameplay.Level.LevelAssembly.RotatedFootprint("bed_b", 90f);
+                var (w2, _) = Whisper.Gameplay.Level.LevelAssembly.RotatedFootprint("bed_b", 0f);
+                Console.WriteLine($"      [装配] bed_b rot90 → {w1}×{d1} · rot0 宽 {w2}");
+                return Math.Abs(w1 - 2.0f) < 1e-3f && Math.Abs(d1 - 0.9f) < 1e-3f && Math.Abs(w2 - 0.9f) < 1e-3f;
+            });
+            Check("装配计划：道具占地盒完整落在房间内", () =>
+            {
+                int bad = 0; var det = new List<string>();
+                foreach (var pp in plan.Props)
+                {
+                    var r = level.Rooms.Find(x => x.Id == pp.RoomId);
+                    if (pp.CenterX - pp.SizeX / 2 < r.MinX - 1e-3f || pp.CenterX + pp.SizeX / 2 > r.MaxX + 1e-3f
+                        || pp.CenterZ - pp.SizeZ / 2 < r.MinZ - 1e-3f || pp.CenterZ + pp.SizeZ / 2 > r.MaxZ + 1e-3f)
+                    { bad++; det.Add($"{pp.RoomId}/{pp.Kit}"); }
+                }
+                if (bad > 0) Console.WriteLine($"      [装配] 越界：{string.Join(" · ", det)}");
+                return bad == 0;
+            });
+            Check("装配计划：确定性（两次装配逐字段相同）", () =>
+            {
+                var a = Whisper.Gameplay.Level.LevelAssembly.Build(level);
+                var b = Whisper.Gameplay.Level.LevelAssembly.Build(level);
+                if (a.Walls.Count != b.Walls.Count || a.Props.Count != b.Props.Count) return false;
+                for (int k = 0; k < a.Walls.Count; k++)
+                    if (a.Walls[k].CenterX != b.Walls[k].CenterX || a.Walls[k].CenterZ != b.Walls[k].CenterZ) return false;
+                return true;
+            });
+        }
+
+        Console.WriteLine($"\n[证据] 证据点可达性（F-A 阻断项：代理半径 0.34 / 拾取半径 0.9）");
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            const float pick = 0.9f, R = 0.34f;
+            Check("证据点可达性：每个证据点都有代理站得到的站位，且距离 ≤ 拾取半径", () =>
+            {
+                int bad = 0; var det = new List<string>();
+                foreach (var r in level.Rooms)
+                {
+                    if (!r.EvidencePoint) continue;
+                    if (!Whisper.Gameplay.Items.EvidencePlacer.TryPlace(geo, level, r, out float ex, out float ez))
+                    {
+                        bad++; det.Add($"{r.Id} 无可达落位");
+                        var fine = Whisper.Gameplay.Level.LevelGeometry.Compile(level, 0.25f);
+                        int stand = 0, pass = 0;
+                        for (float cz = r.MinZ; cz <= r.MaxZ; cz += 0.25f)
+                            for (float cx = r.MinX; cx <= r.MaxX; cx += 0.25f)
+                            {
+                                if (fine.Passable(cx, cz)) pass++;
+                                if (Whisper.Gameplay.Items.EvidencePlacer.IsStandable(fine, level, cx, cz)) stand++;
+                            }
+                        Console.WriteLine($"      [证据] {r.Id} 细网格可走 {pass} 点 · 站得住 {stand} 点 · 房 x[{r.MinX},{r.MaxX}] z[{r.MinZ},{r.MaxZ}]");
+                        continue;
+                    }
+                    float best = float.MaxValue, bx = 0, bz = 0;
+                    for (float cz = r.MinZ + R; cz <= r.MaxZ - R; cz += 0.25f)
+                        for (float cx = r.MinX + R; cx <= r.MaxX - R; cx += 0.25f)
+                        {
+                            if (!Whisper.Gameplay.Items.EvidencePlacer.IsStandable(geo, level, cx, cz)) continue;
+                            float d = (float)Math.Sqrt((cx - ex) * (cx - ex) + (cz - ez) * (cz - ez));
+                            if (d < best) { best = d; bx = cx; bz = cz; }
+                        }
+                    Console.WriteLine($"      [证据] {r.Id,-13} 落位({ex:0.00},{ez:0.00}) 最近站位({bx:0.00},{bz:0.00}) 距离 {best:0.00}m");
+                    if (best > pick) { bad++; det.Add($"{r.Id} {best:0.00}m > {pick}"); }
+                }
+                if (bad > 0) Console.WriteLine($"      [证据] ✗ {string.Join(" · ", det)}");
+                return bad == 0;
+            });
+        }
+
+
         Console.WriteLine("\n[3] 校验器必须真会拦（注入畸形数据）");
         CheckThrows<LevelLoader.LevelValidationException>("未知 kit 被拦", () =>
             LevelLoader.Load(levelJson.Replace("\"hospital_ward\"", "\"nope_kit\""), kits));

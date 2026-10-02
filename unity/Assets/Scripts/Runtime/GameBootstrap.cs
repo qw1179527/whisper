@@ -41,6 +41,7 @@ namespace Whisper.Runtime
         /// <summary>Play 循环帧计数（用于证明"真的在跑"，而不是只挂了个组件）。</summary>
         public long Ticks { get; private set; }
 
+        LevelBuilder _levelBuilder;
         Text _status;
         Canvas _canvas;
         float _nextHudRefresh;
@@ -128,6 +129,26 @@ namespace Whisper.Runtime
                 lines.AppendLine($"关卡 {Level.LevelId}：房间 {Level.Rooms.Count} · 走廊 {Level.Corridors.Count} · 事件 {Level.Events.Count}");
                 if (Level.Extraction != null)
                     lines.AppendLine($"撤离点：标准 {Level.Extraction.Standard} / 深处 {Level.Extraction.Deep}");
+            }
+            catch (System.Exception ex) { Fail(lines, $"关卡加载失败（{ex.GetType().Name}）：{ex.Message}"); return; }
+
+            // ④ 几何装配（独立复核 F2b：几何层此前**没接进产品** —— 无场景、LevelBuilder 无人实例化）
+            //    按 V9 §19「代码优先」：场景零手工，装配由代码驱动，Boot 时即时构建。
+            try
+            {
+                var builderGo = new GameObject("LevelGeometry");
+                builderGo.transform.SetParent(transform, false);
+                _levelBuilder = builderGo.AddComponent<LevelBuilder>();
+                _levelBuilder.Build(Level, LoadKitIds());
+                lines.AppendLine($"几何已装配：房间 {_levelBuilder.RoomObjects.Count} · 门 {_levelBuilder.DoorObjects.Count}"
+                    + $" · 道具 {_levelBuilder.PropObjects.Count} · 可走格 {_levelBuilder.Geometry.PassableCount()}");
+                // 玩家与怪物都从**入口房间的空可走格**出生：房间中心常被家具占用
+                // （ward_03 中心就是病床），直接用中心会把角色卡在家具里。
+                var start = Level.Rooms.Count > 0 ? Level.Rooms[0] : null;
+                if (start != null && _levelBuilder.Geometry.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz))
+                    lines.AppendLine($"出生点：房间 {start.Id} → 世界 ({sx:0.0}, {sz:0.0})");
+                else
+                    lines.AppendLine("⚠ 出生点解析失败（该房间没有空可走格）");
             }
             catch (LevelLoader.LevelValidationException ex) { Fail(lines, "Level DSL 校验失败：" + ex.Message); return; }
             catch (System.Exception ex) { Fail(lines, $"关卡装载失败（{ex.GetType().Name}）：{ex.Message}"); return; }

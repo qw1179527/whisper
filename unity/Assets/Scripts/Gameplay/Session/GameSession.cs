@@ -71,10 +71,16 @@ namespace Whisper.Gameplay.Session
         public bool LastSeenEligible { get; private set; }
         public bool LastChaseCondition { get; private set; }
 
+        /// <summary>本局使用的碰撞几何（构造时编译一次；证据点落位与出生点都基于它）。</summary>
+        public LevelGeometry Geometry { get; }
+
         public GameSession(LevelData level, GameConfigReader cfg, int matchSeed = 0, VoiceAnchors? voiceAnchors = null)
         {
             Level = level;
             Cfg = cfg;
+            // 几何编译一次并复用：证据点落位、出生点、可达性都基于它（此前 GameSession 完全没有几何，
+            // 于是"证据点在房间中心"这种几何缺陷在会话层根本无从发现）。
+            Geometry = LevelGeometry.Compile(level);
             int evidenceTotal = 0;
             foreach (var r in level.Rooms) if (r.EvidencePoint) evidenceTotal++;
             Sanity = new SanitySystem(cfg);
@@ -86,13 +92,29 @@ namespace Whisper.Gameplay.Session
             Items.OnLog += (msg) => EventLog.Add(msg);
 
             // 出生点：第一间房（入口区）中心
-            if (level.Rooms.Count > 0) { PlayerX = level.Rooms[0].CenterX; PlayerZ = level.Rooms[0].CenterZ; }
+            // 出生点：入口房间的**空可走格**（房间中心可能被家具占用；灰盒端同口径）
+            if (level.Rooms.Count > 0)
+            {
+                var r0 = level.Rooms[0];
+                if (!Geometry.TryFindFreeCell(r0.CenterX, r0.CenterZ, out float sx, out float sz)) { sx = r0.CenterX; sz = r0.CenterZ; }
+                PlayerX = sx; PlayerZ = sz;
+            }
 
             // 证据点落到世界坐标（房间局部 → 世界）
             foreach (var r in level.Rooms)
             {
                 if (!r.EvidencePoint) continue;
-                Items.EvidencePoints.Add(new EvidencePoint { Id = r.Id, X = r.CenterX, Z = r.CenterZ });
+                // 证据点**不能直接用房间中心**：家具可能正好压住中心，代理最近只能站到家具外侧 ——
+                // 实测病床 0.9×2.0 压中心时最近站位距证据点 1.35m > 拾取半径 0.9m，
+                // 5 个证据只拿得到 1 个，**关卡不可通关**（独立复核第 2 轮 F-A）。
+                // 改由 EvidencePlacer 在几何上挑"代理真正站得到"的位置。
+                float ex = r.CenterX, ez = r.CenterZ;
+                if (Geometry == null || !Whisper.Gameplay.Items.EvidencePlacer.TryPlace(Geometry, level, r, out ex, out ez))
+                {
+                    // 退化到中心并记录：这是关卡缺陷，必须让它可见，而不是静默用中心
+                    System.Console.WriteLine($"[Whisper] ⚠ 证据点落位失败（房间 {r.Id} 无与门连通的可站格），退化到房间中心");
+                }
+                Items.EvidencePoints.Add(new EvidencePoint { Id = r.Id, X = ex, Z = ez });
             }
             // 撤离点
             if (level.Extraction != null)

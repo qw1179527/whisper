@@ -39,8 +39,9 @@ namespace Whisper.Gameplay.Level
             public Box(float x0, float z0, float x1, float z1) { X0 = x0; Z0 = z0; X1 = x1; Z1 = z1; }
         }
 
-        LevelGeometry(int minGX, int minGZ, int w, int h)
+        LevelGeometry(int minGX, int minGZ, int w, int h, float cellSize = DefaultCellSize)
         {
+            CellSize = cellSize;
             MinGX = minGX; MinGZ = minGZ; Width = w; Height = h;
             _blocked = new bool[w * h];
         }
@@ -79,7 +80,7 @@ namespace Whisper.Gameplay.Level
         ///    走廊与病房之间的整段墙。
         /// 3. **外墙不能漏**。内缩同时天然保住了关卡外圈。
         /// </summary>
-        public static LevelGeometry Compile(LevelData level)
+        public static LevelGeometry Compile(LevelData level, float cellSize = DefaultCellSize)
         {
             float minX = float.MaxValue, minZ = float.MaxValue, maxX = float.MinValue, maxZ = float.MinValue;
             foreach (var r in level.Rooms)
@@ -87,15 +88,15 @@ namespace Whisper.Gameplay.Level
                 minX = Math.Min(minX, r.MinX); minZ = Math.Min(minZ, r.MinZ);
                 maxX = Math.Max(maxX, r.MaxX); maxZ = Math.Max(maxZ, r.MaxZ);
             }
-            int minGX = CellOf(minX) - 1, minGZ = CellOf(minZ) - 1;
-            int maxGX = CellOf(maxX) + 2, maxGZ = CellOf(maxZ) + 2;
-            var geo = new LevelGeometry(minGX, minGZ, maxGX - minGX, maxGZ - minGZ);
+            int minGX = CellOf(minX, cellSize) - 1, minGZ = CellOf(minZ, cellSize) - 1;
+            int maxGX = CellOf(maxX, cellSize) + 2, maxGZ = CellOf(maxZ, cellSize) + 2;
+            var geo = new LevelGeometry(minGX, minGZ, maxGX - minGX, maxGZ - minGZ, cellSize);
 
             var owners = new Dictionary<(int, int), int>();
             void Pledge(float x0, float z0, float x1, float z1)
             {
-                int gx0 = CellOf(x0), gx1 = CellOf(x1 - 1e-4f);
-                int gz0 = CellOf(z0), gz1 = CellOf(z1 - 1e-4f);
+                int gx0 = CellOf(x0, cellSize), gx1 = CellOf(x1 - 1e-4f, cellSize);
+                int gz0 = CellOf(z0, cellSize), gz1 = CellOf(z1 - 1e-4f, cellSize);
                 for (int gz = gz0; gz <= gz1; gz++)
                     for (int gx = gx0; gx <= gx1; gx++)
                         owners[(gx, gz)] = owners.TryGetValue((gx, gz), out var n) ? n + 1 : 1;
@@ -125,8 +126,8 @@ namespace Whisper.Gameplay.Level
                 // （实测 corridor_ward 得到 "gz 11..10" = 无内部格，整条走廊不可达）。
                 // 取 0.6 与"较小边长的 35%"中的较小者。
                 float INSET = Math.Min(0.6f, Math.Min(r.MaxX - r.MinX, r.MaxZ - r.MinZ) * 0.35f);
-                int gx0 = CellOf(r.MinX + INSET), gx1 = CellOf(r.MaxX - INSET - 1e-4f);
-                int gz0 = CellOf(r.MinZ + INSET), gz1 = CellOf(r.MaxZ - INSET - 1e-4f);
+                int gx0 = CellOf(r.MinX + INSET, cellSize), gx1 = CellOf(r.MaxX - INSET - 1e-4f, cellSize);
+                int gz0 = CellOf(r.MinZ + INSET, cellSize), gz1 = CellOf(r.MaxZ - INSET - 1e-4f, cellSize);
                 if (gx1 < gx0 || gz1 < gz0) continue;   // 极窄房间（理论上不应出现）跳过而非算成空集
                 for (int gz = gz0; gz <= gz1; gz++)
                     for (int gx = gx0; gx <= gx1; gx++)
@@ -136,12 +137,12 @@ namespace Whisper.Gameplay.Level
             // ④ 门洞：在所属房间编号范围内打通「门格 + 内侧一格」
             foreach (var r in level.Rooms)
             {
-                int rgx0 = CellOf(r.MinX), rgx1 = CellOf(r.MaxX - 1e-4f);
-                int rgz0 = CellOf(r.MinZ), rgz1 = CellOf(r.MaxZ - 1e-4f);
+                int rgx0 = CellOf(r.MinX, cellSize), rgx1 = CellOf(r.MaxX - 1e-4f, cellSize);
+                int rgz0 = CellOf(r.MinZ, cellSize), rgz1 = CellOf(r.MaxZ - 1e-4f, cellSize);
                 foreach (var d in r.Doors)
                 {
                     d.ToWorld(r, out float dx, out float dz);
-                    int gx = CellOf(dx), gz = CellOf(dz);
+                    int gx = CellOf(dx, cellSize), gz = CellOf(dz, cellSize);
                     bool northSouth = d.Wall == "north" || d.Wall == "south";
                     // 门洞打通：从门格沿法向**两侧各凿到"进入本房间内部"为止**（上限 6 格）。
                     //
@@ -166,8 +167,8 @@ namespace Whisper.Gameplay.Level
                             Open(ax, az);
                             // "进入本房间内部"= 该格已在房间的内缩矩形之内
                             float ins = Math.Min(0.6f, Math.Min(r.MaxX - r.MinX, r.MaxZ - r.MinZ) * 0.35f);
-                            if (ax >= CellOf(r.MinX + ins) && ax <= CellOf(r.MaxX - ins - 1e-4f)
-                                && az >= CellOf(r.MinZ + ins) && az <= CellOf(r.MaxZ - ins - 1e-4f))
+                            if (ax >= CellOf(r.MinX + ins, cellSize) && ax <= CellOf(r.MaxX - ins - 1e-4f, cellSize)
+                                && az >= CellOf(r.MinZ + ins, cellSize) && az <= CellOf(r.MaxZ - ins - 1e-4f, cellSize))
                             { reached = true; break; }
                         }
                         _ = reached;
@@ -256,8 +257,12 @@ namespace Whisper.Gameplay.Level
         /// 只剩 1×3 格，门洞格与内部格总是错开一格，导致"有墙但走不进去"。
         /// 0.5 米格：墙厚 0.26 m 能完整落在格内，走廊 1 m 宽也留有 1 格可走。
         /// </summary>
-        public const float CellSize = 0.5f;
-        static int CellOf(float v) => (int)Math.Floor(v / CellSize);
+        public const float DefaultCellSize = 0.5f;
+        /// <summary>本实例的格尺寸（默认 0.5m）。落位类判定可用更细的格（如 0.25m）避免量化过粗。</summary>
+        public readonly float CellSize = DefaultCellSize;
+        int CellOf(float v) => (int)Math.Floor(v / CellSize);
+        /// <summary>静态换算（供 Compile 这类静态流程使用；实例内请用 CellOf）。</summary>
+        static int CellOf(float v, float cellSize) => (int)Math.Floor(v / cellSize);
 
         /// <summary>一次移动解析的结果：终点坐标 + 过程中是否被挡（用于停滞/绕行判定）。</summary>
         public struct MoveResult { public float X, Z; public bool Blocked; }
@@ -314,8 +319,15 @@ namespace Whisper.Gameplay.Level
                         int gx = cx + dx, gz = cz + dz;
                         if (!PassableCell(gx, gz)) continue;
                         float px = (gx + 0.5f) * CellSize, pz = (gz + 0.5f) * CellSize;
+                        // 必须连**代理半径的净空**一起查：只查格中心会给出"贴着家具边"的起点，
+                        // 于是小位移一推就被判 blocked（实测碰撞解析断言因此变红）。
+                        const float R = 0.34f;
+                        if (!Passable(px - R, pz - R) || !Passable(px + R, pz - R)
+                            || !Passable(px - R, pz + R) || !Passable(px + R, pz + R)) continue;
+                        bool hitProp = false;
                         foreach (var b in PropBoxes)
-                            if (px > b.X0 && px < b.X1 && pz > b.Z0 && pz < b.Z1) goto next;
+                            if (px + R > b.X0 && px - R < b.X1 && pz + R > b.Z0 && pz - R < b.Z1) { hitProp = true; break; }
+                        if (hitProp) continue;
                         fx = px; fz = pz; return true;
                     next:;
                     }

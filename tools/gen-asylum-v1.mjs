@@ -142,6 +142,7 @@ function placeProp(box, pref) {
   const CLEAR = 0.5;
   const doors = box.doors ?? [];
   const prop = arguments[2] ?? {};
+  const evidence = box.evidence === true;
   const [hx, hz] = footprintHalf(prop.kit ?? 'bed_b', prop.rot ?? 0);
   const WALL = 0.26;                       // 墙厚（与 LevelGeometry/生成器一致）
   const blocked = (x, z) => {
@@ -151,6 +152,16 @@ function placeProp(box, pref) {
     const dx = Math.min(x - box.x0, box.x1 - x);
     const dz = Math.min(z - box.z0, box.z1 - z);
     if (dx < needX || dz < needZ) return true;
+    // ② 证据房（有证据点的房间）必须保住"房间中心"的可达性：
+    //    证据点就定义在房间中心（GameSession 用 r.CenterX/CenterZ），拾取半径 0.9m。
+    //    若家具把中心挡住，代理最近只能站到家具外侧 —— 实测病床 2.0m 长压在中心线上时，
+    //    最近站位距证据点 1.35m > 0.9m，**关卡直接不可通关**（独立复核第 2 轮 F-A）。
+    //    这里要求：道具占地盒与"中心 keep-out 区"不相交（区 = 中心 ± (0.9 + 代理半径 0.34)）。
+    if (evidence) {
+      const KEEP = 0.55;   // 只需保住中心附近的可站净空（证据点落位另有 0.25m 细网格可达性判定兜底）
+      const mcx = (box.x0 + box.x1) / 2, mcz = (box.z0 + box.z1) / 2;
+      if (Math.abs(x - mcx) < KEEP + hx && Math.abs(z - mcz) < KEEP + hz) return true;
+    }
     // 道具的真实占地盒（按 rot 旋转后的 AABB）
     const px0 = x - hx, px1 = x + hx, pz0 = z - hz, pz1 = z + hz;
     for (const d of doors) {
@@ -178,14 +189,16 @@ function placeProp(box, pref) {
   // 候选顺序：按 pref 指定的角落/边开始，逐 0.1m 扫描
   const needX = hx + WALL + 0.05, needZ = hz + WALL + 0.05;
   const xs = [];
-  for (let x = box.x0 + needX; x <= box.x1 - needX + 1e-9; x += 0.1) xs.push(Math.round(x * 100) / 100);
+  for (let x = box.x0 + needX; x <= box.x1 - needX + 1e-9; x += 0.05) xs.push(Math.round(x * 100) / 100);
   const zs = [];
-  for (let z = box.z0 + needZ; z <= box.z1 - needZ + 1e-9; z += 0.1) zs.push(Math.round(z * 100) / 100);
+  for (let z = box.z0 + needZ; z <= box.z1 - needZ + 1e-9; z += 0.05) zs.push(Math.round(z * 100) / 100);
   if (pref === 'ne') zs.reverse();
   if (pref === 'sw' || pref === 'se') { xs.reverse(); if (pref === 'se') zs.reverse(); }
   for (const z of zs) for (const x of xs) if (!blocked(x, z)) return [Math.round((x - box.x0) * 100) / 100, 0, Math.round((z - box.z0) * 100) / 100];
   return null; // 无合法位置 → 交由自检报错
 }
+
+const problems = [];   // 自检问题清单（必须在道具寻位之前声明：寻位失败要记进这里）
 
 // 先把道具落到实际位置并写回 BOXES（自检与写出都用同一份数据，避免"自检查布局表、写出用寻位结果"的错位）
 for (const b of BOXES) {
@@ -223,7 +236,6 @@ const doors = new Map();
 for (const b of BOXES) for (const d of b.doors) doors.set(`${b.id}/${d.id}`, { box: b, door: d, wall: wallOf(b, d) });
 
 const corridors = [];
-const problems = [];
 for (const [a, c, width] of LINKS) {
   const A = doors.get(a), B = doors.get(c);
   if (!A || !B) { problems.push(`门引用不存在：${a} 或 ${c}`); continue; }
@@ -250,6 +262,14 @@ for (const b of BOXES) {
     const w = b.x1 - b.x0, d = b.z1 - b.z0;
     if (lx - hx < WALL_T - 1e-6 || lx + hx > w - WALL_T + 1e-6 || lz - hz < WALL_T - 1e-6 || lz + hz > d - WALL_T + 1e-6) {
       problems.push(`道具 ${b.id}/${pr.kit} 占地盒侵入墙体（中心 ${lx.toFixed(2)},${lz.toFixed(2)} 半尺寸 ${hx.toFixed(2)}×${hz.toFixed(2)} 房间 ${w}×${d}）`);
+    }
+    // 证据房：道具不得压住房间中心（证据点所在处）的 keep-out 区
+    if (b.evidence === true) {
+      const KEEP = 0.55;   // 只需保住中心附近的可站净空（证据点落位另有 0.25m 细网格可达性判定兜底）
+      const mcx = w / 2, mcz = d / 2;
+      if (Math.abs(lx - mcx) < KEEP + hx && Math.abs(lz - mcz) < KEEP + hz) {
+        problems.push(`道具 ${b.id}/${pr.kit} 压住证据点 keep-out 区（中心 ${mcx.toFixed(2)},${mcz.toFixed(2)}，需 ≥${KEEP}m 净空）`);
+      }
     }
   }
 }
