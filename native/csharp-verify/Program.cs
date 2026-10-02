@@ -277,6 +277,51 @@ static class Program
             return snap.Phase == Whisper.Core.Contracts.MatchPhase.Extraction && snap.Players != null && snap.Props != null;
         });
 
+        Console.WriteLine("\n[3.10] 撤离与结算（V9 §7 / economy 配置）");
+        Check("满配结算 = 证据3×200 + 队友150 + 效率100 = 850（与灰盒公式独立复算一致）", () =>
+        {
+            var r = Whisper.Gameplay.Extraction.Settlement.Compute(cfgReader(), new Whisper.Gameplay.Extraction.MissionOutcome
+            { Survived = true, Extraction = Whisper.Gameplay.Extraction.ExtractionKind.Standard, EvidenceCollected = 3, SurvivingAllies = 1, ElapsedSeconds = 500f });
+            return r.Fragments == 850 && r.RewardScale == 1f;
+        });
+        Check("超过 10 分钟（700s）失去效率奖金、无队友 → 3×200 = 600", () =>
+        {
+            var r = Whisper.Gameplay.Extraction.Settlement.Compute(cfgReader(), new Whisper.Gameplay.Extraction.MissionOutcome
+            { Survived = true, Extraction = Whisper.Gameplay.Extraction.ExtractionKind.Standard, EvidenceCollected = 3, SurvivingAllies = 0, ElapsedSeconds = 700f });
+            return r.Fragments == 600;
+        });
+        Check("未撤离 → 碎片 0（V9 §7：只有带证据活着出去才算）", () =>
+        {
+            var r = Whisper.Gameplay.Extraction.Settlement.Compute(cfgReader(), new Whisper.Gameplay.Extraction.MissionOutcome
+            { Survived = false, Extraction = Whisper.Gameplay.Extraction.ExtractionKind.None, EvidenceCollected = 5, SurvivingAllies = 2, ElapsedSeconds = 100f });
+            return r.Fragments == 0 && r.Breakdown.Contains("未撤离");
+        });
+        Check("深处撤离点 rewardScale = 1.3 且标记为危险（配置真源）", () =>
+        {
+            var cfg = cfgReader();
+            var r = Whisper.Gameplay.Extraction.Settlement.Compute(cfg, new Whisper.Gameplay.Extraction.MissionOutcome
+            { Survived = true, Extraction = Whisper.Gameplay.Extraction.ExtractionKind.Deep, EvidenceCollected = 1, SurvivingAllies = 0, ElapsedSeconds = 700f });
+            return Math.Abs(r.RewardScale - 1.3f) < 1e-6
+                && Whisper.Gameplay.Extraction.Settlement.IsSafe(cfg, Whisper.Gameplay.Extraction.ExtractionKind.Deep) == false
+                && Whisper.Gameplay.Extraction.Settlement.IsSafe(cfg, Whisper.Gameplay.Extraction.ExtractionKind.Standard) == true;
+        });
+        Check("已知缺口被显式登记：rewardScale 未参与碎片计算（与灰盒同行为）", () =>
+        {
+            var cfg = cfgReader();
+            var deep = Whisper.Gameplay.Extraction.Settlement.Compute(cfg, new Whisper.Gameplay.Extraction.MissionOutcome
+            { Survived = true, Extraction = Whisper.Gameplay.Extraction.ExtractionKind.Deep, EvidenceCollected = 1, SurvivingAllies = 0, ElapsedSeconds = 700f });
+            var std = Whisper.Gameplay.Extraction.Settlement.Compute(cfg, new Whisper.Gameplay.Extraction.MissionOutcome
+            { Survived = true, Extraction = Whisper.Gameplay.Extraction.ExtractionKind.Standard, EvidenceCollected = 1, SurvivingAllies = 0, ElapsedSeconds = 700f });
+            return deep.Fragments == std.Fragments   // 同碎片 → 缺口确实存在（不是"已修好"）
+                && Whisper.Gameplay.Extraction.Settlement.DeepScaleGapNote.Contains("1.3");
+        });
+        Check("开局保护期与动态事件数来自配置（20s / 2~3 个）", () =>
+        {
+            var cfg = cfgReader();
+            Whisper.Gameplay.Extraction.Settlement.DynamicEventRange(cfg, out int mn, out int mx);
+            return Math.Abs(Whisper.Gameplay.Extraction.Settlement.StartGraceSeconds(cfg) - 20f) < 1e-6 && mn == 2 && mx == 3;
+        });
+
         Console.WriteLine("\n[3.9] 关卡几何编译（V9 §19.2：DSL → 可碰撞几何）");
         Check("几何可编译且可走格数 > 0", () =>
         {
