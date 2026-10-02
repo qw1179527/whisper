@@ -1,7 +1,7 @@
 {
-  "version": "0.7.3",
+  "version": "0.7.4",
   "channel": "graybox-dev",
-  "note": "修启动崩溃：补丁里误用模块外的 config（应为本模块 cfg()）；寻路三处根因修复同批",
+  "note": "修 cfg is not defined（上一版把 config 改成了本模块不存在的 cfg）；作用域哨兵扩为同时盯 config/cfg",
   "baseline": {
     "apk": "/storage/emulated/0/DSH专用/whisper-graybox-0.6.0.apk",
     "gameJsSha256": "7e38398322952880",

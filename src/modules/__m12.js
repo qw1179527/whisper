@@ -611,9 +611,14 @@
       }
       const now = brain.tick;
       if (ms.wpStallAt == null) ms.wpStallAt = now;
-      // 注意：这里必须用本模块的 cfg()。config 只是 __m12.startGame(config, tokens) 的**形参**，
-      // 模块级函数里没有这个名字 —— 我用 config 写过一次，结果运行时直接 config is not defined（启动即崩）。
-      else if (now - ms.wpStallAt > 2.5 * cfg('network.tickRate', 60)) { ms.wpStallAt = null; return true; }
+      // 作用域纪律（我在这上面连栽两次，两次都是"启动即崩"）：
+      //   · __m12 **没有** cfg（那是 __m3/__m4 等模块的别名）；
+      //   · __m12 用的是 config —— 它是 startGame(config, tokens) 的**形参**，
+      //     本函数（startGame 内部的嵌套函数）能访问，模块级函数则不能。
+      // 第一版写 config.* 到模块级函数 → config is not defined；
+      // 第二版改成 cfg(...) → cfg is not defined。这里是第三版，用本模块真正可用的写法。
+      // （注意：这段注释位于模板字符串内部，不能出现反引号，否则会把模板提前闭合 —— 我又踩了一次）
+      else if (now - ms.wpStallAt > 2.5 * (config.network?.tickRate ?? 60)) { ms.wpStallAt = null; return true; }
       return false;
     }
 

@@ -237,43 +237,57 @@ let err = null;
  */
 
 /**
- * 出包前哨：非 `__m12`/`__m13` 模块里若出现裸 `config`，且**该模块内任何地方都没有**
- * `config` 的形参或声明，则判为致命缺陷（运行时必然 `config is not defined`）。
+ * 出包前哨：模块内是否使用了**该模块拿不到**的标识符 `config` / `cfg`。
  *
- * 与前面四版失败尝试的区别：不再尝试分析"哪个函数包裹了这行"，
- * 只问两个可以直接验证的问题——
- *   ① 这个模块的代码里出现 config 标识符了吗？（去注释、去字符串后扫）
- *   ② 这个模块里有 config 的形参或声明吗？
- * 只要 ① 是、② 否，就一定是错的。判据是"模块内是否存在 config 的来源"，不依赖作用域推导。
+ * 背景（同一个坑我连栽两次，两次都是"装上去启动即崩"）：
+ *   · 第一次：在 `__m12` 的**模块级函数**里用 `config.network?.tickRate`
+ *     —— `config` 只是 `startGame(config, tokens)` 的形参，模块级函数拿不到 → `config is not defined`
+ *   · 第二次："修"成 `cfg(...)` —— 但 `__m12` **根本没有 cfg**（那是 __m3/__m4 等模块的别名）
+ *     → `cfg is not defined`
+ * 两次都顺利通过了语法检查、V1~V6 门禁与冒烟（冒烟当时喂的是空关卡、只等 80ms，覆盖不到那段代码）。
+ * 所以必须有一道**按模块判断"这个名字拿不拿得到"**的静态哨兵。
+ *
+ * 判据（模块内是否有该名字的来源；不推导作用域，避免我前几版的误报/漏检）：
+ *   config：本模块内有 `let/const/var config`，或形参表里出现 `config`
+ *           （`__m12` 的 config 来自 startGame 形参；`__m13` 是局部变量；`__m10/__m11` 是形参）
+ *   cfg   ：本模块内有 `cfg =` / `var cfg` 之类的声明，或直接来自 require（`var cfg = __ns0.cfg`）
  */
 {
+  const ALIASES = ['config', 'cfg'];
   const mods = [...text.matchAll(/__tables\["(__m\d+)"\]\s*=\s*function\s*\(mod\)\s*\{/g)];
   const deadly = [];
   for (let i = 0; i < mods.length; i++) {
     const id = mods[i][1];
-    if (id === '__m12' || id === '__m13') continue;      // 这两模块内 config 有明确来源
     const a = mods[i].index;
     const b = i + 1 < mods.length ? mods[i + 1].index : text.indexOf('var __entry');
-    const seg = text.slice(a, b);
-    const code = seg
+    const code = text.slice(a, b)
       .replace(/\/\*[\s\S]*?\*\//g, ' ')
       .replace(/\/\/[^\n]*/g, ' ')
       .replace(/'(?:[^'\\]|\\.)*'/g, "''")
       .replace(/"(?:[^"\\]|\\.)*"/g, '""');
-    const usesConfig = /(?<![\w$.-])config(?!\s*:)(?![\w$-])/.test(code);
-    if (!usesConfig) continue;
-    const hasSource = /\(\s*config\s*[,)]/.test(code) || /(?:^|[\s;{(])(?:let|const|var)\s+config\b/.test(code);
-    if (!hasSource) {
-      const line = code.slice(0, code.search(/(?<![\w$.-])config(?!\s*:)(?![\w$-])/)).split('\n').length;
-      deadly.push(`${id} 第 ${line} 行附近`);
+    for (const name of ALIASES) {
+      const used = new RegExp(`(?<![\\w$.-])${name}(?!\\s*:)(?![\\w$-])`).test(code);
+      if (!used) continue;
+      // 三种"本模块有这个名字"的来源：var/let/const 声明、函数声明（`function cfg(...)`）、形参。
+      // 漏掉函数声明会误报 `__m0`（它就是 `function cfg(...)` 的定义处）—— 实测踩到。
+      const hasDecl = new RegExp(`(?:^|[\\s;{(,])(?:let|const|var)\\s+${name}\\b`).test(code)
+        || new RegExp(`(?:^|[\\s;{(,])function\\s+${name}\\b`).test(code)
+        || new RegExp(`(?:^|[\\s;{(,])${name}\\s*=\\s*(?:function|\\()`).test(code);
+      const hasParam = new RegExp(`\\(\\s*${name}\\s*[,)]`).test(code);
+      if (!hasDecl && !hasParam) {
+        const idx = code.search(new RegExp(`(?<![\\w$.-])${name}(?!\\s*:)(?![\\w$-])`));
+        const line = code.slice(0, idx).split('\n').length;
+        deadly.push(`${id} 使用了无来源的 ${name}（约第 ${line} 行）`);
+      }
     }
   }
   if (deadly.length) {
     rec('scope-error', deadly);
-    err = err ?? new Error('非 __m12/__m13 模块内使用了无来源的 config：' + deadly.join(', '));
-    console.log(`[smoke] ✗ 致命作用域缺陷：${deadly.join(', ')}（运行时会 config is not defined）`);
+    err = err ?? new Error('标识符作用域缺陷：' + deadly.join('；'));
+    console.log(`[smoke] ✗ 致命作用域缺陷 ${deadly.length} 处（运行时会 xxx is not defined）：`);
+    for (const x of deadly) console.log('   · ' + x);
   } else {
-    console.log('[smoke] ✓ 作用域哨兵通过：config 只出现在有来源的模块里');
+    console.log('[smoke] ✓ 作用域哨兵通过：config / cfg 都只出现在有来源的模块里');
   }
 }
 
