@@ -52,9 +52,16 @@ step 7 "启动冒烟 + 作用域哨兵（抓 config is not defined 这类启动�
 # 门禁全过，但一启动就 `config is not defined`（用户反馈"启动失败"）。冒烟同时做两件事：
 #   ① 静态哨兵：非 __m12/__m13 模块里出现无来源的 config → 直接失败
 #   ② 真跑 startGame()：任何启动期异常都会被记录
-node tools/smoke-run.mjs | sed 's/^/  /'
-case "$(node tools/smoke-run.mjs 2>&1)" in
+SMOKE_OUT="$(node tools/smoke-run.mjs 2>&1)"; SMOKE_RC=$?
+echo "$SMOKE_OUT" | sed 's/^/  /'
+# 判红条件（复核 F1）：不能只看静态哨兵字符串 —— 运行期启动崩溃同样必须失败
+if [ "$SMOKE_RC" -ne 0 ]; then
+  echo "  ✗ 启动冒烟未通过（exit $SMOKE_RC）：产物无法正常开局"; exit 1
+fi
+case "$SMOKE_OUT" in
   *"致命作用域缺陷"*) echo "  ✗ 作用域哨兵未通过"; exit 1;;
+  *"✗ 启动期异常"*) echo "  ✗ 启动期异常"; exit 1;;
+  *"✗ startGame 未导出"*) echo "  ✗ startGame 未导出"; exit 1;;
 esac
 
 printf '\n\033[1;32m构建完成\033[0m → build/game.js\n'

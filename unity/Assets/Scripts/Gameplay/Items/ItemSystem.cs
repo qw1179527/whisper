@@ -69,6 +69,16 @@ namespace Whisper.Gameplay.Items
 
         public readonly List<Pickup> Pickups = new List<Pickup>();
         public readonly List<Breaker> Breakers = new List<Breaker>();
+
+        /// <summary>
+        /// 交互半径（米）：电闸 1.6m、证据 0.9m。
+        /// 这两个值是**交互层手感参数**（伸手可及的距离），不属于怪物/听觉等物理规则量，
+        /// 因此不放进 data/config.json（V9 §19.5 约束的是物理与玩法数值）。
+        /// ⚠ 1.6/0.9 与 chaseSpeedScale、voiceCalibration 的数值纯属数字巧合 ——
+        /// 硬编码扫描门禁曾把它们误报成"硬编码了配置值"，故在此写明出处，避免再次误判。
+        /// </summary>
+        public const float BreakerInteractRadiusM = 1.6f;
+        public const float EvidenceInteractRadiusM = 0.9f;
         public readonly List<EvidencePoint> EvidencePoints = new List<EvidencePoint>();
         public readonly List<ExtractionPoint> ExtractionPoints = new List<ExtractionPoint>();
 
@@ -142,7 +152,7 @@ namespace Whisper.Gameplay.Items
             for (int i = 0; i < Breakers.Count; i++)
             {
                 var b = Breakers[i];
-                if (Distance(px, pz, b.X, b.Z) >= 1.6f) continue;
+                if (Distance(px, pz, b.X, b.Z) >= BreakerInteractRadiusM) continue;
                 string log;
                 if (LightsOffZones.Contains(b.Zone))
                 {
@@ -168,7 +178,7 @@ namespace Whisper.Gameplay.Items
             {
                 var e = EvidencePoints[i];
                 if (_collectedEvidence.Contains(e.Id)) continue;
-                if (Distance(px, pz, e.X, e.Z) >= 0.9f) continue;
+                if (Distance(px, pz, e.X, e.Z) >= EvidenceInteractRadiusM) continue;
                 _collectedEvidence.Add(e.Id);
                 EvidenceCount++;
                 var line = $"拾取证据 {e.Id}（{EvidenceCount}/{EvidenceTotal}）";

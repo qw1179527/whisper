@@ -35,6 +35,10 @@ namespace Whisper.Gameplay.Level
         public string Deep;
     }
 
+    /// <summary>
+    /// 房间（V9 §19.2）：pos 是**最小角点**（与灰盒 rect 同义：x1 = x0 + 宽），size = [宽, 高, 深]。
+    /// 布局字段是本项目早期最大的缺口 —— 没有它 LevelBuilder 无法实例化几何、走廊也连不出来。
+    /// </summary>
     public sealed class Room
     {
         public string Id;

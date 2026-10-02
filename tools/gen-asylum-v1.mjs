@@ -263,7 +263,7 @@ if (problems.length) {
 const level = {
   levelId: 'asylum_v1',
   _note: 'V9 §19.2 疗养院（单层 + 地下太平间；入口区安全教学 / 住院区 5 证据点主压力区 / 地下太平间深处撤离点）。',
-  _layout: '坐标单位米，XZ 平面；房间 pos=[中心x,中心z] + size=[宽,高,深]，rotY 全 0（轴对齐）。走廊以 doorA/doorB 引用具体门（房间id/门id），两端门必须贴同一条共享墙且开口对齐——由 tools/validate-levels.mjs 强制校验。**本文件由 tools/gen-asylum-v1.mjs 从布局表生成，手改会被覆盖。**',
+  _layout: '坐标单位米，XZ 平面；房间 pos=[最小角点x,最小角点z] + size=[宽,高,深]（x1=pos[0]+宽，z1=pos[1]+深，与 LevelData/LevelGeometry 契约一致），rotY 全 0（轴对齐）。走廊以 doorA/doorB 引用具体门（房间id/门id），两端门必须贴同一条共享墙且开口对齐——由 tools/validate-levels.mjs 强制校验。**本文件由 tools/gen-asylum-v1.mjs 从布局表生成，手改会被覆盖。**',
   _zones: {
     entrance: ['entrance_safe'],
     pressure: ['corridor_main', 'corridor_link', 'corridor_ward', 'ward_01', 'ward_02', 'ward_03', 'ward_04', 'ward_05'],

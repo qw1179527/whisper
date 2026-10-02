@@ -31,7 +31,7 @@ const SRC_DIRS = [path.join(ROOT, 'unity/Assets/Scripts')];
 const args = process.argv.slice(2);
 const inject = (n) => args.includes(`--inject-${n}`);
 
-const fails = [], oks = [];
+const fails = [], oks = [], warns = [];
 const ok = (m) => { oks.push(m); console.log('  ✓ ' + m); };
 const bad = (m) => { fails.push(m); console.log('  ✗ ' + m); };
 
@@ -54,13 +54,82 @@ function collectCs(dir, out = []) {
 }
 const csFiles = SRC_DIRS.flatMap((d) => (fs.existsSync(d) ? collectCs(d) : []));
 const csText = csFiles.map((f) => ({ f: path.relative(ROOT, f), t: fs.readFileSync(f, 'utf8') }));
-const allCs = csText.map((x) => x.t).join('\n');
+let allCs = csText.map((x) => x.t).join('\n');
+let allCs2 = allCs;   // 注入后的重算版本（P1 用它）
+// （真实注入见 P1 检查处：向 csText 追加一条含硬编码数值的假源码，由判据自己去发现）
+
+/**
+ * 真实注入（复核 F4）：向源码集合追加"含缺陷"的假源文件，让**判据自己去发现**。
+ * 我原来直接 `bads.push('(注入) …')` 属于伪造注入 —— 判据根本没参与，等于自证有效。
+ * 注意：注入必须发生在各检查**之前**（我第一版加在之后，判据看不到，注入验证反而自己报"不可信"）。
+ */
 if (inject('hardcode')) {
-  csText.push({ f: '(注入)', t: 'var x = 3.6f; // 硬编码速度' });
-  allCs.replace('', '');
+  const vals = [];
+  const walkV = (o) => { for (const v of Object.values(o ?? {})) { if (v && typeof v === 'object') walkV(v); else if (typeof v === 'number') vals.push(v); } };
+  walkV(cfg);
+  const sample = vals.find((v) => Math.abs(v) > 1 && Math.abs(v) < 1000) ?? 3.6;
+  csText.push({ f: '(注入).cs', t: `public static class Injected { public const float Speed = ${sample}f; }` });
+  allCs2 = allCs + '\n' + csText[csText.length - 1].t;
 }
+if (inject('random')) csText.push({ f: '(注入).cs', t: 'public class InjRnd { System.Random r = new System.Random(); }' });
 
 console.log('[gate-physics] 物理规则门禁');
+
+// ── P0 硬编码扫描：配置里的物理数值不得以字面量写进代码（V9 §19.5「改数值不碰代码」）──
+// 复核 F4 指出我此前**完全没有**硬编码扫描（只查"配置路径字面量是否在代码里出现"）。
+{
+  const numeric = [];
+  const walkN = (o, path0) => {
+    for (const [k, v] of Object.entries(o ?? {})) {
+      const np = path0 ? `${path0}.${k}` : k;
+      if (v && typeof v === 'object') walkN(v, np);
+      else if (typeof v === 'number') numeric.push({ key: np, v });
+    }
+  };
+  walkN(cfg, '');
+  // 唯一性过滤：同一数值可能同时是墙厚(0.35)、走廊宽(1.3) 与某条 sanity 配置值 ——
+  // 只看"该数值是否只有一条配置路径"才具备可判定性，否则任何几何常数都会撞上某个配置值
+  // （实测：LevelBuilder 的墙厚 0.35f 被报成 sanity.bands[2].edgeNoise）。
+  const uniq = new Map();
+  for (const { key, v } of numeric) {
+    if (!/^(stimulusSources|monsters|monsterBehavior|sanity|voiceCalibration|items|economy)\./.test(key)) continue;
+    const k = String(v);
+    uniq.set(k, (uniq.get(k) ?? 0) + 1);
+  }
+  const hits = [];
+  for (const { f, t } of csText) {
+    if (/DesignTokens|\.g\.cs$/.test(f)) continue;          // 生成物与设计 Token 不算
+    for (const { key, v } of numeric) {
+      // 只看物理量族，避免 0/1/2 这类通用常数误报
+      if (!/^(stimulusSources|monsters|monsterBehavior|sanity|voiceCalibration|items|economy)\./.test(key)) continue;
+      if ((uniq.get(String(v)) ?? 0) > 1) continue;   // 该数值在配置里不唯一 → 无法判定，跳过
+      // 只认可疑字面量：**带小数或 f 后缀**。纯整数（3/60/15）在代码里绝大多数是
+      // 数组长度、超时、重试次数这类结构值，把它们当"硬编码物理量"会淹没真信号
+      // （我第一版就是这么误报的：IBackendService 里的 15 被说成 flare 半径）。
+      const lit = new RegExp(`(?<![\\w.])${String(v).replace('.', '\\.')}f(?!\\w)|(?<![\\w.])${String(v).replace('.', '\\.')}(?![\\w.])`);
+      const hasFrac = String(v).includes('.');
+      if (!hasFrac && !/f\)/.test(lit.source)) continue;
+      const mustF = new RegExp(`(?<![\\w.])${String(v).replace('.', '\\.')}f(?![\\w.])`);
+      if (!mustF.test(t)) continue;
+      // 豁免两类合法出现：
+      //   ① 同一行里已有配置读取 → 那是 fallback 默认值，允许
+      //   ② `const` 声明行 → 那是常量的**定义处**（本项目把非配置的交互参数定义为具名常量），
+      //      定义本身不是"硬编码使用"。没有这条豁免会把定义行也报出来（实测误报）。
+      const lineHasRead = t.split('\n').some((ln) =>
+        mustF.test(ln) && /(Cfg|cfg|Config)\.(Float|Int|GetFloat|GetInt|Get)\s*\(/.test(ln));
+      const lineIsConstDecl = t.split('\n').some((ln) =>
+        mustF.test(ln) && /\bconst\s+(float|double|int)\b/.test(ln));
+      if (!lineHasRead && !lineIsConstDecl) hits.push(`${f} 出现配置值字面量 ${v}f（应读 ${key}）`);
+    }
+  }
+  // ⚠ P0 是**警告级**而非判红级：数值碰撞无法根治 —— 几何常数（墙厚 0.35、门宽 1.3、半径 0.9）
+  // 与某些配置值天然同数，任何"数值比对"式扫描都会撞上。判红仍由 P1~P4 承担（语义级判据）。
+  // 保留 P0 的价值：它把"可能硬编码了配置值"的位置**列出来供人工看**（我正是靠它发现
+  // Settlement.cs 里 1.3f 与配置重复、以及 ItemSystem 的交互半径裸写在逻辑里）。
+  if (hits.length === 0) ok(`P0 硬编码扫描（警告级）：无候选（共比 ${numeric.length} 个候选值）`);
+  else { warns.push(...hits); console.log(`  ⚠ P0 硬编码扫描（警告级，不判红）：${hits.length} 处数值与配置值同数，供人工核对`); }
+  for (const h of hits.slice(0, 6)) console.log('     · ' + h);
+}
 
 // ── P1 数值真源：manifest 声明的配置路径必须在代码里有出处 ──
 {
@@ -124,7 +193,6 @@ console.log('[gate-physics] 物理规则门禁');
   for (const fam of physFamilies) {
     if (!allCs.includes(fam + '.')) bads.push(`整个配置族 ${fam}.* 在代码里没有任何引用`);
   }
-  if (inject('hardcode')) bads.push('(注入) 硬编码检测样例');
   bads.length === 0
     ? ok(`P1 数值真源：${mustRef.length} 条物理配置路径均在 C# 代码中有出处`)
     : bads.slice(0, 6).forEach((b) => bad(`P1 配置路径无代码出处：${b}`));
@@ -143,7 +211,6 @@ console.log('[gate-physics] 物理规则门禁');
   for (const { f, t } of csText) {
     for (const b of banned) if (b.re.test(t)) bads.push(`${f} 使用了 ${b.re.source} —— ${b.why}`);
   }
-  if (inject('random')) bads.push('(注入) private float r = Math.Random();');
   bads.length === 0 ? ok(`P2 确定性：${csText.length} 个 C# 文件中无不可复现随机/时间源`) : bads.slice(0, 4).forEach(bad);
 }
 
@@ -228,6 +295,7 @@ console.log('[gate-physics] 物理规则门禁');
     : bads.slice(0, 5).forEach(bad);
 }
 
+if (warns.length) console.log(`\n[gate-physics] 警告 ${warns.length} 条（不判红；判红判据为 P1~P4）`);
 console.log(`\n[gate-physics] 结果：通过 ${oks.length} · 失败 ${fails.length}${fails.length ? ' ✗' : ' ✓'}`);
 if (injected && fails.length === 0) {
   console.log(`[gate-physics] ✗ 注入 ${injected} 后仍未判红 —— 该门禁不可信`);

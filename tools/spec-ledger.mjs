@@ -43,7 +43,10 @@ const RULE = /(规则|纪律|约定|标准|上限|下限|阈值|预算|配额)/;
 function parseSpec(version, role, file) {
   const src = path.join(ROOT, 'docs/spec', file);
   if (!fs.existsSync(src)) { console.error(`[ledger] ✗ 缺 ${file}（先跑 tools/extract-spec.mjs）`); process.exit(1); }
-  const raw = fs.readFileSync(src, 'utf8').split('\n');
+  // 行数口径：末尾换行会产生一个空元素，`split('\n').length` 会比真实行数多 1
+  // （复核 F7 用实测行数比对抓出：V9 1210 vs 1211）。去掉末尾空元素再计数。
+  const rawAll = fs.readFileSync(src, 'utf8').split('\n');
+  const raw = rawAll.length && rawAll[rawAll.length - 1] === '' ? rawAll.slice(0, -1) : rawAll;
   const lines = raw.map((l, i) => ({ n: i + 1, t: l.replace(/\s+/g, ' ').trim() }));
 
   // 章节

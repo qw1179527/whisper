@@ -31,7 +31,7 @@
 - **现象**：本机无 Unity、无 `UnityEngine*.dll`、`download.unity3d.com` 404、bionic 非 glibc。
 - **影响**：`GameBootstrap`/`LevelBuilder` 无法在本机真跑；PlayMode 用例未被执行过。
 - **已做的替代验证**（不是"跑过了"的同义替换，而是分别说明覆盖了什么）：
-  · 纯逻辑层（Core/Gameplay 24 个源）由本机 .NET 8 真编译真跑，70 条断言；
+  · 纯逻辑层（Core/Gameplay 24 个源）由本机 .NET 8 真编译真跑，107 条断言；
   · Unity 依赖文件由 Roslyn + 最小 Unity 桩做语法/语义检查（允许错误必须为 0）；
   · 三大机制由 1140/1716/21 例向量与灰盒实现对拍，差异 0。
 - **仍未覆盖**：Unity 运行时的实际行为（组件生命周期、材质/网格、UI 布局）。

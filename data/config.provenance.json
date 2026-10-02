@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/extract-config.mjs",
-  "generatedAt": "2026-10-02T17:50:37.823Z",
+  "generatedAt": "2026-10-02T23:16:47.337Z",
   "source": "baseline/game-0.6.0.js",
   "module": "__m0",
   "extractMethod": "vm 真实执行 __CFG 字面量（非文本比对）",

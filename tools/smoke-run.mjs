@@ -98,6 +98,11 @@ const REAL_LEVEL = (() => {
   return JSON.parse(html.slice(st, end + 1)).level;
 })();
 
+/** 任务队列与虚拟时钟：让 rAF/setTimeout/setInterval 的回调真被执行 */
+const __timers = [];
+let __tid = 0;
+let __vnow = 0;
+
 const sandbox = {
   console: {
     log: (...a) => rec('log', a),
@@ -105,13 +110,20 @@ const sandbox = {
     error: (...a) => rec('error', a),
   },
   performance: { now: () => 0 },
-  requestAnimationFrame: () => 0,
+  // ⚠ 定时器必须**真的执行回调**：我原来把 rAF/setTimeout/setInterval 一律桩成 `() => 0`，
+  // 于是任何异步路径（含 async 启动链、首帧循环）**一帧都不跑** —— 复核 F1 实测：
+  // 正常构建时"可观测记录 0 条"、行为指纹恰等于 sha256("")，冒烟只验证了"能装配"。
+  // 现在：回调进任务队列，由冒烟在等待期按虚拟时钟排空（见 drainTimers），
+  // 从而真正驱动异步启动链与帧循环。
+  requestAnimationFrame: (cb) => { __timers.push({ at: __vnow + 16, cb, id: ++__tid }); return __tid; },
   cancelAnimationFrame() {},
   navigator: { userAgent: 'smoke', mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } },
   location: { href: 'http://localhost/' },
-  setTimeout: () => 0,
+  setTimeout: (cb, ms) => { const id = ++__tid; __timers.push({ at: __vnow + (Number(ms) || 0), cb, id }); return id; },
+  clearTimeout: (id) => { const i = __timers.findIndex((t) => t.id === id); if (i >= 0) __timers.splice(i, 1); },
   clearTimeout() {},
-  setInterval: () => 0,
+  setInterval: (cb, ms) => { const id = ++__tid; __timers.push({ at: __vnow + (Number(ms) || 16), cb, id, every: Number(ms) || 16 }); return id; },
+  clearInterval: (id) => { const i = __timers.findIndex((t) => t.id === id); if (i >= 0) __timers.splice(i, 1); },
   clearInterval() {},
   devicePixelRatio: 1,
   innerWidth: 800,
@@ -309,7 +321,32 @@ try {
 // 等待时间从 80ms 延长：启动链是 async（配置→校准→渲染器→首帧），80ms 根本跑不完，
 // 于是"无报错"可能只是"还没跑到出错的地方"——这正是我漏掉 `config is not defined` 的原因。
 const WAIT_MS = Number(process.env.SMOKE_WAIT_MS ?? 3000);
-setTimeout(() => {
+
+/**
+ * 按虚拟时钟排空任务队列（上限 20000 步，防死循环）。
+ * 每步取最早到期的任务、推进虚拟时钟、执行它 —— 从而真正驱动 async 启动链与帧循环。
+ */
+async function drainTimers(budget = Number(process.env.SMOKE_STEPS ?? 20000)) {
+  let steps = 0;
+  // 关键：**每执行一个任务就 await 一次**，让 vm 里的 Promise 微任务先跑完。
+  // 我上一版是纯同步 while 循环，`await` 链（async 启动链全靠它）永远排不到，
+  // 于是"排空 1 步"就结束、异步崩溃抓不到 —— 复核 F1 那类假绿就会复现。
+  const tick = () => new Promise((r) => setImmediate(r));
+  await tick();
+  while (__timers.length && steps < budget) {
+    let idx = 0;
+    for (let i = 1; i < __timers.length; i++) if (__timers[i].at < __timers[idx].at) idx = i;
+    const t = __timers.splice(idx, 1)[0];
+    __vnow = t.at;
+    if (t.every) __timers.push({ at: __vnow + t.every, cb: t.cb, id: t.id, every: t.every });
+    try { t.cb(__vnow); } catch (e) { err = err ?? e; rec('timer-error', [String(e && e.message)]); }
+    steps++;
+    await tick();          // 让微任务（await 续体 / Promise.catch）先跑完
+  }
+  return steps;
+}
+
+setTimeout(async () => {
   const h = crypto.createHash('sha256').update(trace.join('\n')).digest('hex').slice(0, 16);
   console.log(`[smoke] ${which}`);
   console.log(`[smoke] 可观测记录 ${trace.length} 条 · 行为指纹 ${h}${err ? ' · 有报错' : ' · 无报错'}`);
@@ -320,8 +357,20 @@ setTimeout(() => {
     const mon = g.__WHISPER_DEBUG__ ?? null;
     console.log(`[smoke] 状态：关卡注入=${hasLevel} · startGame 已导出=${typeof sandbox.startGame === 'function'}`);
   } catch { /* 忽略 */ }
-  console.log('[smoke] 冒烟结束，未致命崩溃');
-  // 约定：冒烟过程中记录到错误**不算本脚本失败**（那正是被测行为的一部分）；
-  // 只有脚本自身崩掉才非零退出。对拍器依赖这一约定取指纹。
-  process.exitCode = 0;
+  // ⚠ 退出码纪律（独立复核 F1 抓出的假绿）：
+  // 我原来的约定是"冒烟里记录到错误不算失败，只有脚本自己崩才非零退出，且无条件 exitCode=0"，
+  // 结果是 **startGame 内启动即崩时构建链仍然判成功** —— 复核端到端复现：
+  //   注入 `throw new Error(...)` 到 startGame 首行 → build.sh 仍输出"V1~V6 全部通过"、BUILD_EXIT=0。
+  // 现在的约定：**启动期错误 = 构建失败**。
+  //   · err 非空（同步/异步启动异常）→ 非零
+  //   · startGame 未导出或不可调用 → 非零
+  //   · 静态哨兵命中 → 非零
+  // 只有"装配成功 + 启动无异常"才算通过；行为指纹仍照常输出供对拍器使用。
+  const steps = await drainTimers();
+  console.log(`[smoke] 排空定时任务 ${steps} 步 · 可观测记录 ${trace.length} 条`);
+  const startExported = typeof sandbox.startGame === 'function';
+  console.log(startExported ? '[smoke] ✓ startGame 已导出且可调用' : '[smoke] ✗ startGame 未导出');
+  if (err) console.log(`[smoke] ✗ 启动期异常：${err && err.message}`);
+  console.log('[smoke] 冒烟结束');
+  process.exitCode = (err || !startExported) ? 1 : 0;
 }, WAIT_MS);

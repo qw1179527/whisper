@@ -22,7 +22,12 @@ namespace Whisper.Gameplay.Level
         public readonly int MinGX, MinGZ;
         readonly bool[] _blocked;       // [gz * Width + gx]
         public readonly List<Box> PropBoxes = new List<Box>();
-        public readonly List<Box> DoorBlockers = new List<Box>();
+        /// <summary>
+        /// 墙碰撞盒（薄墙，厚 <see cref="WallThickness"/>）。用于子步进移动解析时判断"是否撞墙"。
+        /// 原名 `DoorBlockers` 会被误读成"门的阻挡物"，但它装的其实是**墙** ——
+        /// 独立复核 F12 指出该命名会误导后续接入（且当时全仓库无读取方）。现按实际语义改名。
+        /// </summary>
+        public readonly List<Box> WallBoxes = new List<Box>();
 
         /// <summary>
         /// 轴对齐碰撞盒（XZ 平面）。几何层只认 AABB —— 关卡是轴对齐的矩形拼装，
@@ -210,7 +215,7 @@ namespace Whisper.Gameplay.Level
             // 横向连续合并（与灰盒 mergeStrips 同策略：先横向、再纵向会得到更少但更长的条带；
             // 这里用逐格盒以保证与"格级碰撞"语义完全一致，条带合并只影响性能不影响行为）
             foreach (var (gx, gz) in cells)
-                DoorBlockers.Add(new Box(gx, gz, gx + 1, gz + 1));
+                WallBoxes.Add(new Box(gx, gz, gx + 1, gz + 1));
         }
 
         /// <summary>
