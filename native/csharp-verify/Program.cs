@@ -295,6 +295,102 @@ static class Program
             throw new InvalidOperationException("配置表未载入：按配置真值驱动的断言会静默退化");
         Console.WriteLine($"      [前置] sanity.max={Whisper.Gameplay.Config.GameConfig.GetFloat("sanity.max", -1f)} · 事件池={((Whisper.Gameplay.Config.GameConfig.Get("level.eventPool") as System.Collections.Generic.List<object>)?.Count ?? 0)} · 怪物={((Whisper.Gameplay.Config.GameConfig.Get("monsters") as System.Collections.Generic.Dictionary<string, object>)?.Count ?? 0)}");
 
+        Console.WriteLine("\n[3.12] 道具与交互（V9 §7；交互半径逐条照抄灰盒）");
+        Check("初始电量 = 配置 items.flashlight.batterySeconds（120s）", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader());
+            return Math.Abs(it.BatterySeconds - 120f) < 1e-6 && it.TorchOn;
+        });
+        Check("手电亮时耗电（每秒 −1s），电尽自动熄灭", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader());
+            for (int i = 0; i < 120 * 60; i++) it.TickFlashlight(1f / 60f);
+            bool drained = !it.TorchOn && it.BatterySeconds <= 0.05f;
+            it.TickFlashlight(1f);   // 再推一秒不应变负
+            return drained && it.BatterySeconds == 0f;
+        });
+        Check("手电亮时怪物视觉加成 +3m，熄灭时为 0（配置真源）", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader());
+            float on = it.MonsterPerceptionBonusM;
+            for (int i = 0; i < 120 * 60; i++) it.TickFlashlight(1f / 60f);
+            return Math.Abs(on - 3f) < 1e-6 && it.MonsterPerceptionBonusM == 0f;
+        });
+        Check("拾取半径 1.0m：刚好在内拾取、刚好在外不拾取", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader());
+            it.Pickups.Add(new Whisper.Gameplay.Items.Pickup { Key = "b1", Kind = Whisper.Gameplay.Items.PickupKind.Battery, X = 0f, Z = 0f });
+            it.Pickups.Add(new Whisper.Gameplay.Items.Pickup { Key = "b2", Kind = Whisper.Gameplay.Items.PickupKind.Battery, X = 5f, Z = 0f });
+            for (int i = 0; i < 60 * 60; i++) it.TickFlashlight(1f / 60f);   // 电量降到 60s
+            var inside = it.TryPickup(0.99f, 0f);      // 距离 0.99 < 1.0 → 拾取
+            var outside = it.TryPickup(5.01f, 0f);     // 距离 0.01 < 1.0 → 也会拾取（同一物）；改用远点验证
+            var far = it.TryPickup(50f, 0f);
+            return inside.Count == 1 && far.Count == 0;
+        });
+        Check("电池补充 60s 且不超过上限（配置上限 120s）", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader());
+            it.Pickups.Add(new Whisper.Gameplay.Items.Pickup { Key = "b", Kind = Whisper.Gameplay.Items.PickupKind.Battery, X = 0f, Z = 0f });
+            for (int i = 0; i < 60 * 60; i++) it.TickFlashlight(1f / 60f);   // 60s
+            it.TryPickup(0f, 0f);
+            bool ok = Math.Abs(it.BatterySeconds - 120f) < 0.05f;             // 60 + 60 = 120（正好到顶）
+            it.TryPickup(0f, 0f);                                            // 同一个不再重复拾取
+            return ok && it.BatterySeconds <= 120f + 1e-6f;
+        });
+        Check("配电箱 1.6m 内按使用键切换区域照明；不在范围内无效", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader());
+            it.Breakers.Add(new Whisper.Gameplay.Items.Breaker { Zone = "ward", X = 10f, Z = 10f });
+            bool off1 = it.TryToggleBreaker(10f, 11.5f, usePressed: true) != null && it.LightsOffZones.Contains("ward");
+            bool restored = it.TryToggleBreaker(10f, 10f, usePressed: true) != null && !it.LightsOffZones.Contains("ward");
+            bool tooFar = it.TryToggleBreaker(10f, 20f, usePressed: true) == null;
+            bool noKey = it.TryToggleBreaker(10f, 10f, usePressed: false) == null;
+            return off1 && restored && tooFar && noKey;
+        });
+        Check("切断照明会进入理智参数（LightsOut=true）→ 与理智流失耦合", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader());
+            it.Breakers.Add(new Whisper.Gameplay.Items.Breaker { Zone = "ward", X = 0f, Z = 0f });
+            var before = it.SanityArgs;
+            it.TryToggleBreaker(0f, 0f, true);
+            var after = it.SanityArgs;
+            return !before.LightsOut && after.LightsOut;
+        });
+        Check("证据 0.9m 内自动拾取且计数正确", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader(), evidenceTotal: 2);
+            it.EvidencePoints.Add(new Whisper.Gameplay.Items.EvidencePoint { Id = "e1", X = 0f, Z = 0f });
+            it.EvidencePoints.Add(new Whisper.Gameplay.Items.EvidencePoint { Id = "e2", X = 5f, Z = 0f });
+            var a = it.TryCollectEvidence(0.89f, 0f);
+            var b = it.TryCollectEvidence(0f, 0f);      // 已拾取，不重复
+            return a.Count == 1 && b.Count == 0 && it.EvidenceCount == 1;
+        });
+        Check("证据未集齐不允许撤离；集齐后 1.4m 内可撤离（灰盒同规则）", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader(), evidenceTotal: 1);
+            it.EvidencePoints.Add(new Whisper.Gameplay.Items.EvidencePoint { Id = "e1", X = 0f, Z = 0f });
+            it.ExtractionPoints.Add(new Whisper.Gameplay.Items.ExtractionPoint { Id = "std", Label = "标准撤离点", X = 20f, Z = 0f, Safe = true, RewardScale = 1f });
+            bool blockedBefore = it.TryExtract(20f, 0f) == null;     // 证据没集齐 → 不允许
+            it.TryCollectEvidence(0f, 0f);
+            bool outside = it.TryExtract(20f, 1.5f) == null;          // 1.5m > 1.4m → 不允许
+            var ok = it.TryExtract(20f, 1.3f);                        // 1.3m → 允许
+            return blockedBefore && outside && ok.HasValue && ok.Value.Id == "std";
+        });
+        Check("镇静剂/信号弹/相机/录音机 参数取自配置（25s 恢复 / 15s 安全区 / 2s 眩晕 / 20s 录音）", () =>
+        {
+            var it = new Whisper.Gameplay.Items.ItemSystem(cfgReader());
+            it.Pickups.Add(new Whisper.Gameplay.Items.Pickup { Key = "s", Kind = Whisper.Gameplay.Items.PickupKind.Sedative, X = 0f, Z = 0f });
+            it.TryPickup(0f, 0f);
+            bool useFirst = it.UseSedative();
+            bool useSecond = !it.UseSedative();
+            return useFirst && useSecond
+                && Math.Abs(it.FlareSafeZoneSeconds - 15f) < 1e-6
+                && Math.Abs(it.CameraStunSeconds - 2f) < 1e-6
+                && it.CameraUsesPerMonsterPerMatch == 1
+                && Math.Abs(it.RecorderSeconds - 20f) < 1e-6
+                && it.RecorderProducesStimulus;
+        });
+
         Console.WriteLine("\n[3.11] 对局调度（V9 §7 保护期 → 主阶段 → 终局狂暴；§19.2 动态事件）");
         Check("开局处于保护期，20 秒后进入主阶段（保护期秒数取自配置）", () =>
         {

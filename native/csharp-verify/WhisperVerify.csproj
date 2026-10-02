@@ -29,6 +29,7 @@
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Sanity/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Extraction/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Match/*.cs" />
+    <Compile Include="../../unity/Assets/Scripts/Gameplay/Items/*.cs" />
     <!-- 三个模块的本机桩实现（零第三方依赖 → 可在本机真编译真跑；真 SDK 实现将来放同目录） -->
     <Compile Include="../../unity/Assets/Scripts/Net/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Audio/*.cs" />
