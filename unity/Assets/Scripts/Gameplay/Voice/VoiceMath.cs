@@ -17,7 +17,11 @@ namespace Whisper.Gameplay.Voice
 
         public static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
 
-        public static float Round4(float v) => (float)Math.Round(v * 1e4) / 1e4f;
+        /// <summary>
+        /// 取整到 4 位小数，**对齐 JS Math.round（向 +∞）**，而非 C# 的银行家舍入。
+        /// 理由同 MonsterBrain.Round3：中点规则不同会在逐点比对中产生假差异。
+        /// </summary>
+        public static float Round4(float v) => (float)(Math.Floor(v * 1e4 + 0.5) / 1e4);
 
         /// <summary>中位数（偶数个取中间两数均值）；空集返回静音底。</summary>
         public static float Median(IReadOnlyList<float> xs)

@@ -42,7 +42,10 @@ node tools/voice-port-vectors.mjs
 step 11 "听觉索敌移植等价性（灰盒 ↔ C#，1716 例）"
 node tools/hearing-port-vectors.mjs
 
-step 12 "C# 真编译真跑（本机 .NET 8）"
+step 12 "三怪状态机移植等价性（灰盒 ↔ C#，21 例）"
+node tools/monster-port-vectors.mjs
+
+step 13 "C# 真编译真跑（本机 .NET 8）"
 cp unity/Assets/Levels/*.json native/csharp-verify/ 2>/dev/null || true
 (cd native/csharp-verify && ../../native/dotnet.sh run --nologo)
 

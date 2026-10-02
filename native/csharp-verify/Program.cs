@@ -39,6 +39,7 @@ static class Program
     {
         if (Array.IndexOf(rawArgs, "--emit-voice-vectors") >= 0) return EmitVoiceVectors();
         if (Array.IndexOf(rawArgs, "--emit-hearing-vectors") >= 0) return EmitHearingVectors();
+        if (Array.IndexOf(rawArgs, "--emit-monster-vectors") >= 0) return EmitMonsterVectors();
 
         Console.WriteLine("Project Whisper · 本机 C# 验证（真实源文件 + 真实关卡数据）");
 
@@ -509,6 +510,81 @@ static class Program
             });
         }
         Console.WriteLine(JsonWrite(new Dictionary<string, object> { ["cases"] = list }));
+        return 0;
+    }
+
+
+    /// <summary>状态机向量产出模式（供 tools/monster-port-vectors.mjs 比对）。</summary>
+    static int EmitMonsterVectors()
+    {
+        var cfgPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data", "config.json"));
+        Whisper.Gameplay.Config.GameConfig.LoadFromJson(File.ReadAllText(cfgPath));
+        var cfg = new Whisper.Gameplay.Config.GameConfigReader();
+
+        var inputPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "data", "vectors", "monster-brain.inputs.json"));
+        var spec = MiniJson.AsMap(MiniJson.Parse(File.ReadAllText(inputPath)));
+        var casesOut = new List<object>();
+
+        foreach (var cObj in MiniJson.AsList(MiniJson.Get(spec, "cases")))
+        {
+            var c = MiniJson.AsMap(cObj);
+            string monsterId = MiniJson.AsString(MiniJson.Get(c, "monsterId"));
+            var pos = MiniJson.AsList(MiniJson.Get(c, "position"));
+            var patrol = new List<Whisper.Gameplay.Monsters.Vec2>();
+            foreach (var pp in MiniJson.AsList(MiniJson.Get(c, "patrolPoints")))
+            {
+                var arr = MiniJson.AsList(pp);
+                patrol.Add(new Whisper.Gameplay.Monsters.Vec2(MiniJson.AsFloat(arr[0]), MiniJson.AsFloat(arr[1])));
+            }
+            var brain = new Whisper.Gameplay.Monsters.MonsterBrain(monsterId, cfg,
+                new Whisper.Gameplay.Monsters.Vec2(MiniJson.AsFloat(pos[0]), MiniJson.AsFloat(pos[1])), patrol);
+
+            var stimByTick = new Dictionary<long, Dictionary<string, object>>();
+            foreach (var so in MiniJson.AsList(MiniJson.Get(c, "stimuli")))
+                stimByTick[(long)MiniJson.AsFloat(MiniJson.Get(MiniJson.AsMap(so), "tick"))] = MiniJson.AsMap(so);
+            var sightByTick = new Dictionary<long, Dictionary<string, object>>();
+            foreach (var so in MiniJson.AsList(MiniJson.Get(c, "sights")))
+                sightByTick[(long)MiniJson.AsFloat(MiniJson.Get(MiniJson.AsMap(so), "tick"))] = MiniJson.AsMap(so);
+
+            long ticks = (long)MiniJson.AsFloat(MiniJson.Get(c, "ticks"));
+            long sampleEvery = (long)MiniJson.AsFloat(MiniJson.Get(c, "sampleEvery"));
+            var samples = new List<object>();
+
+            for (long tick = 0; tick <= ticks; tick++)
+            {
+                if (stimByTick.TryGetValue(tick, out var st))
+                {
+                    float? radius = MiniJson.Get(st, "radiusM") == null ? (float?)null : MiniJson.AsFloat(MiniJson.Get(st, "radiusM"));
+                    var stim = new Whisper.Gameplay.Hearing.Stimulus(
+                        MiniJson.AsString(MiniJson.Get(st, "sourceKey")), "voice",
+                        MiniJson.AsFloat(MiniJson.Get(st, "intensity")), radius,
+                        MiniJson.Get(st, "globalBroadcast") is bool g && g,
+                        MiniJson.AsFloat(MiniJson.Get(st, "x")), MiniJson.AsFloat(MiniJson.Get(st, "z")), tick);
+                    brain.OnStimulus(stim, tick);
+                }
+                bool seen = sightByTick.TryGetValue(tick, out var sight);
+                Whisper.Gameplay.Monsters.Vec2? playerPos = seen
+                    ? new Whisper.Gameplay.Monsters.Vec2(MiniJson.AsFloat(MiniJson.Get(sight, "x")), MiniJson.AsFloat(MiniJson.Get(sight, "z")))
+                    : (Whisper.Gameplay.Monsters.Vec2?)null;
+                var r = brain.Step(tick, seen, playerPos);
+                if (tick % sampleEvery == 0)
+                {
+                    samples.Add(new List<object> { tick, r.State,
+                        (double)Math.Round(r.Position.X, 3), (double)Math.Round(r.Position.Z, 3),
+                        (double)Math.Round(r.Speed, 3) });
+                }
+            }
+
+            var transitions = new List<object>();
+            foreach (var h in brain.History) transitions.Add($"{h.Tick}:{h.From}->{h.To}");
+            casesOut.Add(new Dictionary<string, object> {
+                ["id"] = monsterId + "/" + MiniJson.AsString(MiniJson.Get(c, "id")),
+                ["transitions"] = transitions,
+                ["samples"] = samples,
+                ["finalState"] = brain.State,
+            });
+        }
+        Console.WriteLine(JsonWrite(new Dictionary<string, object> { ["cases"] = casesOut }));
         return 0;
     }
 

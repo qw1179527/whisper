@@ -1,0 +1,1019 @@
+{
+ "_note": "三怪状态机一致性向量（V9 §7）。灰盒 __m3.MonsterBrain 与 C# 移植件吃同一份输入，比对状态迁移与采样点位置。",
+ "cases": [
+  {
+   "monsterId": "stitcher",
+   "id": "patrol-only",
+   "ticks": 300,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "stitcher",
+   "id": "hear-once",
+   "ticks": 600,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 10,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "tick": 300,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 20,
+     "z": 0
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "stitcher",
+   "id": "hear-then-see",
+   "ticks": 600,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 10,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    }
+   ],
+   "sights": [
+    {
+     "tick": 60,
+     "x": 5,
+     "z": 5
+    },
+    {
+     "tick": 200,
+     "x": 8,
+     "z": 8
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "stitcher",
+   "id": "see-then-lose",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [],
+   "sights": [
+    {
+     "tick": 30,
+     "x": 3,
+     "z": 3
+    },
+    {
+     "tick": 60,
+     "x": 4,
+     "z": 4
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "stitcher",
+   "id": "repeated-stimuli",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 20,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 1,
+     "z": 1
+    },
+    {
+     "tick": 120,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 6,
+     "z": 2
+    },
+    {
+     "tick": 240,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": -4,
+     "z": 7
+    },
+    {
+     "tick": 400,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 10,
+     "z": -3
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "stitcher",
+   "id": "stim-during-chase",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 15,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 2,
+     "z": 2
+    },
+    {
+     "tick": 150,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": -5,
+     "z": 5
+    }
+   ],
+   "sights": [
+    {
+     "tick": 40,
+     "x": 1,
+     "z": 0
+    },
+    {
+     "tick": 120,
+     "x": 6,
+     "z": 6
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "stitcher",
+   "id": "long-silence",
+   "ticks": 1500,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 5,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "whisperer",
+   "id": "patrol-only",
+   "ticks": 300,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "whisperer",
+   "id": "hear-once",
+   "ticks": 600,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 10,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "tick": 300,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 20,
+     "z": 0
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "whisperer",
+   "id": "hear-then-see",
+   "ticks": 600,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 10,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    }
+   ],
+   "sights": [
+    {
+     "tick": 60,
+     "x": 5,
+     "z": 5
+    },
+    {
+     "tick": 200,
+     "x": 8,
+     "z": 8
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "whisperer",
+   "id": "see-then-lose",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [],
+   "sights": [
+    {
+     "tick": 30,
+     "x": 3,
+     "z": 3
+    },
+    {
+     "tick": 60,
+     "x": 4,
+     "z": 4
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "whisperer",
+   "id": "repeated-stimuli",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 20,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 1,
+     "z": 1
+    },
+    {
+     "tick": 120,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 6,
+     "z": 2
+    },
+    {
+     "tick": 240,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": -4,
+     "z": 7
+    },
+    {
+     "tick": 400,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 10,
+     "z": -3
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "whisperer",
+   "id": "stim-during-chase",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 15,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 2,
+     "z": 2
+    },
+    {
+     "tick": 150,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": -5,
+     "z": 5
+    }
+   ],
+   "sights": [
+    {
+     "tick": 40,
+     "x": 1,
+     "z": 0
+    },
+    {
+     "tick": 120,
+     "x": 6,
+     "z": 6
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "whisperer",
+   "id": "long-silence",
+   "ticks": 1500,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 5,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "coroner",
+   "id": "patrol-only",
+   "ticks": 300,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "coroner",
+   "id": "hear-once",
+   "ticks": 600,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 10,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "tick": 300,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 20,
+     "z": 0
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "coroner",
+   "id": "hear-then-see",
+   "ticks": 600,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 10,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    }
+   ],
+   "sights": [
+    {
+     "tick": 60,
+     "x": 5,
+     "z": 5
+    },
+    {
+     "tick": 200,
+     "x": 8,
+     "z": 8
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "coroner",
+   "id": "see-then-lose",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [],
+   "sights": [
+    {
+     "tick": 30,
+     "x": 3,
+     "z": 3
+    },
+    {
+     "tick": 60,
+     "x": 4,
+     "z": 4
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "coroner",
+   "id": "repeated-stimuli",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 20,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 1,
+     "z": 1
+    },
+    {
+     "tick": 120,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 6,
+     "z": 2
+    },
+    {
+     "tick": 240,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": -4,
+     "z": 7
+    },
+    {
+     "tick": 400,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 10,
+     "z": -3
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "coroner",
+   "id": "stim-during-chase",
+   "ticks": 900,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 15,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 2,
+     "z": 2
+    },
+    {
+     "tick": 150,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": -5,
+     "z": 5
+    }
+   ],
+   "sights": [
+    {
+     "tick": 40,
+     "x": 1,
+     "z": 0
+    },
+    {
+     "tick": 120,
+     "x": 6,
+     "z": 6
+    }
+   ],
+   "sampleEvery": 50
+  },
+  {
+   "monsterId": "coroner",
+   "id": "long-silence",
+   "ticks": 1500,
+   "position": [
+    2,
+    2
+   ],
+   "patrolPoints": [
+    [
+     2,
+     2
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     6,
+     6
+    ],
+    [
+     2,
+     6
+    ]
+   ],
+   "stimuli": [
+    {
+     "tick": 5,
+     "sourceKey": "voice_shout",
+     "intensity": 80,
+     "radiusM": 25,
+     "globalBroadcast": false,
+     "x": 0,
+     "z": 0
+    }
+   ],
+   "sights": [],
+   "sampleEvery": 50
+  }
+ ]
+}
