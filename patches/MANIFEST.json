@@ -9,7 +9,7 @@
           "name": "waypoint-advance"
         }
       ],
-      "sha256": "5765362984f8e426ea5dec1d5ed91d7bfefaae11e3b424992e86ea76a0160393",
+      "sha256": "ea89f4eefd0e9e2f2a948c6a06003c720b730667a34cd2909c723094befd2319",
       "reason": "该模块含已登记补丁，故不再与 baseline 逐字节一致（差异由补丁本身产生，可审计）"
     },
     {
@@ -50,5 +50,5 @@
       "reason": "该模块含已登记补丁，故不再与 baseline 逐字节一致（差异由补丁本身产生，可审计）"
     }
   ],
-  "updatedAt": "2026-10-02T17:16:15.049Z"
+  "updatedAt": "2026-10-02T17:23:34.044Z"
 }

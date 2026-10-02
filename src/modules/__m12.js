@@ -611,7 +611,9 @@
       }
       const now = brain.tick;
       if (ms.wpStallAt == null) ms.wpStallAt = now;
-      else if (now - ms.wpStallAt > 2.5 * (config.network?.tickRate ?? 60)) { ms.wpStallAt = null; return true; }
+      // 注意：这里必须用本模块的 cfg()。config 只是 __m12.startGame(config, tokens) 的**形参**，
+      // 模块级函数里没有这个名字 —— 我用 config 写过一次，结果运行时直接 config is not defined（启动即崩）。
+      else if (now - ms.wpStallAt > 2.5 * cfg('network.tickRate', 60)) { ms.wpStallAt = null; return true; }
       return false;
     }
 

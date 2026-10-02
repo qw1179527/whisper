@@ -1,7 +1,7 @@
 {
-  "version": "0.7.2",
+  "version": "0.7.3",
   "channel": "graybox-dev",
-  "note": "寻路修复轮：门的格子格式/门洞通行余量/路点推进三处根因 + 会话缺失的追击迁移",
+  "note": "修启动崩溃：补丁里误用模块外的 config（应为本模块 cfg()）；寻路三处根因修复同批",
   "baseline": {
     "apk": "/storage/emulated/0/DSH专用/whisper-graybox-0.6.0.apk",
     "gameJsSha256": "7e38398322952880",

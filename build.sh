@@ -47,5 +47,15 @@ node tools/bundle-web.mjs
 step 6 "产物门控"
 node tools/verify-bundle.mjs
 
+step 7 "启动冒烟 + 作用域哨兵（抓 config is not defined 这类启动崩溃）"
+# 为什么要这一步：我把补丁插进 __m12 模块级函数时误用了模块外的 `config`，产物语法正常、
+# 门禁全过，但一启动就 `config is not defined`（用户反馈"启动失败"）。冒烟同时做两件事：
+#   ① 静态哨兵：非 __m12/__m13 模块里出现无来源的 config → 直接失败
+#   ② 真跑 startGame()：任何启动期异常都会被记录
+node tools/smoke-run.mjs | sed 's/^/  /'
+case "$(node tools/smoke-run.mjs 2>&1)" in
+  *"致命作用域缺陷"*) echo "  ✗ 作用域哨兵未通过"; exit 1;;
+esac
+
 printf '\n\033[1;32m构建完成\033[0m → build/game.js\n'
 node tools/version.mjs | sed 's/^/  /'
