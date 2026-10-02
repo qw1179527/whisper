@@ -678,12 +678,24 @@ static class Program
             var res = geo.Resolve(start.CenterX, start.CenterZ, 0, 5f, 0.34f);
             return res.Blocked && res.Z < start.MaxZ + 0.6f;
         });
-        Check("碰撞解析：小位移正常通行且不误报 blocked", () =>
+        Check("碰撞解析：空地上小位移正常通行且不误报 blocked", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            // 注意：不能拿"房间中心"当空地 —— ward_03 中心放了床（道具自动落位的结果），
+            // 从那儿起步本来就会被挡。用房间内一个明确无道具的点。
+            var r = level.Rooms.Find(x => x.Id == "ward_03");
+            float px = r.CenterX + 1.2f, pz = r.CenterZ;      // 挪开家具
+            var res = geo.Resolve(px, pz, 0.1f, 0f, 0.34f);
+            return !res.Blocked && Math.Abs(res.X - (px + 0.1f)) < 1e-4;
+        });
+        Check("道具碰撞盒按 footprint+rot 生效：床所在位置确实被挡住（可见与可撞一致）", () =>
         {
             var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
             var r = level.Rooms.Find(x => x.Id == "ward_03");
-            var res = geo.Resolve(r.CenterX, r.CenterZ, 0.1f, 0f, 0.34f);
-            return !res.Blocked && Math.Abs(res.X - (r.CenterX + 0.1f)) < 1e-4;
+            var bed = r.Props[0];
+            float bx = r.MinX + bed.X, bz = r.MinZ + bed.Z;
+            var into = geo.Resolve(bx - 1.5f, bz, 1.5f, 0f, 0.34f);   // 朝床推
+            return into.Blocked;                                       // 必须被挡（此前是 1×1 盒，朝向不对）
         });
         Check("门口可通过：从走廊经门洞走进病房（几何连通性实证）", () =>
         {

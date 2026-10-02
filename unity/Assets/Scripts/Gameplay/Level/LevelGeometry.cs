@@ -145,12 +145,32 @@ namespace Whisper.Gameplay.Level
                 DoorBlockers.Add(new Box(gx, gz, gx + 1, gz + 1));
         }
 
+        /// <summary>
+        /// 套件占地尺寸（0 度放置时的 [宽x, 深z]，单位米）——**必须与 asset-manifest.json 的 footprint 一致**。
+        ///
+        /// 为什么不能像早期那样用固定 1×1 盒：实测一张 0.9×2.0 的病床旋转 90° 后
+        /// 在房间里的真实占地是 2.0×0.9，而固定盒既不对尺寸也不对朝向 ——
+        /// 后果是"看得见的床"与"撞得到的床"不是同一个东西（穿模或空气墙）。
+        /// 若清单将来新增套件，这里缺失的 key 会走 fallback 并在 Validate 里被提示补 footprint。
+        /// </summary>
+        static readonly Dictionary<string, (float w, float d)> KitFootprint = new Dictionary<string, (float, float)>(StringComparer.Ordinal)
+        {
+            ["bed_b"] = (0.9f, 2.0f),
+            ["cabinet_a"] = (0.8f, 0.5f),
+        };
+
         void BuildPropBoxes(LevelData level)
         {
-            // 道具盒来自房间 props（kit 尺寸将来从 asset-manifest 读；当前用保守半米盒）
             foreach (var r in level.Rooms)
                 foreach (var p in r.Props)
-                    PropBoxes.Add(new Box(r.MinX + p.X - 0.5f, r.MinZ + p.Z - 0.5f, r.MinX + p.X + 0.5f, r.MinZ + p.Z + 0.5f));
+                {
+                    var (w, d) = KitFootprint.TryGetValue(p.Kit ?? "", out var f) ? f : (0.8f, 0.8f);
+                    // rot 为 90°/270° 时宽深互换（与生成器 footprintHalf 同一判据）
+                    float rot = ((p.Rot % 180f) + 180f) % 180f;
+                    if (rot >= 45f && rot < 135f) { var t = w; w = d; d = t; }
+                    float cx = r.MinX + p.X, cz = r.MinZ + p.Z;
+                    PropBoxes.Add(new Box(cx - w / 2f, cz - d / 2f, cx + w / 2f, cz + d / 2f));
+                }
         }
 
         // ── 碰撞解析（对应灰盒 makeCollider 的 resolve）──
