@@ -75,7 +75,8 @@ namespace Whisper.Gameplay.Voice
             if (!_collected.ContainsKey(promptId)) _collected[promptId] = new List<float>();
         }
 
-        public readonly struct PushResult
+        /// <summary>单帧喂入结果：是否被忽略 / 当前档 / 进度 / 是否采满。</summary>
+    public readonly struct PushResult
         {
             public readonly bool Ignored;
             public readonly string PromptId;

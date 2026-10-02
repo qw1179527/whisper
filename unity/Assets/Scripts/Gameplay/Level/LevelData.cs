@@ -25,6 +25,10 @@ namespace Whisper.Gameplay.Level
         public ExtractionPoints Extraction;
     }
 
+    /// <summary>
+    /// 撤离双点引用（V9 §7）：标准点安全、深处点 +30% 奖励但更危险。
+    /// 只存房间 id —— 具体奖励系数与安全标记由配置表提供，避免数值散落在关卡数据里。
+    /// </summary>
     public sealed class ExtractionPoints
     {
         public string Standard;
@@ -71,6 +75,11 @@ namespace Whisper.Gameplay.Level
         }
     }
 
+    /// <summary>
+    /// 门洞（V9 §19.2）：以「贴哪面墙 + 沿墙起点（米）+ 洞口宽（米）」表达，与灰盒
+    /// `compileWalls` 的 `offsetM/widthM` 同义。用米而不是归一化比例，是为了让"门宽"
+    /// 与"墙长"能直接比较，从而在生成期就能判定门洞是否越界。
+    /// </summary>
     public sealed class Door
     {
         /// <summary>门 id（房间内唯一）。走廊以 `房间id/门id` 引用它。</summary>
@@ -105,6 +114,11 @@ namespace Whisper.Gameplay.Level
         }
     }
 
+    /// <summary>
+    /// 房间内道具（家具/陈设）。pos 是**房间局部坐标**（相对房间最小角点），
+    /// 因此同一套件放到不同房间只需改房间原点，不必重算世界坐标。
+    /// 占地尺寸不在关卡里写，而由 asset-manifest 的 footprint 提供（唯一真源）。
+    /// </summary>
     public sealed class Prop
     {
         public string Kit;
@@ -112,6 +126,11 @@ namespace Whisper.Gameplay.Level
         public float Rot;
     }
 
+    /// <summary>
+    /// 走廊连接（V9 §19.1 C1）：用**两端的具体门**（`房间id/门id`）表达，而不是只写房间对。
+    /// 这样校验器与 LevelBuilder 才能验证"两端门贴在同一条共享墙上、开口对齐"——
+    /// 只写房间对时，门摆错墙也无人发现（本项目实际踩过：门位置全是 NaN，房间图 0 条边）。
+    /// </summary>
     public sealed class Corridor
     {
         public string From;
@@ -123,6 +142,11 @@ namespace Whisper.Gameplay.Level
         public float Width;
     }
 
+    /// <summary>
+    /// 动态事件定义（V9 §19.2 / §30.2）：类型取自配置的 `level.eventPool`（逐字一致，由
+    /// tools/config-lint.mjs 双向守），且**必须有 counterplay** —— 没有反制手段的事件
+    /// 只会变成不可对抗的惩罚，V9 §30.2 把它列为硬要求。
+    /// </summary>
     public sealed class EventDef
     {
         /// <summary>内建 6 型（blackout/doorlock/static/mirror/overload/laugh）或以 x-/ext-/ns: 前缀的扩展类型（V9 §30.2）。</summary>

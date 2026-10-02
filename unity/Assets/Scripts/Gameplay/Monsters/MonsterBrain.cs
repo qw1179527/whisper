@@ -5,11 +5,13 @@ using Whisper.Gameplay.Hearing;
 
 namespace Whisper.Gameplay.Monsters
 {
+    /// <summary>三怪状态机允许的状态集合（V9 §7 三段式 + 回归）。</summary>
     public static class MonsterStates
     {
         public static readonly string[] All = { "patrol", "investigate", "chase", "return" };
     }
 
+    /// <summary>XZ 平面上的二维向量（关卡是 2D 平面布局，纵向只用于楼层与视觉）。</summary>
     public struct Vec2
     {
         public float X, Z;
@@ -19,8 +21,14 @@ namespace Whisper.Gameplay.Monsters
     }
 
     /// <summary>移动委托：注入后走与玩家共用的碰撞解析（含子步进与墙体阻挡）；不注入时退化为直线移动（纯逻辑测试用）。</summary>
+    /// <summary>
+    /// 移动解析委托：注入后走与玩家共用的碰撞解析（含子步进与墙体阻挡）；
+    /// 不注入时退化为直线移动，仅用于纯逻辑测试。怪物与玩家共用同一份实现，
+    /// 避免"玩家撞墙、怪物穿墙"这类两边行为不一致的问题。
+    /// </summary>
     public delegate Vec2 MoveResolver(Vec2 from, Vec2 to, float maxStep, out bool blocked);
 
+    /// <summary>单 tick 的推进结果：状态 / 位置 / 当前速度 / 是否位移与到达。</summary>
     public struct MonsterStepResult
     {
         public string State;
@@ -31,6 +39,7 @@ namespace Whisper.Gameplay.Monsters
         public bool Arrived;
     }
 
+    /// <summary>状态迁移记录（用于回归对比与调试面板）。</summary>
     public struct StateTransition
     {
         public long Tick;

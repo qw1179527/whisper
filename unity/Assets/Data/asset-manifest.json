@@ -13,13 +13,13 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "399b49ecb5ceb08a24e4aa0d98dcf689aceaaa289eae2c3e0ede3de20f12d521",
+      "sha256": "d23faac95a176f1c859840d65fc38df9082186b57824ba222e3a54800cc14236",
       "bytes": 5364,
       "triangles": 36,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
       "footprint": [
-        3.0,
-        4.0
+        3,
+        4
       ]
     },
     {
@@ -31,13 +31,13 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "e1bb3897792f9e131616f0dd9b4fc8b2c47854257d6494366aa7d306005530fb",
-      "bytes": 11912,
+      "sha256": "7a4c21bd230f16a74ff2859c5601d1f965e3ae7f8d91f02b43f9c96ce26f4dff",
+      "bytes": 11908,
       "triangles": 84,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
       "footprint": [
-        16.0,
-        3.0
+        16,
+        3
       ]
     },
     {
@@ -49,13 +49,13 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "af973974640f5e30571a023651b38ea272df69ed0153f7e80907e5a673ac9617",
+      "sha256": "c0222a2a3e2f35ae0e1591333c6feac1bf47cf53cac847223a89185e30fc9f46",
       "bytes": 6996,
       "triangles": 48,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
       "footprint": [
-        3.0,
-        3.0
+        3,
+        3
       ]
     },
     {
@@ -66,13 +66,13 @@
         "prop"
       ],
       "addressablesGroup": "kits_props",
-      "sha256": "9330fd379c455f25274a5c3841d8fd13b35612af40229c8200c3c2d17a26a300",
-      "bytes": 12268,
+      "sha256": "cca7daa958bb0e7963dba0e127f81faa241ec567ac3eb5e123bb6b3db3c04ec4",
+      "bytes": 12264,
       "triangles": 84,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
       "footprint": [
         0.9,
-        2.0
+        2
       ]
     },
     {
@@ -84,8 +84,8 @@
         "evidence"
       ],
       "addressablesGroup": "kits_props",
-      "sha256": "30bb7576e21aa2455c06e05177f0677baa28f8241a01d4c6ef5619590ca59842",
-      "bytes": 8840,
+      "sha256": "feb5143c84a792dde445eeb7c7fefcff1eb4a6065c5e8e8dd99c70f2479620da",
+      "bytes": 8832,
       "triangles": 60,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
       "footprint": [

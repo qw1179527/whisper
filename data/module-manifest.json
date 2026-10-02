@@ -5,7 +5,7 @@
     "sourceSha256": "7e383983229528800d9c229fa943b10d99e2ba3faca22be69eeb1dde12bdb8c9",
     "moduleCount": 14,
     "generatedBy": "tools/extract-modules.mjs",
-    "generatedAt": "2026-10-02T14:25:57.683Z",
+    "generatedAt": "2026-10-02T17:50:36.130Z",
     "note": "本文件是灰盒源码反拆的事实基准：后续分包源树重建、打包链重建、逐模块等价对拍均以此为准。"
   },
   "graph": {

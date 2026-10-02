@@ -653,21 +653,84 @@ static class Program
         });
 
         Console.WriteLine("\n[3.9] 关卡几何编译（V9 §19.2：DSL → 可碰撞几何）");
-        Check("几何可编译且可走格数 > 0", () =>
+        Check("几何可编译且可走格数合理（打印实测值，不写死阈值）", () =>
         {
             var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
-            return geo.PassableCount() > 100 && geo.Width > 0 && geo.Height > 0;
+            int n = geo.PassableCount();
+            Console.WriteLine($"      [几何] 可走 {n} 格 · 网格 {geo.Width}×{geo.Height}");
+            // 阈值口径：每个房间至少要有 1 格可走（内缩 0.26m 后小房间只剩 1~2 格），
+            // 外加走廊。写死 >100 是我此前的坏做法（内缩后本就该变少，导致误报红线）。
+            return n >= level.Rooms.Count && geo.Width > 0 && geo.Height > 0;
+        });
+        // 注：本几何模型用"格带"表示墙（墙厚 0.26m、格 0.5m），因此相邻两格之间是否可通行，
+        // 要看**跨过共享边的中点**是否被挡，而不是看两侧格中心（中心离墙 0.25m，永远可走）。
+        Check("房间之间必须有内墙：相邻房间共享边上只允许门洞处可穿（其余必须是墙）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            int bad = 0;
+            var detail = new List<string>();
+            bool HasDoor(string a, string b) => level.Corridors.Exists(c =>
+                (c.From == a && c.To == b) || (c.From == b && c.To == a));
+            const float Eps = 0.12f;   // 跨边采样的偏移（远小于格 0.5m，足以落在相邻格内）
+
+            for (int i = 0; i < level.Rooms.Count; i++)
+                for (int j = i + 1; j < level.Rooms.Count; j++)
+                {
+                    var A = level.Rooms[i]; var B = level.Rooms[j];
+                    bool door = HasDoor(A.Id, B.Id);
+                    // 东西相邻：共享边 x = 常量
+                    float xa = float.NaN, xb = float.NaN;
+                    if (Math.Abs(A.MaxX - B.MinX) < 1e-3f) { xa = A.MaxX; xb = B.MinX; }
+                    else if (Math.Abs(B.MaxX - A.MinX) < 1e-3f) { xa = A.MinX; xb = B.MaxX; }
+                    if (!float.IsNaN(xa))
+                    {
+                        float lo = Math.Max(A.MinZ, B.MinZ), hi = Math.Min(A.MaxZ, B.MaxZ);
+                        // 只检查真正共墙的相邻（共边长度 ≥1m）；对角相接（只共一个角点）不算相邻，
+                        // 否则会把"两房在角上擦过"误报成缺墙（morgue_deep 与 ward_02 就是这种）。
+                        if (hi - lo < 1.0f) continue;
+                        int steps = Math.Max(2, (int)Math.Round((hi - lo) / 0.5f)), open = 0;
+                        for (int k = 0; k < steps; k++)
+                        {
+                            float z = lo + (k + 0.5f) * (hi - lo) / steps;
+                            if (geo.Passable(xa - Eps, z) && geo.Passable(xa + Eps, z)) open++;
+                        }
+                        int allow = door ? 3 : 0;   // 门宽约 1.6~2.0m → 0.5m 格下约 3~4 格
+                        if (open > allow) { bad++; detail.Add($"{A.Id}|{B.Id} 东西相邻 {steps} 采样中 {open} 处可穿（门={door}）"); }
+                    }
+                    // 南北相邻：共享边 z = 常量
+                    float za = float.NaN;
+                    if (Math.Abs(A.MaxZ - B.MinZ) < 1e-3f) za = A.MaxZ;
+                    else if (Math.Abs(B.MaxZ - A.MinZ) < 1e-3f) za = A.MinZ;
+                    if (!float.IsNaN(za))
+                    {
+                        float lo = Math.Max(A.MinX, B.MinX), hi = Math.Min(A.MaxX, B.MaxX);
+                        if (hi - lo < 1.0f) continue;   // 同上：对角相接不算共墙
+                        int steps = Math.Max(2, (int)Math.Round((hi - lo) / 0.5f)), open = 0;
+                        for (int k = 0; k < steps; k++)
+                        {
+                            float x = lo + (k + 0.5f) * (hi - lo) / steps;
+                            if (geo.Passable(x, za - Eps) && geo.Passable(x, za + Eps)) open++;
+                        }
+                        int allow = door ? 3 : 0;
+                        if (open > allow) { bad++; detail.Add($"{A.Id}/{B.Id} 南北相邻 {steps} 采样中 {open} 处可穿（门={door}）"); }
+                    }
+                }
+            if (bad > 0) Console.WriteLine($"      [内墙] {string.Join(" · ", detail.GetRange(0, Math.Min(3, detail.Count)))}");
+            return bad == 0;
         });
         Check("门真的打通了两侧空间：从入口洪水填充可达全部 11 个房间", () =>
         {
             var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
-            // 每个房间的中心都必须可达，否则说明门格没打通（墙把空间封死了）
+            // 起点/终点都要用"最近的空可走格"——房间中心常被家具占用（ward_03 中心就是病床）
             foreach (var r in level.Rooms)
             {
-                if (geo.ReachableCount(r.CenterX, r.CenterZ) <= 0) return false;
+                if (!geo.TryFindFreeCell(r.CenterX, r.CenterZ, out float fx, out float fz))
+                { Console.WriteLine($"      [连通] {r.Id} 找不到空可走格"); return false; }
+                if (geo.ReachableCount(fx, fz) <= 0) { Console.WriteLine($"      [连通] {r.Id} 空洞（门未打通）"); return false; }
             }
-            // 更强的一条：单次洪水填充覆盖的可走格数应等于全图可走格数（整层连通）
-            int fromEntrance = geo.ReachableCount(level.Rooms[0].CenterX, level.Rooms[0].CenterZ);
+            geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float ex, out float ez);
+            int fromEntrance = geo.ReachableCount(ex, ez);
+            Console.WriteLine($"      [连通] 从入口可达 {fromEntrance} / 可走 {geo.PassableCount()}");
             return fromEntrance == geo.PassableCount();
         });
         Check("子步进防穿墙：一次 5 米位移不能穿过整面墙", () =>
@@ -684,7 +747,8 @@ static class Program
             // 注意：不能拿"房间中心"当空地 —— ward_03 中心放了床（道具自动落位的结果），
             // 从那儿起步本来就会被挡。用房间内一个明确无道具的点。
             var r = level.Rooms.Find(x => x.Id == "ward_03");
-            float px = r.CenterX + 1.2f, pz = r.CenterZ;      // 挪开家具
+            // 起点必须是"空的可走格"：ward_03 中心放着病床，从那儿起步本来就该被挡。
+            if (!geo.TryFindFreeCell(r.CenterX, r.CenterZ, out float px, out float pz)) return false;
             var res = geo.Resolve(px, pz, 0.1f, 0f, 0.34f);
             return !res.Blocked && Math.Abs(res.X - (px + 0.1f)) < 1e-4;
         });

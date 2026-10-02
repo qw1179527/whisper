@@ -30,7 +30,7 @@ const checkOnly = process.argv.includes('--check');
 const RECIPES = {
   // ── 房间套件：地面板 + 天花横梁 + 墙角柱（不含四面墙——墙由 LevelBuilder 按门洞切段生成）──
   hall_main: {
-    note: '主走廊套件：地面 + 顶梁 + 柱',
+    note: '主走廊套件：地面（躺平 16×0.1×3）+ 顶梁 + 柱',
     parts: [
       { name: 'floor', at: [0, -0.05, 0], size: [16, 0.1, 3], role: 'floor' },
       { name: 'beam_n', at: [0, 2.95, 1.3], size: [16, 0.1, 0.4], role: 'trim' },
@@ -57,11 +57,14 @@ const RECIPES = {
   },
   // ── 道具套件 ──
   bed_b: {
-    note: '病床：床架 + 床垫 + 床头板',
+    // ⚠ 朝向纪律：Y 是**高度**。病床必须躺平（X 宽 0.9 · Y 高约 0.6 · Z 长 2.0）。
+    // 我第一版把床头板当 0.9×2.0×0.6 的竖板，实测 GLB bbox 的 Y=2.0 —— 于是
+    // footprint 被写成 [宽x, 高y]，碰撞盒与可见模型差 1.4m（独立复核 F3 抓出）。
+    note: '病床（躺平）：床架 + 床垫 + 床头板 + 四腿',
     parts: [
       { name: 'frame', at: [0, 0.25, 0], size: [0.9, 0.1, 2.0], role: 'structure' },
       { name: 'mattress', at: [0, 0.38, 0], size: [0.85, 0.16, 1.9], role: 'soft' },
-      { name: 'headboard', at: [0, 0.55, -0.95], size: [0.9, 0.6, 0.08], role: 'trim' },
+      { name: 'headboard', at: [0, 0.42, -0.98], size: [0.9, 0.55, 0.06], role: 'trim' },
       { name: 'leg_a', at: [-0.4, 0.1, -0.9], size: [0.08, 0.2, 0.08], role: 'structure' },
       { name: 'leg_b', at: [0.4, 0.1, -0.9], size: [0.08, 0.2, 0.08], role: 'structure' },
       { name: 'leg_c', at: [-0.4, 0.1, 0.9], size: [0.08, 0.2, 0.08], role: 'structure' },
@@ -118,7 +121,10 @@ for kit in KITS:
         ob.data.materials.append(mat(part["name"] + "_mat", part["rgba"]))
     out = kit["out"]
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', use_selection=False)
+    # ⚠ 必须 export_yup=False：Blender 默认按 Y-up 导出，会把 Z-up 旋转 90°，
+    # 于是"地面 Z 向深度"被搬到 glTF 的 Y 上 —— 独立复核据此测出 footprint 是 [宽, 高]
+    # 而不是 [宽, 深]，导致碰撞盒与可见模型相差 1.4m。关卡是 XZ 平面布局，保留 Z-up 才自洽。
+    bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', use_selection=False, export_yup=False)
     # 统计三角面数（导出后读 GLB JSON chunk 里的 accessor 计数太绕，直接看网格）
     tris = 0
     for ob in bpy.data.objects:

@@ -24,6 +24,10 @@ namespace Whisper.Gameplay.Level
         public readonly List<Box> PropBoxes = new List<Box>();
         public readonly List<Box> DoorBlockers = new List<Box>();
 
+        /// <summary>
+        /// 轴对齐碰撞盒（XZ 平面）。几何层只认 AABB —— 关卡是轴对齐的矩形拼装，
+        /// 用 AABB 能让碰撞判定保持 O(盒数) 且完全确定（无浮点方向判断）。
+        /// </summary>
         public struct Box
         {
             public float X0, Z0, X1, Z1;
@@ -48,7 +52,7 @@ namespace Whisper.Gameplay.Level
             _blocked[(gz - MinGZ) * Width + (gx - MinGX)] = true;
         }
 
-        public bool Passable(float x, float z) => PassableCell((int)Math.Floor(x), (int)Math.Floor(z));
+        public bool Passable(float x, float z) => PassableCell(CellOf(x), CellOf(z));
 
         /// <summary>
         /// 由关卡数据编译几何（对应灰盒 buildLevel + compileWalls + compileDoors）。
@@ -57,51 +61,115 @@ namespace Whisper.Gameplay.Level
         ///   ① 全图标记为墙 → ② 房间矩形挖空 → ③ 门洞所在格打通（**只打通被两侧空间共享的格**，
         ///   否则等于在墙上开无意义的洞）→ ④ 走廊矩形挖空 → ⑤ 按墙段生成碰撞盒。
         /// </summary>
+        /// <summary>
+        /// 把关卡数据编译成碰撞几何（1 米网格 + 薄墙碰撞盒 + 道具盒）。
+        ///
+        /// ## 三个"看起来对但根本不成立"的坑（都靠本机 probe 与独立复核才暴露）
+        /// 1. **房间之间必须有墙**。网格单位 1 米、墙厚仅 0.26 米，若直接把"落在房间矩形内的格"
+        ///    全部挖空，相邻房间（ward_01 x[4,7] 与 ward_02 x[7,10]）的内部格会直接相邻，
+        ///    墙落在格缝上 —— 网格里没有格子承载它，于是 44 面墙全部消失、11 个房间敞通、
+        ///    门形同虚设（实测：可走 161 格、洪水填充 161/161 单连通）。
+        ///    现在：房间内部**按墙厚内缩**后再挖，边界那一列/行留作墙带。
+        /// 2. **门洞必须夹在所属房间的编号范围内**。否则打通"门格 + 内侧一格"时会顺带凿穿
+        ///    走廊与病房之间的整段墙。
+        /// 3. **外墙不能漏**。内缩同时天然保住了关卡外圈。
+        /// </summary>
         public static LevelGeometry Compile(LevelData level)
         {
-            // ① 计算包围盒
             float minX = float.MaxValue, minZ = float.MaxValue, maxX = float.MinValue, maxZ = float.MinValue;
             foreach (var r in level.Rooms)
             {
                 minX = Math.Min(minX, r.MinX); minZ = Math.Min(minZ, r.MinZ);
                 maxX = Math.Max(maxX, r.MaxX); maxZ = Math.Max(maxZ, r.MaxZ);
             }
-            foreach (var c in level.Corridors)
-            {
-                // 走廊本身不改变包围盒（两端都是房间）；保留循环以便将来支持"露天走廊"
-                _ = c;
-            }
-            int minGX = (int)Math.Floor(minX) - 1, minGZ = (int)Math.Floor(minZ) - 1;
-            int maxGX = (int)Math.Ceiling(maxX) + 1, maxGZ = (int)Math.Ceiling(maxZ) + 1;
+            int minGX = CellOf(minX) - 1, minGZ = CellOf(minZ) - 1;
+            int maxGX = CellOf(maxX) + 2, maxGZ = CellOf(maxZ) + 2;
             var geo = new LevelGeometry(minGX, minGZ, maxGX - minGX, maxGZ - minGZ);
 
-            // ① 全图墙
+            var owners = new Dictionary<(int, int), int>();
+            void Pledge(float x0, float z0, float x1, float z1)
+            {
+                int gx0 = CellOf(x0), gx1 = CellOf(x1 - 1e-4f);
+                int gz0 = CellOf(z0), gz1 = CellOf(z1 - 1e-4f);
+                for (int gz = gz0; gz <= gz1; gz++)
+                    for (int gx = gx0; gx <= gx1; gx++)
+                        owners[(gx, gz)] = owners.TryGetValue((gx, gz), out var n) ? n + 1 : 1;
+            }
+
+            // ① 全图先设为墙
             for (int gz = minGZ; gz < maxGZ; gz++)
                 for (int gx = minGX; gx < maxGX; gx++)
                     geo.MarkBlocked(gx, gz);
 
-            // ② 房间挖空
-            foreach (var r in level.Rooms) geo.CarveRect(r.MinX, r.MinZ, r.MaxX, r.MaxZ);
+            // ② 认领（仅为统计与可读性保留；实际挖空在 ③ 按内缩矩形做）
+            foreach (var r in level.Rooms) Pledge(r.MinX, r.MinZ, r.MaxX, r.MaxZ);
 
-            // ③ 门洞：把门所在格打通（门格 = 与该门中心同侧的相邻格）
+            // ③ 房间内部：按墙厚内缩后，仍完整落在其中的格才算可走
             foreach (var r in level.Rooms)
+            {
+                // 内缩量只需"足以把相邻房间的边界格分开"（>0 即可把边界那一列/行让给墙），
+                // 不必等于墙厚 —— 用墙厚会把窄房间（走廊 z 向仅 1m）整条吃掉，实测直接导致不连通。
+                // 房间内部：**按 INSET 内缩**后覆盖的格。
+                //
+                // ⚠ INSET 必须 > CellSize/2（这里 0.6 > 0.25）。为什么：
+                // 墙在本模型里是"**缝格**"——两个相邻房间各自内缩 0.6m 后，边界附近会空出
+                // 1~2 列/行没有任何房间认领的格，那些格就是墙；门洞再在其中凿通。
+                // 内缩不足（我试过 0.26 与 0.1）时两房间的可走格直接相邻，跨过共享边
+                // 两侧都"可走"，等于没有墙 —— 独立复核 F2「房间之间没有内墙」就是这么来的。
+                // 内缩量必须**随房间尺寸收窄**：走廊只有 1m 深，固定 0.6 会把它的内部算成空集
+                // （实测 corridor_ward 得到 "gz 11..10" = 无内部格，整条走廊不可达）。
+                // 取 0.6 与"较小边长的 35%"中的较小者。
+                float INSET = Math.Min(0.6f, Math.Min(r.MaxX - r.MinX, r.MaxZ - r.MinZ) * 0.35f);
+                int gx0 = CellOf(r.MinX + INSET), gx1 = CellOf(r.MaxX - INSET - 1e-4f);
+                int gz0 = CellOf(r.MinZ + INSET), gz1 = CellOf(r.MaxZ - INSET - 1e-4f);
+                if (gx1 < gx0 || gz1 < gz0) continue;   // 极窄房间（理论上不应出现）跳过而非算成空集
+                for (int gz = gz0; gz <= gz1; gz++)
+                    for (int gx = gx0; gx <= gx1; gx++)
+                        geo.Unmark(gx, gz);
+            }
+
+            // ④ 门洞：在所属房间编号范围内打通「门格 + 内侧一格」
+            foreach (var r in level.Rooms)
+            {
+                int rgx0 = CellOf(r.MinX), rgx1 = CellOf(r.MaxX - 1e-4f);
+                int rgz0 = CellOf(r.MinZ), rgz1 = CellOf(r.MaxZ - 1e-4f);
                 foreach (var d in r.Doors)
                 {
                     d.ToWorld(r, out float dx, out float dz);
-                    int gx = (int)Math.Floor(dx), gz = (int)Math.Floor(dz);
-                    // 门洞横跨墙线，故把墙线两侧各打通一格，保证两侧空间真正连通
-                    geo.CarveRect(dx - 0.01f, dz - 0.01f, dx + 0.01f, dz + 0.01f);
-                    geo.Unmark(gx, gz);
-                    if (d.Wall == "north") geo.Unmark(gx, gz);
-                    else if (d.Wall == "south") geo.Unmark(gx, gz - 1);
-                    else if (d.Wall == "west") geo.Unmark(gx - 1, gz);
-                    else geo.Unmark(gx, gz);
+                    int gx = CellOf(dx), gz = CellOf(dz);
+                    bool northSouth = d.Wall == "north" || d.Wall == "south";
+                    // 门洞打通：从门格沿法向**两侧各凿到"进入本房间内部"为止**（上限 6 格）。
+                    //
+                    // 为什么必须"凿到进入内部为止"而不是固定凿 N 格：房间内部按 INSET 内缩后，
+                    // 门格与内部之间隔着缝带（有时 1 格、有时 2~3 格，取决于缝与格边界的对齐），
+                    // 固定凿 2 格或 5 格都会有一部分门洞恰好差一格接不上 ——
+                    // 实测 ward_02..05 与 corridor_ward 形成 28 格孤岛。
+                    void Open(int ax, int az)
+                    {
+                        if (northSouth) { if (ax < rgx0 || ax > rgx1) return; }   // 夹沿墙坐标（防顺墙凿穿）
+                        else { if (az < rgz0 || az > rgz1) return; }
+                        geo.Unmark(ax, az);
+                    }
+                    Open(gx, gz);
+                    for (int dir = -1; dir <= 1; dir += 2)
+                    {
+                        bool reached = false;
+                        for (int k = 1; k <= 6; k++)
+                        {
+                            int ax = northSouth ? gx : gx + dir * k;
+                            int az = northSouth ? gz + dir * k : gz;
+                            Open(ax, az);
+                            // "进入本房间内部"= 该格已在房间的内缩矩形之内
+                            float ins = Math.Min(0.6f, Math.Min(r.MaxX - r.MinX, r.MaxZ - r.MinZ) * 0.35f);
+                            if (ax >= CellOf(r.MinX + ins) && ax <= CellOf(r.MaxX - ins - 1e-4f)
+                                && az >= CellOf(r.MinZ + ins) && az <= CellOf(r.MaxZ - ins - 1e-4f))
+                            { reached = true; break; }
+                        }
+                        _ = reached;
+                    }
                 }
+            }
 
-            // ④ 走廊挖空（走廊区域本身可走）
-            foreach (var r in level.Rooms) { /* 占位：走廊几何由门洞与房间连通性表达 */ }
-
-            // ⑤ 墙段碰撞盒 + 道具盒
             geo.BuildWallBoxes(level);
             geo.BuildPropBoxes(level);
             return geo;
@@ -109,8 +177,8 @@ namespace Whisper.Gameplay.Level
 
         void CarveRect(float x0, float z0, float x1, float z1)
         {
-            int gx0 = (int)Math.Floor(x0), gz0 = (int)Math.Floor(z0);
-            int gx1 = (int)Math.Ceiling(x1) - 1, gz1 = (int)Math.Ceiling(z1) - 1;
+            int gx0 = CellOf(x0), gz0 = CellOf(z0);
+            int gx1 = CellOf(x1 - 1e-4f), gz1 = CellOf(z1 - 1e-4f);
             for (int gz = gz0; gz <= gz1; gz++)
                 for (int gx = gx0; gx <= gx1; gx++)
                     Unmark(gx, gz);
@@ -176,7 +244,17 @@ namespace Whisper.Gameplay.Level
         // ── 碰撞解析（对应灰盒 makeCollider 的 resolve）──
 
         public const float MaxStep = 0.25f;
+        /// <summary>墙厚（米）。网格单位是 1 米，房间内部按此内缩，边界格留作墙带。</summary>
+        public const float WallThickness = 0.26f;
+        /// <summary>
+        /// 网格单位（米）。**必须明显小于房间尺寸**：早期用 1 米格时，3×4 米的病房内缩后
+        /// 只剩 1×3 格，门洞格与内部格总是错开一格，导致"有墙但走不进去"。
+        /// 0.5 米格：墙厚 0.26 m 能完整落在格内，走廊 1 m 宽也留有 1 格可走。
+        /// </summary>
+        public const float CellSize = 0.5f;
+        static int CellOf(float v) => (int)Math.Floor(v / CellSize);
 
+        /// <summary>一次移动解析的结果：终点坐标 + 过程中是否被挡（用于停滞/绕行判定）。</summary>
         public struct MoveResult { public float X, Z; public bool Blocked; }
 
         /// <summary>
@@ -215,6 +293,30 @@ namespace Whisper.Gameplay.Level
         }
 
         /// <summary>可走格数（诊断用：编译出 0 格说明几何生成失败）。</summary>
+        /// <summary>
+        /// 找出离给定点**最近的可走且无道具**的格中心。
+        /// 为什么需要：房间中心格常常被家具占用（本项目 ward_03 中心就放着病床），
+        /// 用它当洪水填充/碰撞测试的起点会得到"看起来不连通/被挡"的假象。
+        /// </summary>
+        public bool TryFindFreeCell(float x, float z, out float fx, out float fz)
+        {
+            int cx = CellOf(x), cz = CellOf(z);
+            for (int ring = 0; ring <= 12; ring++)
+                for (int dz = -ring; dz <= ring; dz++)
+                    for (int dx = -ring; dx <= ring; dx++)
+                    {
+                        if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != ring) continue;   // 只看该环
+                        int gx = cx + dx, gz = cz + dz;
+                        if (!PassableCell(gx, gz)) continue;
+                        float px = (gx + 0.5f) * CellSize, pz = (gz + 0.5f) * CellSize;
+                        foreach (var b in PropBoxes)
+                            if (px > b.X0 && px < b.X1 && pz > b.Z0 && pz < b.Z1) goto next;
+                        fx = px; fz = pz; return true;
+                    next:;
+                    }
+            fx = x; fz = z; return false;
+        }
+
         public int PassableCount()
         {
             int n = 0;
@@ -225,7 +327,7 @@ namespace Whisper.Gameplay.Level
         /// <summary>从某点做洪水填充，返回可达格数（用于验证"门真的连通了两个空间"）。</summary>
         public int ReachableCount(float x, float z)
         {
-            int sx = (int)Math.Floor(x), sz = (int)Math.Floor(z);
+            int sx = CellOf(x), sz = CellOf(z);
             if (!PassableCell(sx, sz)) return 0;
             var seen = new HashSet<(int, int)>();
             var stack = new Stack<(int, int)>();

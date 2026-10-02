@@ -4,14 +4,106 @@
   "note": "本清单是资产的唯一入口：AI 生成清单 → CI 的 editor batchmode 执行导入、打 Tag、设 Addressables 分组。禁止手工拖拽入库。",
   "sourceRoot": "Assets/ThirdParty/CC0",
   "kits": [
-    { "id": "hospital_ward", "kind": "room", "file": "kits/hospital_ward.glb", "tags": ["level", "asylum"], "addressablesGroup": "kits_rooms" },
-    { "id": "hall_main", "kind": "room", "file": "kits/hall_main.glb", "tags": ["level", "asylum"], "addressablesGroup": "kits_rooms" },
-    { "id": "morgue", "kind": "room", "file": "kits/morgue.glb", "tags": ["level", "asylum"], "addressablesGroup": "kits_rooms" },
-    { "id": "bed_b", "kind": "prop", "file": "props/bed_b.glb", "tags": ["prop"], "addressablesGroup": "kits_props" },
-    { "id": "cabinet_a", "kind": "prop", "file": "props/cabinet_a.glb", "tags": ["prop", "evidence"], "addressablesGroup": "kits_props" }
+    {
+      "id": "hospital_ward",
+      "kind": "room",
+      "file": "kits/hospital_ward.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "d23faac95a176f1c859840d65fc38df9082186b57824ba222e3a54800cc14236",
+      "bytes": 5364,
+      "triangles": 36,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
+      "footprint": [
+        3,
+        4
+      ]
+    },
+    {
+      "id": "hall_main",
+      "kind": "room",
+      "file": "kits/hall_main.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "7a4c21bd230f16a74ff2859c5601d1f965e3ae7f8d91f02b43f9c96ce26f4dff",
+      "bytes": 11908,
+      "triangles": 84,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
+      "footprint": [
+        16,
+        3
+      ]
+    },
+    {
+      "id": "morgue",
+      "kind": "room",
+      "file": "kits/morgue.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "c0222a2a3e2f35ae0e1591333c6feac1bf47cf53cac847223a89185e30fc9f46",
+      "bytes": 6996,
+      "triangles": 48,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
+      "footprint": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": "bed_b",
+      "kind": "prop",
+      "file": "props/bed_b.glb",
+      "tags": [
+        "prop"
+      ],
+      "addressablesGroup": "kits_props",
+      "sha256": "cca7daa958bb0e7963dba0e127f81faa241ec567ac3eb5e123bb6b3db3c04ec4",
+      "bytes": 12264,
+      "triangles": 84,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
+      "footprint": [
+        0.9,
+        2
+      ]
+    },
+    {
+      "id": "cabinet_a",
+      "kind": "prop",
+      "file": "props/cabinet_a.glb",
+      "tags": [
+        "prop",
+        "evidence"
+      ],
+      "addressablesGroup": "kits_props",
+      "sha256": "feb5143c84a792dde445eeb7c7fefcff1eb4a6065c5e8e8dd99c70f2479620da",
+      "bytes": 8832,
+      "triangles": 60,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成，确定性体块）",
+      "footprint": [
+        0.8,
+        0.5
+      ]
+    }
   ],
   "contentPipeline": {
     "entry": "Whisper.Editor.ContentPipeline.GenerateAll",
-    "steps": ["导入清单内资产", "打 Tag", "按 addressablesGroup 建组", "引用完整性校验", "DSL schema 校验"]
-  }
+    "steps": [
+      "导入清单内资产",
+      "打 Tag",
+      "按 addressablesGroup 建组",
+      "引用完整性校验",
+      "DSL schema 校验"
+    ]
+  },
+  "kitsUpdatedBy": "tools/gen-kits.mjs",
+  "footprintNote": "footprint=[宽(x),深(z)]，单位米：0 度放置时的占地尺寸；道具按 rot 旋转后参与碰撞/门洞判定。"
 }

@@ -13,6 +13,10 @@ namespace Whisper.Gameplay.Level
     /// </summary>
     public static class LevelLoader
     {
+        /// <summary>
+        /// 关卡校验失败（携带**全部**问题而不是第一条）：关卡数据出错时最常见的诉求是
+        /// "一次看到所有错"，只抛第一条会让人来回改十几轮。
+        /// </summary>
         public sealed class LevelValidationException : Exception
         {
             public readonly IReadOnlyList<string> Problems;
