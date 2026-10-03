@@ -31,12 +31,12 @@
 - **现象**：本机无 Unity、无 `UnityEngine*.dll`、`download.unity3d.com` 404、bionic 非 glibc。
 - **影响**：`GameBootstrap`/`LevelBuilder` 无法在本机真跑；PlayMode 用例未被执行过。
 - **已做的替代验证**（不是"跑过了"的同义替换，而是分别说明覆盖了什么）：
-  · 纯逻辑层（Core/Gameplay 24 个源）由本机 .NET 8 真编译真跑，107 条断言；
+  · 纯逻辑层由本机 .NET 8 真编译真跑，156 条断言（Core/Gameplay/Net 三层）；
   · Unity 依赖文件由 Roslyn + 最小 Unity 桩做语法/语义检查（允许错误必须为 0）；
   · 三大机制由 1140/1716/21 例向量与灰盒实现对拍，差异 0。
 - **仍未覆盖**：Unity 运行时的实际行为（组件生命周期、材质/网格、UI 布局）。
   需要 GameCI（GameCI + Unity Personal 三 secret，约 40 分钟/次）或一台装了
-  Unity 6000.0.38f1 的机器。
+  Unity 6000.3.25f1 的机器（与 unity/ProjectSettings/ProjectVersion.txt 一致）。
 
 ## G5 色板三条待裁决（V9 §11 ↔ 产品色板）
 - `color-faded` / `color-warning`：产品侧名值皆无（V9 §11 有定义、产品未落地）。
@@ -119,3 +119,18 @@
   但**没有任何代码引用它们**，因此 `sharedassets0.assets` 里搜不到套件名 —— 它们**根本没进 APK**。
   真正的缺口不是"打的是旧资产"，而是"**打了一套没人用的资产**"（`LevelBuilder` 全用代码方块）。
   HANDOFF 里原先那条描述有误，已更正。
+
+## G14 文档与代码不一致（质检第 2 轮逐条核出，已修）
+质检用「文件:行号」逐条对照，抓出以下陈述与代码不符——**这类问题会让接续者重做已完成的工作或误信未完成的**：
+| 原文陈述 | 事实 | 处置 |
+|---|---|---|
+| HANDOFF「132 断言」 | 实际 156 | 已改正 |
+| HANDOFF 把「玩家控制器（当前相机是固定机位）」列为未完成 | `2bacd43` 已实现并接线 | 已改为"已实现、待真机验证" |
+| HANDOFF 说「APK 打的是旧的 whisper-kits.glb」 | 独立核 APK：套件**一个都没进包**（所有 data 文件 0 命中） | 已改为"打了一套没人用的资产" |
+| mechanism-gaps「107 条断言」 | 实际 156 | 已改正 |
+| mechanism-gaps「Unity 6000.0.38f1」 | ProjectVersion.txt 是 **6000.3.25f1** | 已改正 |
+| HANDOFF 事故 #5 描述与事实不符（当时 HEAD 基线是 123，132 是含 1 条失败的未提交工作区） | 已按事实重述 | 已改正 |
+
+**教训**：文档里的数字必须是**从代码/命令输出取的**，不能凭记忆写。建议后续把断言数与 HEAD 写进
+自动生成的段落（`node tools/gate-test.mjs --update-baseline` 已产出 `.gate-test-baseline.json`，
+文档可引用它而不是手写）。
