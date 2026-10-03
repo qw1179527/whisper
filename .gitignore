@@ -21,3 +21,8 @@ tmp/
 .DS_Store
 Thumbs.db
 *.swp
+
+# ── tools/gh/nm：vendored 的 libsodium（npm 包解包后按 node_modules 布局摆放）──
+# 为什么 vendor 进来：本机没有 libsodium，pnpm 在 Android 上因文件锁装不了依赖，
+# 而 GitHub Actions secret 只接受 crypto_box_seal 密文。1.8MB，可接受。
+# 注意：**不 vendor** 任何凭据；seal 工具只做加密，令牌经环境变量传入。
