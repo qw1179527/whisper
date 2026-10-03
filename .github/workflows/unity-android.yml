@@ -79,8 +79,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: unity/Library
-          key: Library-Android-${{ hashFiles('unity/Assets/**', 'unity/ProjectSettings/**') }}
-          restore-keys: Library-Android-
+          # 缓存键必须包含 .meta 指纹：实测上次失败构建的 Library 与新补的 .meta 混用，
+          # 会把错误从 181 条降到 46 条却不完全消失（旧程序集图残留）。改 meta 就该换缓存。
+          key: Library-Android-v2-${{ hashFiles('unity/Assets/**', 'unity/ProjectSettings/**') }}
+          restore-keys: Library-Android-v2-
 
       - name: 构建（GameCI）
         uses: game-ci/unity-builder@v4
