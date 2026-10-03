@@ -46,6 +46,7 @@ namespace Whisper.Runtime
         public string BootLog { get; private set; } = "";
 
         LevelBuilder _levelBuilder;
+        PlayerController _player;
         Text _status;
         Canvas _canvas;
         Camera _camera;
@@ -147,10 +148,38 @@ namespace Whisper.Runtime
             return new Color32(r, g, b, 255);
         }
 
+        /// <summary>出生点解析结果（④ 几何阶段产出、⑤ 玩家阶段消费）。</summary>
+        readonly struct Spawn
+        {
+            public readonly bool Ok;
+            public readonly float X, Z;
+            public Spawn(bool ok, float x, float z) { Ok = ok; X = x; Z = z; }
+        }
+
+        /// <summary>
+        /// 启动编排（只做顺序与失败短路；每个阶段的具体工作在下方各 Try* 方法里）。
+        /// 为什么拆开：本方法一度长到 135 行，被 gate-code 的 C5 规模纪律判红——
+        /// 那是有效的红线，"启动链"这种东西一旦混成一坨，出问题就只能靠通读。
+        /// </summary>
         void Boot()
         {
             var t0 = System.Diagnostics.Stopwatch.StartNew();
             var lines = new System.Text.StringBuilder();
+            AppendBootHeader(lines);
+
+            if (!TryLoadConfig(lines)) return;
+            if (!TryInstallServices(lines)) return;
+            if (!TryLoadLevel(lines)) return;
+
+            var spawn = TryBuildGeometry(lines);
+            if (!spawn.HasValue) return;      // Fail 已调用
+            if (!TrySpawnPlayer(lines, spawn.Value)) return;
+
+            FinishBoot(t0, lines);
+        }
+
+        void AppendBootHeader(System.Text.StringBuilder lines)
+        {
             lines.AppendLine("Project Whisper · Boot");
             lines.AppendLine($"Unity {Application.unityVersion} · 60 fps 基线");
             // 着色器自检放在最前：真机上几何上不了色是最容易"看起来像死了"的故障
@@ -158,18 +187,25 @@ namespace Whisper.Runtime
             lines.AppendLine(LevelBuilder.GeometryShader != null
                 ? $"几何着色器 ✓ {LevelBuilder.UnlitShaderName}"
                 : $"几何着色器 ✗ 缺失（{LevelBuilder.UnlitShaderName}）");
+        }
 
-            // ① 配置表（数值唯一真源）
+        /// <summary>① 配置表（数值唯一真源）。</summary>
+        bool TryLoadConfig(System.Text.StringBuilder lines)
+        {
             var cfgAsset = Resources.Load<TextAsset>(ConfigResourcePath);
-            if (cfgAsset == null) { Fail(lines, $"配置表未找到：Resources/{ConfigResourcePath}.json"); return; }
+            if (cfgAsset == null) { Fail(lines, $"配置表未找到：Resources/{ConfigResourcePath}.json"); return false; }
             try
             {
                 GameConfig.LoadFromJson(cfgAsset.text);
                 lines.AppendLine($"配置已载入 · tickRate={GameConfig.GetInt("network.tickRate", 60)} · 怪物 {CountMonsters()} 种");
+                return true;
             }
-            catch (System.Exception ex) { Fail(lines, $"配置表解析失败（{ex.GetType().Name}）：{ex.Message}"); return; }
+            catch (System.Exception ex) { Fail(lines, $"配置表解析失败（{ex.GetType().Name}）：{ex.Message}"); return false; }
+        }
 
-            // ② 三接口注入（组合根的职责；换 SDK 只换实现，接口与玩法代码不动）
+        /// <summary>② 三接口注入（组合根的职责；换 SDK 只换实现，接口与玩法代码不动）。</summary>
+        bool TryInstallServices(System.Text.StringBuilder lines)
+        {
             try
             {
                 var tickRate = GameConfig.GetInt("network.tickRate", 60);
@@ -179,24 +215,33 @@ namespace Whisper.Runtime
                 Services.Net.OnHostMigration += started =>
                     Debug.Log($"[Whisper] Host 迁移 {(started ? "开始" : "结束")}（V9 §13.4：迁移期播「信号干扰」遮罩）");
                 lines.AppendLine(DescribeServices());
+                return true;
             }
-            catch (System.Exception ex) { Fail(lines, $"接口注入失败（{ex.GetType().Name}）：{ex.Message}"); return; }
+            catch (System.Exception ex) { Fail(lines, $"接口注入失败（{ex.GetType().Name}）：{ex.Message}"); return false; }
+        }
 
-            // ③ 关卡（Level DSL）
+        /// <summary>③ 关卡（Level DSL）。</summary>
+        bool TryLoadLevel(System.Text.StringBuilder lines)
+        {
             var asset = Resources.Load<TextAsset>(LevelResourcePath);
-            if (asset == null) { Fail(lines, $"Level DSL 未找到：Resources/{LevelResourcePath}.json"); return; }
+            if (asset == null) { Fail(lines, $"Level DSL 未找到：Resources/{LevelResourcePath}.json"); return false; }
             try
             {
-                var knownKits = LoadKitIds();
-                Level = LevelLoader.Load(asset.text, knownKits);
+                Level = LevelLoader.Load(asset.text, LoadKitIds());
                 lines.AppendLine($"关卡 {Level.LevelId}：房间 {Level.Rooms.Count} · 走廊 {Level.Corridors.Count} · 事件 {Level.Events.Count}");
                 if (Level.Extraction != null)
                     lines.AppendLine($"撤离点：标准 {Level.Extraction.Standard} / 深处 {Level.Extraction.Deep}");
+                return true;
             }
-            catch (System.Exception ex) { Fail(lines, $"关卡加载失败（{ex.GetType().Name}）：{ex.Message}"); return; }
+            catch (System.Exception ex) { Fail(lines, $"关卡加载失败（{ex.GetType().Name}）：{ex.Message}"); return false; }
+        }
 
-            // ④ 几何装配（独立复核 F2b：几何层此前**没接进产品** —— 无场景、LevelBuilder 无人实例化）
-            //    按 V9 §19「代码优先」：场景零手工，装配由代码驱动，Boot 时即时构建。
+        /// <summary>
+        /// ④ 几何装配（独立复核 F2b：几何层此前**没接进产品** —— 无场景、LevelBuilder 无人实例化）。
+        /// 返回 null 表示已 Fail。
+        /// </summary>
+        Spawn? TryBuildGeometry(System.Text.StringBuilder lines)
+        {
             try
             {
                 var builderGo = new GameObject("LevelGeometry");
@@ -205,50 +250,93 @@ namespace Whisper.Runtime
                 _levelBuilder.Build(Level, LoadKitIds());
                 lines.AppendLine($"几何已装配：房间 {_levelBuilder.RoomObjects.Count} · 门 {_levelBuilder.DoorObjects.Count}"
                     + $" · 道具 {_levelBuilder.PropObjects.Count} · 可走格 {_levelBuilder.Geometry.PassableCount()}");
+
                 // 玩家与怪物都从**入口房间的空可走格**出生：房间中心常被家具占用
                 // （ward_03 中心就是病床），直接用中心会把角色卡在家具里。
                 var start = Level.Rooms.Count > 0 ? Level.Rooms[0] : null;
-                if (start != null && _levelBuilder.Geometry.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz))
-                {
-                    lines.AppendLine($"出生点：房间 {start.Id} → 世界 ({sx:0.0}, {sz:0.0})");
-                    // 相机摆放（真机实测修正）：入口房间只有 4m×3m，房间中心附近没有"倒退 2.5m"的余量——
-                    // 先前把相机放在 spawn - 2.5m，实际已落到墙外，屏幕上只有一堵贴脸的墙
-                    // （截屏实测：整屏 #D8CFBB = ColorBone 安全区墙色 · 边缘密度 0.0%）。
-                    // 现在改为：站在房间内、**朝最近的门口方向**看。门连通走廊，视角才有纵深。
-                    if (_camera != null)
-                    {
-                        float dirX = 1f, dirZ = 0f;
-                        var door = start.Doors.Count > 0 ? start.Doors[0] : null;
-                        if (door != null)
-                        {
-                            door.ToWorld(start, out float dx, out float dz);
-                            float vx = dx - sx, vz = dz - sz;
-                            float len = Mathf.Sqrt(vx * vx + vz * vz);
-                            if (len > 0.05f) { dirX = vx / len; dirZ = vz / len; }
-                            lines.AppendLine($"相机朝向：门 {door.Id}（{door.Wall}）→ 方向 ({dirX:0.00}, {dirZ:0.00})");
-                        }
-                        // 离中心留一点内缩，避免正好卡在中心家具里；眼高 1.7m
-                        float back = Mathf.Min(0.8f, Mathf.Min(start.SizeX, start.SizeZ) * 0.25f);
-                        _camera.transform.position = new Vector3(sx - dirX * back, 1.7f, sz - dirZ * back);
-                        _camera.transform.rotation = Quaternion.LookRotation(new Vector3(dirX, -0.12f, dirZ));
-                    }
-                }
-                else
-                    lines.AppendLine("⚠ 出生点解析失败（该房间没有空可走格）");
+                var spawn = ResolveSpawn(start, lines);
+                if (spawn.Ok) PlaceCamera(start, spawn, lines);
+                return spawn;
             }
-            catch (LevelLoader.LevelValidationException ex) { Fail(lines, "Level DSL 校验失败：" + ex.Message); return; }
-            catch (System.Exception ex) { Fail(lines, $"关卡装载失败（{ex.GetType().Name}）：{ex.Message}"); return; }
+            catch (LevelLoader.LevelValidationException ex) { Fail(lines, "Level DSL 校验失败：" + ex.Message); return null; }
+            catch (System.Exception ex) { Fail(lines, $"关卡装载失败（{ex.GetType().Name}）：{ex.Message}"); return null; }
+        }
 
-            // ④ 进入 Play 循环
+        /// <summary>解析出生点：先试入口房间，失败则在整张图上找空可走格。</summary>
+        Spawn ResolveSpawn(Room start, System.Text.StringBuilder lines)
+        {
+            var geo = _levelBuilder.Geometry;
+            if (start != null && geo.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz))
+            {
+                lines.AppendLine($"出生点：房间 {start.Id} → 世界 ({sx:0.0}, {sz:0.0})");
+                return new Spawn(true, sx, sz);
+            }
+            // 兜底：别把玩家丢在 (0,0)——那里常被家具占据（本项目 ward_03 中心就是病床，踩过这个坑）
+            if (geo.TryFindFreeCell(0f, 0f, out sx, out sz))
+            {
+                lines.AppendLine($"⚠ 入口房间无空位，玩家改放 ({sx:0.0}, {sz:0.0})");
+                return new Spawn(true, sx, sz);
+            }
+            lines.AppendLine("⚠ 整张图都找不到空可走格，玩家控制不启用");
+            return new Spawn(false, 0f, 0f);
+        }
+
+        /// <summary>
+        /// 相机摆放（真机实测修正）：入口房间只有 4m×3m，房间中心附近没有"倒退 2.5m"的余量——
+        /// 先前把相机放在 spawn - 2.5m，实际已落到墙外，屏幕上只有一堵贴脸的墙
+        /// （截屏实测：整屏 #D8CFBB = ColorBone 安全区墙色 · 边缘密度 0.0%）。
+        /// 现在：站在房间内、**朝最近的门口方向**看，门连通走廊，视角才有纵深。
+        /// </summary>
+        void PlaceCamera(Room start, Spawn spawn, System.Text.StringBuilder lines)
+        {
+            if (_camera == null) return;
+            float dirX = 1f, dirZ = 0f;
+            var door = start != null && start.Doors.Count > 0 ? start.Doors[0] : null;
+            if (door != null)
+            {
+                door.ToWorld(start, out float dx, out float dz);
+                float vx = dx - spawn.X, vz = dz - spawn.Z;
+                float len = Mathf.Sqrt(vx * vx + vz * vz);
+                if (len > 0.05f) { dirX = vx / len; dirZ = vz / len; }
+                lines.AppendLine($"相机朝向：门 {door.Id}（{door.Wall}）→ 方向 ({dirX:0.00}, {dirZ:0.00})");
+            }
+            // 离中心留一点内缩，避免正好卡在中心家具里；眼高 1.7m
+            float back = start != null ? Mathf.Min(0.8f, Mathf.Min(start.SizeX, start.SizeZ) * 0.25f) : 0.8f;
+            _camera.transform.position = new Vector3(spawn.X - dirX * back, 1.7f, spawn.Z - dirZ * back);
+            _camera.transform.rotation = Quaternion.LookRotation(new Vector3(dirX, -0.12f, dirZ));
+        }
+
+        /// <summary>⑤ 玩家控制（V9 §7）—— 没有移动就不是游戏。纯逻辑在 PlayerMotion（本机断言覆盖）。</summary>
+        bool TrySpawnPlayer(System.Text.StringBuilder lines, Spawn spawn)
+        {
+            if (!spawn.Ok) return true;   // 没有出生点也不该让整个 Boot 失败：HUD 仍要能显示
+            try
+            {
+                var playerGo = new GameObject("Player", typeof(PlayerController));
+                playerGo.transform.SetParent(transform, false);
+                _player = playerGo.GetComponent<PlayerController>();
+                var motion = new Whisper.Gameplay.Session.PlayerMotion(
+                    new Whisper.Gameplay.Config.GameConfigReader(), spawn.X, spawn.Z);
+                _player.Initialize(motion, _levelBuilder.Geometry, _camera, _status);
+                lines.AppendLine($"玩家：速度 蹲 {motion.CrouchSpeedMps}/走 {motion.WalkSpeedMps}/跑 {motion.RunSpeedMps} m/s"
+                    + " · 左半屏拖拽移动 · 右下角切换蹲行");
+                return true;
+            }
+            catch (System.Exception ex) { Fail(lines, $"玩家控制初始化失败（{ex.GetType().Name}）：{ex.Message}"); return false; }
+        }
+
+        /// <summary>收尾：进入 Play 循环并把摘要打进 logcat（真机验收唯一要 grep 的一行）。</summary>
+        void FinishBoot(System.Diagnostics.Stopwatch t0, System.Text.StringBuilder lines)
+        {
             Booted = true;
             BootMs = t0.Elapsed.TotalMilliseconds;
             _status.color = HexToColor(DesignTokens.ColorPaper);
             _status.text = lines.ToString();
             BootLog = lines.ToString();
-            // 单行摘要：真机验收唯一需要 grep 的一条（logcat -s Unity | grep Whisper）
             Debug.Log($"[Whisper] BOOT OK · {BootMs:0} ms · 房间 {Level.Rooms.Count} · 门 {_levelBuilder.DoorObjects.Count}"
                 + $" · 道具 {_levelBuilder.PropObjects.Count} · 可走格 {_levelBuilder.Geometry.PassableCount()}"
-                + $" · 着色器 {LevelBuilder.UnlitShaderName}");
+                + $" · 着色器 {LevelBuilder.UnlitShaderName}"
+                + (_player != null ? " · 玩家已就位" : ""));
         }
 
         int CountMonsters()
@@ -294,7 +382,8 @@ namespace Whisper.Runtime
             _nextHudRefresh = Time.unscaledTime + 0.5f;
             _status.text = string.Format(
                 "Project Whisper · 运行中\nTick {0} · {1} fps · tickRate={2}\n{3}\n关卡 {4}：房间 {5} · 走廊 {6}"
-                + "\n几何着色器 {7} · 相机 {8} · Boot {9:0} ms",
+                + "\n几何着色器 {7} · 相机 {8} · Boot {9:0} ms"
+                + "\n{10}",
                 Ticks, (int)(1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f)),
                 Services.HasNet ? Services.Net.TickRate : 0,
                 DescribeServices(),
@@ -303,7 +392,8 @@ namespace Whisper.Runtime
                 Level != null ? Level.Corridors.Count : 0,
                 LevelBuilder.GeometryShader != null ? "✓" : "✗",
                 _camera != null ? "✓" : "✗",
-                BootMs);
+                BootMs,
+                _player != null ? _player.Describe() : "玩家：—");
         }
 
         /// <summary>

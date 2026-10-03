@@ -15,6 +15,15 @@ namespace UnityEngine
         public float x, y;
         public Vector2(float x, float y) { this.x = x; this.y = y; }
         public static Vector2 zero => new Vector2(0, 0);
+        public static Vector2 one => new Vector2(1, 1);
+        public float magnitude => (float)Math.Sqrt(x * x + y * y);
+        public float sqrMagnitude => x * x + y * y;
+        public Vector2 normalized => magnitude > 1e-6f ? new Vector2(x / magnitude, y / magnitude) : zero;
+        public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
+        public static Vector2 operator -(Vector2 a, Vector2 b) => new Vector2(a.x - b.x, a.y - b.y);
+        public static Vector2 operator *(Vector2 a, float k) => new Vector2(a.x * k, a.y * k);
+        public static Vector2 operator *(float k, Vector2 a) => new Vector2(a.x * k, a.y * k);
+        public static implicit operator Vector2(Vector3 v) => new Vector2(v.x, v.y);
     }
 
     public struct Vector3
@@ -134,6 +143,39 @@ namespace UnityEngine
 
     public enum LightType { Spot, Directional, Point, Area }
 
+    /// <summary>触屏（真实类型 UnityEngine.Touch）。</summary>
+    public struct Touch
+    {
+        public int fingerId { get; set; }
+        public Vector2 position { get; set; }
+        public Vector2 deltaPosition { get; set; }
+        public TouchPhase phase { get; set; }
+    }
+
+    public enum TouchPhase { Began, Moved, Stationary, Ended, Canceled }
+
+    /// <summary>
+    /// 旧输入系统（PlayerController 用它做动态摇杆）。
+    /// 注：项目当前 PlayerSettings 未显式配置 Active Input Handling，走默认的旧输入系统；
+    /// 若将来切到新 Input System，本类需换成 InputSystem API（届时会有编译错误明确提示，不会静默失效）。
+    /// </summary>
+    public static class Input
+    {
+        public static int touchCount => 0;
+        public static Touch GetTouch(int index) => default;
+        public static bool GetKeyDown(KeyCode k) => false;
+        public static bool GetMouseButtonDown(int b) => false;
+    }
+
+    public enum KeyCode { None = 0, Escape = 27, Space = 32, E = 101 }
+
+    /// <summary>屏幕尺寸（像素）。</summary>
+    public static class Screen
+    {
+        public static int width => 1920;
+        public static int height => 1080;
+    }
+
     public class Light : Behaviour
     {
         public LightType type { get; set; }
@@ -203,7 +245,13 @@ namespace UnityEngine
 
 namespace UnityEngine.UI
 {
-    public class Graphic : Behaviour { public Color color { get; set; } public RectTransform rectTransform => null; }
+    // Canvas 是 Graphic 的祖先属性（CanvasRenderer → Graphic.canvas），按钮要挂到 HUD 的 Canvas 上
+    public class Graphic : Behaviour
+    {
+        public Color color { get; set; }
+        public RectTransform rectTransform => null;
+        public Canvas canvas => null;
+    }
 
     public enum HorizontalWrapMode { Wrap, Overflow }
     public enum VerticalWrapMode { Truncate, Overflow }
@@ -220,7 +268,19 @@ namespace UnityEngine.UI
     }
 
     public class Image : Graphic { }
-    public class Button : Behaviour { }
+
+    /// <summary>按钮点击事件（真实类型为 Button.ButtonClickedEvent : UnityEvent）。</summary>
+    public class ButtonClickedEvent { public void AddListener(UnityEngine.Events.UnityAction call) { } }
+
+    public class Button : Behaviour
+    {
+        public ButtonClickedEvent onClick => null;
+    }
+}
+
+namespace UnityEngine.Events
+{
+    public delegate void UnityAction();
 }
 
 // ── UnityEditor / SceneManagement 最小桩 ──

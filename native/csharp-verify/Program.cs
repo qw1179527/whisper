@@ -1205,6 +1205,138 @@ static class Program
             return true;
         });
 
+        Console.WriteLine("\n[8] 玩家移动（V9 §7：速度配置化 · 碰撞不得穿墙 · 脚步刺激由形态决定）");
+        // 为什么要有这一段：没有移动就不是游戏。而移动的两个正确性核心
+        // （子步进防穿墙、速度必须来自配置）都能在没有 Unity 的机器上验到。
+        Check("三条速度来自配置真源（3.5 / 5.6 / 1.6）", () =>
+        {
+            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader());
+            Console.WriteLine($"      [速度] 蹲 {m.CrouchSpeedMps} · 走 {m.WalkSpeedMps} · 跑 {m.RunSpeedMps} m/s");
+            return m.CrouchSpeedMps == 1.6f && m.WalkSpeedMps == 3.5f && m.RunSpeedMps == 5.6f;
+        });
+        Check("缺配置时构造必须报错（不许代码里藏一份数值真源）", () =>
+        {
+            var empty = new Whisper.Gameplay.Config.GameConfigReader(new Dictionary<string, object>());
+            try { new Whisper.Gameplay.Session.PlayerMotion(empty); return false; }
+            catch (InvalidOperationException) { return true; }
+        });
+        Check("速度不自洽（跑 < 走）时构造必须报错", () =>
+        {
+            var bad = new Whisper.Gameplay.Config.GameConfigReader(new Dictionary<string, object> {
+                ["player"] = new Dictionary<string, object> {
+                    ["walkSpeedMps"] = 5.0, ["runSpeedMps"] = 2.0, ["crouchSpeedMps"] = 1.0 } });
+            try { new Whisper.Gameplay.Session.PlayerMotion(bad); return false; }
+            catch (InvalidOperationException) { return true; }
+        });
+        Check("形态→脚步刺激映射（V9 §7）", () =>
+            Whisper.Gameplay.Session.PlayerMotion.StimulusKeyFor(Whisper.Gameplay.Session.MoveMode.Run) == "run_footstep"
+            && Whisper.Gameplay.Session.PlayerMotion.StimulusKeyFor(Whisper.Gameplay.Session.MoveMode.Walk) == "walk_footstep"
+            && Whisper.Gameplay.Session.PlayerMotion.StimulusKeyFor(Whisper.Gameplay.Session.MoveMode.Crouch) == "crouch_footstep");
+        Check("斜向输入被归一化：斜走不比直走快（经典 bug）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var start = level.Rooms[0];
+            if (!geo.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz)) return false;
+            // 【假绿修复】第一版从 (0,0) 出发 —— 那是入口房间中心，**被柜子占着**，
+            // 直走与斜走都得到 0.0000 m，断言因 "0 == 0" 而"通过"，实际什么都没测。
+            // 现在必须从空可走格出发，并**断言位移非零**，否则这类断言会再次自欺。
+            var straight = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+            var diagonal = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+            var a = straight.Step(0f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo);
+            var b = diagonal.Step(1f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo);
+            Console.WriteLine($"      [位移] 直走 {a.MovedM:0.0000} m · 斜走 {b.MovedM:0.0000} m（起点 {sx:0.0},{sz:0.0}）");
+            if (a.MovedM <= 1e-4f) { Console.WriteLine("      [假绿拦停] 直走位移为 0 —— 起点被占或几何异常，本断言无意义"); return false; }
+            return Math.Abs(a.MovedM - b.MovedM) < 0.002f;
+        });
+        Check("零输入不移动且不误报被挡", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), 0f, 0f);
+            var r = m.Step(0f, 0f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo);
+            return r.MovedM == 0f && !r.Blocked && r.FootstepStimulusKey == null;
+        });
+        Check("★ 撞墙不得穿墙：从出生点朝墙连走 200 步仍在可走格内", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var start = level.Rooms[0];
+            if (!geo.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz)) return false;
+            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+            // 朝四个方向各冲 200 步（每步 0.05s，跑速 5.6 → 合计足够冲出房间很多次）
+            int escaped = 0;
+            foreach (var (dx, dz) in new[] { (1f, 0f), (-1f, 0f), (0f, 1f), (0f, -1f) })
+            {
+                m.SetPosition(sx, sz);
+                for (int i = 0; i < 200; i++)
+                {
+                    m.Step(dx, dz, Whisper.Gameplay.Session.MoveMode.Run, 0.05f, geo);
+                    if (!geo.Passable(m.X, m.Z)) escaped++;
+                }
+            }
+            Console.WriteLine($"      [穿墙] 800 步后落在不可走格的次数 {escaped}");
+            return escaped == 0;
+        });
+        Check("★ 大位移不穿门/穿墙：单步 5 米（限时上限内）也被子步进切开", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var start = level.Rooms[0];
+            if (!geo.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz)) return false;
+            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+            // maxDt 放宽到 1 秒 → 期望位移 5.6 米，远超房间尺寸；子步进必须把它切开并停在墙前
+            m.Step(1f, 0f, Whisper.Gameplay.Session.MoveMode.Run, 1.0f, geo, maxDtSec: 1.0f);
+            Console.WriteLine($"      [大位移] 期望 5.6m，实际停在 x={m.X:0.00}（可走={geo.Passable(m.X, m.Z)}）");
+            return geo.Passable(m.X, m.Z);
+        });
+        Check("dt 上限生效：单步时长被 clamp 到 maxDtSec", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var start = level.Rooms[0];
+            if (!geo.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz)) return false;
+            var a = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+            var b = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+            var ra = a.Step(0f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 10f, geo, maxDtSec: 0.05f);
+            var rb = b.Step(0f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo, maxDtSec: 0.05f);
+            return Math.Abs(ra.MovedM - rb.MovedM) < 1e-4f;
+        });
+        Check("脚步刺激按步幅触发（累计 3 米应发 ~4 次）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var start = level.Rooms[0];
+            if (!geo.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz)) return false;
+            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+            int steps = 0;
+            // 【第一版踩坑】单向直走会在 0.35m 处撞墙停下（入口房间只有 4m×3m 且中心有柜子），
+            // 累计距离永远到不了 3m → 断言无从判断。改为**往复走**：每步反向，
+            // 这样只在一个小房间里也能累积出足够的距离。
+            for (int i = 0; i < 400 && m.DistanceTravelledM < 3.0f; i++)
+            {
+                float dir = (i % 2 == 0) ? 1f : -1f;
+                if (m.Step(0f, dir, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo).FootstepStimulusKey != null) steps++;
+            }
+            int expect = (int)(3.0f / Whisper.Gameplay.Session.PlayerMotion.StrideLengthM);
+            Console.WriteLine($"      [脚步] 往复走了 {m.DistanceTravelledM:0.00} m，触发 {steps} 次（步幅 {Whisper.Gameplay.Session.PlayerMotion.StrideLengthM}m，期望 ~{expect}）");
+            if (m.DistanceTravelledM < 2.0f) { Console.WriteLine("      [假绿拦停] 累计距离不足，该断言无意义"); return false; }
+            return steps >= expect - 1 && steps <= expect + 1;
+        });
+        Check("朝向跟随移动方向（北=0° · 东=90°）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), 0f, 0f);
+            m.Step(0f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo);
+            float north = m.YawDeg;
+            m.Step(1f, 0f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo);
+            float east = m.YawDeg;
+            Console.WriteLine($"      [朝向] 北 {north:0.0}° · 东 {east:0.0}°");
+            return Math.Abs(north) < 1f && Math.Abs(east - 90f) < 1f;
+        });
+        Check("玩家碰撞半径与 EvidencePlacer 的代理半径一致（两套口径会出鬼）", () =>
+        {
+            var f = typeof(Whisper.Gameplay.Session.PlayerMotion).GetField("AgentRadiusM");
+            var ev = Type.GetType("Whisper.Gameplay.Items.EvidencePlacer");
+            var evField = ev?.GetField("AgentRadiusM");
+            if (f == null || evField == null) return false;
+            return (float)f.GetRawConstantValue() == (float)evField.GetRawConstantValue();
+        });
+
         Console.WriteLine($"\n结果：通过 {passed} · 失败 {failed}");
         if (failed > 0)
         {

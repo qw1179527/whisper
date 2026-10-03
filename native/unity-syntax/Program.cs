@@ -82,8 +82,29 @@ bool TouchesProjectCode(Diagnostic d)
     if (Environment.GetEnvironmentVariable("UNITYSYNTAX_DEBUG2") == "1" && (d.Id == "CS0117" || d.Id == "CS1061"))
         Console.WriteLine($"        [dbg2] {d.Id} file={file} inTargets={targetFiles.Contains(file)} targets={string.Join("|", targetFiles)}");
     if (file == null || !targetFiles.Contains(file)) return false;
-    // 只保留**明确指向某个被引用符号**的错误码。CS0103（名称不存在）对 Unity 全局静态成员
-    // （DestroyImmediate/Shader/Color…）也会报，故不能纳入，否则真实文件会被误判。
+    // 【假绿修复 · 真实事故】CS0103（名称不存在）本不在下面那张"项目错误码"表里，
+    // 因为 Unity 全局静态成员（DestroyImmediate/Shader/Color/Input…）也报 CS0103。
+    // 但代价是：**同一个文件里的作用域错误也被放过了** —— 实测踩到：
+    //   GameBootstrap 把 spawnX/spawnZ 声明在 ④ 的 try 块内、⑤ 处引用，
+    //   编译器报 CS0103，门禁却列为"[允许] Unity 缺失"并通过。
+    // 现在加一条针对性判据：**若缺失的名字在本文件里被声明过**（局部变量/参数/out 参数），
+    // 那它就是作用域错误而不是 Unity 缺失 —— Unity 的静态成员不会在该文件里被声明。
+    if (d.Id == "CS0103")
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(d.GetMessage(), @"The name '([^']+)' does not exist");
+        if (!m.Success) return false;
+        var name = System.Text.RegularExpressions.Regex.Escape(m.Groups[1].Value);
+        var text = d.Location.SourceTree is null ? null : File.ReadAllText(d.Location.SourceTree.FilePath);
+        if (text is null) return false;
+        var declaredInFile =
+            System.Text.RegularExpressions.Regex.IsMatch(text, $@"\bvar\s+{name}\b")
+            || System.Text.RegularExpressions.Regex.IsMatch(text, $@"\b(?:out|ref)\s+{name}\b")
+            || System.Text.RegularExpressions.Regex.IsMatch(text, $@"\b[A-Za-z_]\w*(?:<[^>]*>)?(?:\[\])?\s+{name}\s*[=;,)]")
+            || System.Text.RegularExpressions.Regex.IsMatch(text, $@"\b{name}\s*=[^=]");
+        if (declaredInFile) return true;   // 本文件声明过却"不存在" → 作用域/拼写错误，真错误
+        return false;                      // 本文件没声明 → 大概率是 Unity 静态成员
+    }
+    // 只保留**明确指向某个被引用符号**的错误码。
     return d.Id == "CS0117" ||   // 类型不含该成员（项目类型笔误的主信号）
            d.Id == "CS1061" ||   // 类型不含该成员（实例调用）
            d.Id == "CS1501" ||   // 方法无此重载
