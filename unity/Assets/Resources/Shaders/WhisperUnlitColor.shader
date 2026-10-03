@@ -42,9 +42,14 @@ Shader "Whisper/UnlitColor"
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 3.0
-            #pragma multi_compile_fog
             #include "UnityCG.cginc"
 
+            // 【真机实测修正】这里曾开 `#pragma multi_compile_fog` + UNITY_TRANSFER/APPLY_FOG。
+            // 装机实测后果：整个 3D 视图被洗成一片均匀的 #D8CFBB（= ColorBone，安全区墙色），
+            // 截屏判据测得「亮度 207/255 · 标准差 2.1 · 边缘密度 0.0%」——看着不黑，但等于什么都没看见。
+            // 雾是**全局**效果，取值依赖 Lighting 设置（我们连 ProjectSettings 都没有，不可控），
+            // 而本关卡只有 22m × 10m，根本不需要距离雾。去掉它 = 少一个不可控的全局变量。
+            //
             // 刻意【不】写 UNITY_VERTEX_INPUT_INSTANCE_ID / UNITY_VERTEX_OUTPUT_STEREO /
             // UNITY_SETUP_INSTANCE_ID：它们必须与 #pragma multi_compile_instancing、
             // 单通道立体渲染等 pragma 配对使用，配不上时会在编译期报未定义符号。
@@ -63,7 +68,6 @@ Shader "Whisper/UnlitColor"
             {
                 float4 pos   : SV_POSITION;
                 float4 color : COLOR;
-                UNITY_FOG_COORDS(0)
             };
 
             fixed4 _Color;
@@ -75,15 +79,12 @@ Shader "Whisper/UnlitColor"
                 // 顶点色 × 主色：Cube 基元的顶点色是白，所以最终颜色 = 主色；
                 // 将来接真美术网格（带烘焙顶点色）时无需改着色器。
                 o.color = v.color * _Color;
-                UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
-                fixed4 c = i.color;
-                UNITY_APPLY_FOG(i.fogCoord, c);
-                return c;
+                return i.color;
             }
             ENDCG
         }

@@ -201,8 +201,16 @@ console.log('[gate-physics] 物理规则门禁');
 // ── P2 确定性：禁止不可复现随机源与时间源 ──
 {
   const banned = [
-    { re: /\bMath\.Random\b/, why: 'C# System.Random 不可复现（60 Tick 同步需确定性）' },
-    { re: /\bUnityEngine\.Random\b|\bRandom\.(Range|value|insideUnit)\b/, why: 'UnityEngine.Random 依赖全局种子，跨端不一致' },
+    // 【假绿修复 · 质检第 1 轮抓出】原判据写成 /\bMath\.Random\b/ —— C# 里**没有** Math.Random
+    // （那是 JS 写法），于是 `System.Random` / `new Random()` 一律被放行；而 --inject-random
+    // 注入的恰恰是 `new System.Random()`，门禁自报「注入后仍未判红 —— 该门禁不可信」。
+    // 现按 C# 真实写法匹配：实例化 / 字段声明 / Random.Range|Next 调用。
+    // 刻意不用裸 \bRandom\b —— RandomSeed、targetRandom 这类合法标识符会被误伤。
+    {
+      re: /new\s+(?:System\.)?Random\s*\(|\b(?:System\.)?Random\s+[A-Za-z_]\w*\s*[=;]|\b(?:System\.)?Random\s*\.\s*(?:Range|Next|NextDouble|NextBytes)\b/,
+      why: 'C# Random 以系统时间为种子、跨端不可复现（60 Tick 同步需确定性；应使用种子化 PRNG 或确定性 id）',
+    },
+    { re: /\bUnityEngine\.Random\b|\bRandom\s*\.\s*(?:Range|value|insideUnitSphere|insideUnitCircle)\b/, why: 'UnityEngine.Random 依赖全局种子，跨端不一致' },
     { re: /\bDateTime\.(Now|UtcNow)\b/, why: '墙钟时间不可复现（应用 tick 计数或 elapsedSeconds）' },
     { re: /\bEnvironment\.TickCount\b/, why: '同上' },
     { re: /\bGuid\.NewGuid\b/, why: '随机器不可复现（应使用确定性 id）' },

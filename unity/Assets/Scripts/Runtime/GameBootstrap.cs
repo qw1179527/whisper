@@ -211,12 +211,26 @@ namespace Whisper.Runtime
                 if (start != null && _levelBuilder.Geometry.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz))
                 {
                     lines.AppendLine($"出生点：房间 {start.Id} → 世界 ({sx:0.0}, {sz:0.0})");
-                    // 相机摆到出生点上方（眼高 1.7m），朝向关卡中心——否则镜头停在原点，
-                    // 多半对着墙外或虚空（真机事故教训之三：几何建出来了，但"看不到"）。
+                    // 相机摆放（真机实测修正）：入口房间只有 4m×3m，房间中心附近没有"倒退 2.5m"的余量——
+                    // 先前把相机放在 spawn - 2.5m，实际已落到墙外，屏幕上只有一堵贴脸的墙
+                    // （截屏实测：整屏 #D8CFBB = ColorBone 安全区墙色 · 边缘密度 0.0%）。
+                    // 现在改为：站在房间内、**朝最近的门口方向**看。门连通走廊，视角才有纵深。
                     if (_camera != null)
                     {
-                        _camera.transform.position = new Vector3(sx, 1.7f, sz - 2.5f);
-                        _camera.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+                        float dirX = 1f, dirZ = 0f;
+                        var door = start.Doors.Count > 0 ? start.Doors[0] : null;
+                        if (door != null)
+                        {
+                            door.ToWorld(start, out float dx, out float dz);
+                            float vx = dx - sx, vz = dz - sz;
+                            float len = Mathf.Sqrt(vx * vx + vz * vz);
+                            if (len > 0.05f) { dirX = vx / len; dirZ = vz / len; }
+                            lines.AppendLine($"相机朝向：门 {door.Id}（{door.Wall}）→ 方向 ({dirX:0.00}, {dirZ:0.00})");
+                        }
+                        // 离中心留一点内缩，避免正好卡在中心家具里；眼高 1.7m
+                        float back = Mathf.Min(0.8f, Mathf.Min(start.SizeX, start.SizeZ) * 0.25f);
+                        _camera.transform.position = new Vector3(sx - dirX * back, 1.7f, sz - dirZ * back);
+                        _camera.transform.rotation = Quaternion.LookRotation(new Vector3(dirX, -0.12f, dirZ));
                     }
                 }
                 else

@@ -42,10 +42,24 @@ DEV="$(shz 'getprop ro.product.model; getprop ro.build.version.release; getprop 
 echo "  设备：$DEV"
 
 # ── V1 安装 ──
+# 【实测坑 1】直接从 /storage/emulated/0/ 安装会失败：
+#   "System server has no access to read file context u:object_r:fuse:s0"
+#   —— system_server 读不了 fuse（共享存储）上的文件。
+# 【实测坑 2】shz 桥**不转发 stdin**，所以 `shz "cat > ..." < apk` 会挂住；
+#   我自己的进程也写不进 /data/local/tmp（Permission denied）。
+# 【可行解】让 shell 身份自己 cp：`shz "cp <共享存储路径> /data/local/tmp/x.apk"` —— 实测成功。
 echo "[V1] 安装"
 shz "am force-stop $PKG_EXPECT" >/dev/null 2>&1
 shz "pm uninstall $PKG_EXPECT" >/dev/null 2>&1
-INST="$(shz "pm install -r '$APK'" 2>&1 | tr -d '\r')"
+STAGE="/data/local/tmp/$(basename "$APK")"
+shz "cp '$APK' '$STAGE'" >/dev/null 2>&1
+STAGED_SIZE="$(shz "stat -c%s '$STAGE' 2>/dev/null" 2>/dev/null | tr -d '\r')"
+if [ -z "$STAGED_SIZE" ] || [ "$STAGED_SIZE" != "$(stat -c%s "$APK")" ]; then
+  bad "无法把 APK 暂存到 $STAGE（暂存 ${STAGED_SIZE:-无} vs 本地 $(stat -c%s "$APK")）"; echo "[verify] 中止"; exit 1
+fi
+echo "  · 已暂存到 $STAGE（$STAGED_SIZE 字节）"
+INST="$(shz "pm install -r '$STAGE'" 2>&1 | tr -d '\r')"
+shz "rm -f '$STAGE'" >/dev/null 2>&1
 if echo "$INST" | grep -qi "Success"; then ok "安装成功（$INST）"; else bad "安装失败：$INST"; echo "[verify] 中止"; exit 1; fi
 
 # 实际包名（从 pm list 反查，避免我们假设错）——
@@ -66,12 +80,28 @@ shz "logcat -c" >/dev/null 2>&1
 shz "monkey -p $PKG -c android.intent.category.LAUNCHER 1" >/dev/null 2>&1
 sleep "$OBSERVE"
 
-PID1="$(shz "pidof $PKG" 2>/dev/null | tr -d '\r' | tr -s ' ' | cut -d' ' -f1)"
+# ── V2 pid 稳定性：必须**多次采样** ──
+# 【质检第 1 轮抓出】原实现只 pidof 一次就断言"进程存活且 pid 稳定"——
+# 一次采样**无法排除重启循环**（崩了又起，pid 变了但任一时刻都有进程）。
+# 而首包事故的"反复闪屏"恰恰就是重启循环形态，所以这条判据必须真的多采。
+PID_SAMPLES=""
+for i in 1 2 3; do
+  PID_SAMPLES="$PID_SAMPLES $(shz "pidof $PKG" 2>/dev/null | tr -d '\r' | tr -s ' ' | cut -d' ' -f1)"
+  [ "$i" = 3 ] || sleep 2
+done
+PID_UNIQ="$(echo $PID_SAMPLES | tr ' ' '\n' | grep -v '^$' | sort -u | wc -l | tr -d ' ')"
+PID1="$(echo $PID_SAMPLES | tr ' ' '\n' | grep -v '^$' | head -1)"
+if [ -z "$PID1" ]; then
+  bad "进程不存活（三次采样都没拿到 pid）"
+elif [ "$PID_UNIQ" = "1" ]; then
+  ok "进程存活且 pid 稳定：$PID1（三次采样一致 → 排除重启循环）"
+else
+  bad "pid 在三次采样间发生变化（$PID_SAMPLES）→ 疑似崩溃重启循环"
+fi
+
 shz "logcat -d -b all -s Unity:V UnityPlayer:V GameActivity:V AndroidRuntime:E CRASH:V" > "$WORK/logcat.txt" 2>&1
 shz "screencap -p /sdcard/verify-shot.png" >/dev/null 2>&1
 cp /storage/emulated/0/verify-shot.png "$WORK/shot.png" 2>/dev/null
-
-if [ -n "$PID1" ]; then ok "进程存活 pid=$PID1（观察 ${OBSERVE}s 后仍在）"; else bad "进程已不在（崩溃或未启动）"; fi
 
 BOOTLINE="$(grep -a '\[Whisper\] BOOT OK' "$WORK/logcat.txt" | tail -1 | sed 's/.*\[Whisper\]/[Whisper]/')"
 if [ -n "$BOOTLINE" ]; then ok "boot 完成：$BOOTLINE"; else bad "没有 BOOT OK 行（boot 未走完）"; fi
@@ -85,8 +115,14 @@ FAILMSG="$(grep -a '\[Whisper\] BOOT FAILED' "$WORK/logcat.txt" | tail -1 | cut 
 [ -n "$FAILMSG" ] && bad "boot 失败信息：$FAILMSG"
 
 # ── V5/V6 截屏分析 ──
+# 【质检第 1 轮抓出】原实现把结论只 console.log，**不参与 $pass/$fail，也不检查 node 退出码**
+# → 黑屏/纯色块/洋红屏仍然打印"[verify] ✓ 全部判据满足"且 exit 0。
+# 这正是本项目最提防的假绿：判据打印了，但没有任何东西因它而失败。
+# 现改为：node 段用退出码表达判定（0=有内容 1=有问题），并转成 ok()/bad()。
 echo "[V5/V6] 截屏分析"
-if [ -f "$WORK/shot.png" ]; then
+if [ ! -f "$WORK/shot.png" ]; then
+  bad "没抓到截屏（V5/V6 无法判定）"
+else
   node - "$WORK/shot.png" <<'NODE'
 const fs = require('node:fs');
 const p = process.argv[2];
@@ -147,13 +183,23 @@ let magenta = 0;
 for (const k of colors.keys()) { const r = (k >> 8) & 15, g = (k >> 4) & 15, b2 = k & 15; if (r >= 13 && g <= 3 && b2 >= 13) magenta++; }
 const magentaRatio = magenta / colors.size;
 
-if (magentaRatio > 0.5) console.log('  ✗ 屏幕以洋红为主 —— 着色器加载失败（Unity 的 shader error 标志色）');
-else if (colors.size <= 2 || edgeRatio < 0.005) console.log(`  ✗ 屏幕是纯色块（颜色 ${colors.size} 种 · 边缘 ${(edgeRatio * 100).toFixed(1)}%）—— 几何没有渲染出来`);
-else if (std < 8) console.log(`  ⚠ 亮度几乎均匀（标准差 ${std.toFixed(1)}）—— 有可能只画了背景色`);
-else console.log(`  ✓ 屏幕有场景内容（亮度 ${avg.toFixed(1)} · 标准差 ${std.toFixed(1)} · 颜色 ${colors.size} 种 · 边缘 ${(edgeRatio * 100).toFixed(1)}%）`);
+// 判定必须用**退出码**表达，而不是只打印一行字。
+// 打印而不影响退出码 = 判据没有参与 = 假绿（原实现就是这么放行黑屏的）。
+let verdict = 'ok';
+if (magentaRatio > 0.5) { verdict = 'magenta'; console.log('  ✗ 屏幕以洋红为主 —— 着色器加载失败（Unity 的 shader error 标志色）'); }
+else if (colors.size <= 2 || edgeRatio < 0.005) { verdict = 'flat'; console.log(`  ✗ 屏幕是纯色块（颜色 ${colors.size} 种 · 边缘 ${(edgeRatio * 100).toFixed(1)}%）—— 几何没有渲染出来`); }
+else if (std < 8) { verdict = 'uniform'; console.log(`  ✗ 亮度几乎均匀（标准差 ${std.toFixed(1)}）—— 只画了背景色，没有场景内容`); }
+else { console.log(`  ✓ 屏幕有场景内容（亮度 ${avg.toFixed(1)} · 标准差 ${std.toFixed(1)} · 颜色 ${colors.size} 种 · 边缘 ${(edgeRatio * 100).toFixed(1)}%）`); }
+console.log(`  [VERDICT] ${verdict}`);
+process.exit(verdict === 'ok' ? 0 : 1);
 NODE
-else
-  echo "  ✗ 没抓到截屏"
+  # 用 node 的退出码驱动 ok()/bad() —— 这是判据真正参与验收的关键一步
+  PIX="$?"
+  if [ "$PIX" -eq 0 ]; then
+    ok "V5/V6 截屏像素判据：屏幕有场景内容（非纯色/非洋红）"
+  else
+    bad "V5/V6 截屏像素判据未通过（node exit=$PIX）—— 见上方 [VERDICT] 行"
+  fi
 fi
 
 echo

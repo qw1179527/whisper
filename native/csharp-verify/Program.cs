@@ -1059,6 +1059,152 @@ static class Program
         CheckThrows<ArgumentOutOfRangeException>("Encode 非法端口必须报错", () =>
             Whisper.Net.Direct.RoomCode.Encode("2409:8a4c:862d:7d40::1", 70000));
 
+        Console.WriteLine("\n[7] 联机线格式与带宽预算（V9 §13.4：下行 ≤12KB/s · 上行 ≤6KB/s · 每 3 Tick 一批）");
+        // 换算：6KB/s ÷ 20 批/s = 每批 100 字节（上行）。这是硬约束，且【超了不会报错】——
+        // 只会变成流量与延迟问题。所以用断言把它钉住，而不是等上线才发现。
+        Check("定长尺寸自洽（头部/玩家记录/道具记录，且常量与实际编码一致）", () =>
+        {
+            // 方法：先用一个**空批**量出真正的固定开销，再算各类记录的增量。
+            // 为什么不再用"头 + N 个字段"反推偏移：我反推时错了三次，每次都"看起来自洽"——
+            // 反推是无法自证的。量空批作基准，偏移就只有一个来源。
+            var W = Whisper.Net.Direct.WireFormat.HeaderSize;
+            var empty = new Whisper.Net.Direct.WireFormat.Writer();
+            Whisper.Net.Direct.WireFormat.WriteStateBatch(empty, 0, Whisper.Net.Direct.WireFormat.MatchPhaseLite.Playing,
+                0, new List<Whisper.Net.Direct.WireFormat.PlayerRecord>(), 0, new List<byte>(), new List<byte>(),
+                new List<ushort>(), new List<byte>());
+            int fixedBytes = empty.Length;
+
+            var onePlayer = new Whisper.Net.Direct.WireFormat.Writer();
+            Whisper.Net.Direct.WireFormat.WriteStateBatch(onePlayer, 0, Whisper.Net.Direct.WireFormat.MatchPhaseLite.Playing,
+                0, new List<Whisper.Net.Direct.WireFormat.PlayerRecord>
+                { new Whisper.Net.Direct.WireFormat.PlayerRecord(0, 0f, 0f, 0f, 0f) },
+                0, new List<byte>(), new List<byte>(), new List<ushort>(), new List<byte>());
+            int playerActual = onePlayer.Length - fixedBytes;
+
+            var oneProp = new Whisper.Net.Direct.WireFormat.Writer();
+            Whisper.Net.Direct.WireFormat.WriteStateBatch(oneProp, 0, Whisper.Net.Direct.WireFormat.MatchPhaseLite.Playing,
+                0, new List<Whisper.Net.Direct.WireFormat.PlayerRecord>(), 0, new List<byte>(), new List<byte>(),
+                new List<ushort> { 1 }, new List<byte> { 0 });
+            int propActual = oneProp.Length - fixedBytes;
+
+            var oneSanity = new Whisper.Net.Direct.WireFormat.Writer();
+            Whisper.Net.Direct.WireFormat.WriteStateBatch(oneSanity, 0, Whisper.Net.Direct.WireFormat.MatchPhaseLite.Playing,
+                0, new List<Whisper.Net.Direct.WireFormat.PlayerRecord>(), 1, new List<byte> { 0 }, new List<byte> { 0 },
+                new List<ushort>(), new List<byte>());
+            int sanityActual = oneSanity.Length - fixedBytes;
+
+            var stim = new Whisper.Net.Direct.WireFormat.Writer();
+            Whisper.Net.Direct.WireFormat.WriteStimulus(stim, "x", 0f, 0f, 0f, 0f);
+
+            Console.WriteLine($"      [尺寸] 空批固定 {fixedBytes} · 头 {W} · 玩家 {playerActual} · 道具 {propActual}"
+                + $" · 理智 {sanityActual} · 声纹 {stim.Length}");
+            return W == 5
+                && fixedBytes == Whisper.Net.Direct.WireFormat.StateBatchFixedBytes
+                && playerActual == Whisper.Net.Direct.WireFormat.PlayerRecordSize
+                && propActual == Whisper.Net.Direct.WireFormat.PropRecordSize
+                && sanityActual == Whisper.Net.Direct.WireFormat.SanityRecordSize
+                && stim.Length == Whisper.Net.Direct.WireFormat.StimulusSize;
+        });
+        Check("★ 满房 4 人一批不超过上行预算 100 字节（V9 §13.4）", () =>
+        {
+            var w = new Whisper.Net.Direct.WireFormat.Writer();
+            var players = new List<Whisper.Net.Direct.WireFormat.PlayerRecord>();
+            for (byte i = 0; i < 4; i++) players.Add(new Whisper.Net.Direct.WireFormat.PlayerRecord(i, 12.5f + i, 0f, -3.25f - i, 90f * i));
+            var slots = new List<byte> { 0, 1, 2, 3 };
+            var vals = new List<byte> { 200, 180, 255, 90 };
+            var hashes = new List<ushort>(); var flags = new List<byte>();
+            for (int i = 0; i < 6; i++) { hashes.Add(Whisper.Net.Direct.WireFormat.Hash16("door_" + i)); flags.Add(1); }
+            int n = Whisper.Net.Direct.WireFormat.WriteStateBatch(w, 42, Whisper.Net.Direct.WireFormat.MatchPhaseLite.Playing,
+                2, players, 4, slots, vals, hashes, flags);
+            Console.WriteLine($"      [批大小] 4 人 + 4 理智 + 6 道具变更 = {n} 字节 / 预算 100 字节");
+            return n <= Whisper.Net.Direct.WireFormat.UpBatchBudgetBytes;
+        });
+        Check("位姿量化往返误差 ≤ 4 毫米（远小于位置校验容差）", () =>
+        {
+            foreach (var m in new[] { 0f, 1.5f, -12.25f, 127.99f, -128f, 3.14159f })
+            {
+                var back = Whisper.Net.Direct.WireFormat.DequantizePos(Whisper.Net.Direct.WireFormat.QuantizePos(m));
+                if (Math.Abs(back - m) > 0.004f) { Console.WriteLine($"      [精度] {m} → {back}"); return false; }
+            }
+            return true;
+        });
+        Check("朝向量化往返误差 ≤ 1.5°", () =>
+        {
+            foreach (var d in new[] { 0f, 45f, 90f, 179.9f, 270f, 359.9f })
+            {
+                var back = Whisper.Net.Direct.WireFormat.DequantizeYaw(Whisper.Net.Direct.WireFormat.QuantizeYaw(d));
+                var diff = Math.Abs(back - d); if (diff > 180f) diff = 360f - diff;
+                if (diff > 1.5f) { Console.WriteLine($"      [精度] {d}° → {back}°"); return false; }
+            }
+            return true;
+        });
+        Check("声纹事件恰好 14 字节（瞬时 RPC，不进状态同步）", () =>
+        {
+            var w = new Whisper.Net.Direct.WireFormat.Writer();
+            Whisper.Net.Direct.WireFormat.WriteStimulus(w, "sanity_scream", 0.8f, 3.5f, -7.25f, 9f);
+            return w.Length == Whisper.Net.Direct.WireFormat.StimulusSize;
+        });
+        Check("状态批可完整解析且与写入一致", () =>
+        {
+            var w = new Whisper.Net.Direct.WireFormat.Writer();
+            var players = new List<Whisper.Net.Direct.WireFormat.PlayerRecord>
+            { new Whisper.Net.Direct.WireFormat.PlayerRecord(0, 1.25f, 0f, -2.5f, 135f),
+              new Whisper.Net.Direct.WireFormat.PlayerRecord(3, -8f, 0f, 40f, 359f) };
+            Whisper.Net.Direct.WireFormat.WriteStateBatch(w, 7, Whisper.Net.Direct.WireFormat.MatchPhaseLite.Extraction,
+                3, players, 1, new List<byte> { 3 }, new List<byte> { 128 },
+                new List<ushort> { Whisper.Net.Direct.WireFormat.Hash16("door_a") }, new List<byte> { 3 });
+            if (!Whisper.Net.Direct.WireFormat.TryReadStateBatch(w.ToArray(), out var b)) return false;
+            return b.Seq == 7 && b.Phase == Whisper.Net.Direct.WireFormat.MatchPhaseLite.Extraction && b.EvidenceCount == 3
+                && b.Players.Length == 2 && b.Players[1].Slot == 3 && Math.Abs(b.Players[1].Fz - 40f) < 0.01f
+                && b.Sanity.Length == 1 && b.Sanity[0].val == 128 && b.Props.Length == 1 && b.Props[0].flags == 3;
+        });
+        Check("拒绝被截断/篡改/版本不符的包（定长协议不做\"尽力而为\"解析）", () =>
+        {
+            var w = new Whisper.Net.Direct.WireFormat.Writer();
+            Whisper.Net.Direct.WireFormat.WriteStateBatch(w, 1, Whisper.Net.Direct.WireFormat.MatchPhaseLite.Playing,
+                0, new List<Whisper.Net.Direct.WireFormat.PlayerRecord>(), 0, new List<byte>(), new List<byte>(),
+                new List<ushort>(), new List<byte>());
+            var good = w.ToArray();
+            if (!Whisper.Net.Direct.WireFormat.TryReadStateBatch(good, out _)) return false;
+            var truncated = new byte[good.Length - 1]; Array.Copy(good, truncated, truncated.Length);
+            if (Whisper.Net.Direct.WireFormat.TryReadStateBatch(truncated, out _)) return false;
+            var extra = new byte[good.Length + 1]; Array.Copy(good, extra, good.Length); extra[good.Length] = 0xFF;
+            if (Whisper.Net.Direct.WireFormat.TryReadStateBatch(extra, out _)) return false;
+            var badVer = (byte[])good.Clone(); badVer[0] = 99;
+            if (Whisper.Net.Direct.WireFormat.TryReadStateBatch(badVer, out _)) return false;
+            return Whisper.Net.Direct.WireFormat.TryReadStateBatch(null, out _) == false;
+        });
+        Check("容量上限可算：满房下最多能带多少条道具变更（超预算时丢谁有依据）", () =>
+        {
+            int maxProps = Whisper.Net.Direct.WireFormat.MaxPropChangesFor(4, 4);
+            int sizeAtMax = Whisper.Net.Direct.WireFormat.StateBatchSize(4, 4, maxProps);
+            Console.WriteLine($"      [容量] 满房(4人+4理智) 每批最多带 {maxProps} 条道具/门变更（此时 {sizeAtMax} 字节）");
+            return maxProps >= 10 && sizeAtMax <= Whisper.Net.Direct.WireFormat.UpBatchBudgetBytes;
+        });
+        Check("发送前预算法与实际编码字节数一致（预算不能只是估算）", () =>
+        {
+            for (int pc = 0; pc <= 4; pc++)
+                for (int sc = 0; sc <= pc; sc++)
+                    for (int prop = 0; prop <= 12; prop += 4)
+                    {
+                        var w = new Whisper.Net.Direct.WireFormat.Writer();
+                        var pl = new List<Whisper.Net.Direct.WireFormat.PlayerRecord>();
+                        for (byte i = 0; i < pc; i++) pl.Add(new Whisper.Net.Direct.WireFormat.PlayerRecord(i, i, 0f, i, 0f));
+                        var sl = new List<byte>(); var sv = new List<byte>();
+                        for (int i = 0; i < sc; i++) { sl.Add((byte)i); sv.Add((byte)(i * 10)); }
+                        var ph = new List<ushort>(); var pf = new List<byte>();
+                        for (int i = 0; i < prop; i++) { ph.Add((ushort)i); pf.Add(1); }
+                        int actual = Whisper.Net.Direct.WireFormat.WriteStateBatch(w, 0,
+                            Whisper.Net.Direct.WireFormat.MatchPhaseLite.Playing, 0, pl, (byte)sc, sl, sv, ph, pf);
+                        if (actual != Whisper.Net.Direct.WireFormat.StateBatchSize(pc, sc, prop))
+                        {
+                            Console.WriteLine($"      [不一致] pc={pc} sc={sc} prop={prop}：预算 {Whisper.Net.Direct.WireFormat.StateBatchSize(pc, sc, prop)} vs 实际 {actual}");
+                            return false;
+                        }
+                    }
+            return true;
+        });
+
         Console.WriteLine($"\n结果：通过 {passed} · 失败 {failed}");
         if (failed > 0)
         {

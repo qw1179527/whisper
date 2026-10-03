@@ -46,6 +46,9 @@ namespace UnityEngine
     {
         public static Quaternion Euler(float x, float y, float z) => default;
         public static Quaternion identity => default;
+        /// <summary>朝向由方向向量决定（文档：Quaternion.LookRotation）。</summary>
+        public static Quaternion LookRotation(Vector3 forward) => default;
+        public static Quaternion LookRotation(Vector3 forward, Vector3 upwards) => default;
     }
 
     public class Object

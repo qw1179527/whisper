@@ -158,6 +158,10 @@
     "EditorSceneManager.SaveScene": {
       "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/SceneManagement.EditorSceneManager.SaveScene.html",
       "note": "落盘 Assets/Scenes/Boot.unity"
+    },
+    "Quaternion.LookRotation": {
+      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Quaternion.LookRotation.html",
+      "note": "相机朝向门口方向（真机实测修正：原 Euler.identity 导致贴墙）"
     }
   }
 }
