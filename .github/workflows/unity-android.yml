@@ -98,6 +98,25 @@ jobs:
           buildMethod: Whisper.Editor.BuildScript.BuildAndroid
           allowDirtyBuild: true
 
+      - name: 诊断：Unity 实际产出哪些程序集（无论成败）
+        if: always()
+        run: |
+          echo "=== unity/Library/ScriptAssemblies 产出的 dll ==="
+          ls -la unity/Library/ScriptAssemblies/ 2>/dev/null || echo "(目录不存在)"
+          echo
+          echo "=== 我们自己的程序集 dll（应有 Whisper.*.dll）==="
+          ls unity/Library/ScriptAssemblies/Whisper.*.dll 2>/dev/null || echo "✗ 一个 Whisper.*.dll 都没有"
+          echo
+          echo "=== Bee 构建图里的程序集名 ==="
+          ls unity/Library/Bee/artifacts/*/*.dag 2>/dev/null | head -5
+          grep -oh '"Whisper\.[A-Za-z]*"' unity/Library/Bee/*.json 2>/dev/null | sort -u | head -20 || true
+          echo
+          echo "=== asmdef 是否被识别（查 Library 里的 asmdef 缓存）==="
+          find unity/Library -name "*.asmdef" 2>/dev/null | head -5 || echo "(无)"
+          echo
+          echo "=== Assets 下 .meta 数量（应为 assets+folders 总数）==="
+          find unity/Assets -name "*.meta" | wc -l
+
       - name: 上传 APK 工件
         uses: actions/upload-artifact@v4
         with:
