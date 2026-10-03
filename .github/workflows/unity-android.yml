@@ -121,13 +121,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: whisper-android-apk
-          path: build/Android/*.apk
+          # 注意路径前缀 unity/：BuildScript 用 Directory.GetCurrentDirectory()，
+          # 而 GameCI 以 projectPath(unity/) 为工作目录 → 产物落在 unity/build/Android/
+          path: unity/build/Android/*.apk
           if-no-files-found: error
 
       - name: 校验包体门禁（V9 §13.8：APK ≤200MB）
         run: |
           set -e
-          f=$(ls build/Android/*.apk | head -1)
+          f=$(ls unity/build/Android/*.apk | head -1)
           sz=$(stat -c%s "$f")
           echo "APK: $f · $sz 字节（$((sz/1048576)) MB）"
           if [ "$sz" -gt 209715200 ]; then echo "✗ 超过 200MB 包体门禁"; exit 1; fi
