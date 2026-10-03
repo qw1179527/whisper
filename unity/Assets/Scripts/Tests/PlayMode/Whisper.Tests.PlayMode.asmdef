@@ -1,19 +1,23 @@
 {
-  "name": "Whisper.Tests.PlayMode",
-  "rootNamespace": "Whisper.Tests.PlayMode",
-  "references": [
-    { "name": "Whisper.Core" },
-    { "name": "Whisper.Gameplay" },
-    { "name": "Whisper.Runtime" },
-    { "name": "UnityEngine.TestRunner" }
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": true,
-  "precompiledReferences": ["nunit.framework.dll"],
-  "autoReferenced": false,
-  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "Whisper.Tests.PlayMode",
+    "rootNamespace": "Whisper.Tests.PlayMode",
+    "references": [
+        "Whisper.Core",
+        "Whisper.Gameplay",
+        "Whisper.Runtime",
+        "UnityEngine.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

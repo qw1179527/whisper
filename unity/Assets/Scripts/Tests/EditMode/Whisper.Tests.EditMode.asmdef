@@ -1,20 +1,26 @@
 {
-  "name": "Whisper.Tests.EditMode",
-  "rootNamespace": "Whisper.Tests.EditMode",
-  "references": [
-    { "name": "Whisper.Core" },
-    { "name": "Whisper.Gameplay" },
-    { "name": "Whisper.Runtime" },
-    { "name": "UnityEngine.TestRunner" },
-    { "name": "UnityEditor.TestRunner" }
-  ],
-  "includePlatforms": ["Editor"],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": true,
-  "precompiledReferences": ["nunit.framework.dll"],
-  "autoReferenced": false,
-  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "Whisper.Tests.EditMode",
+    "rootNamespace": "Whisper.Tests.EditMode",
+    "references": [
+        "Whisper.Core",
+        "Whisper.Gameplay",
+        "Whisper.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

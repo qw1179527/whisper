@@ -1,16 +1,16 @@
 {
-  "name": "Whisper.Backend",
-  "rootNamespace": "Whisper.Backend",
-  "references": [
-    { "name": "Whisper.Core" }
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "Whisper.Backend",
+    "rootNamespace": "Whisper.Backend",
+    "references": [
+        "Whisper.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

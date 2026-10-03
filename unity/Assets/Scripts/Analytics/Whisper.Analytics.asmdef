@@ -1,16 +1,16 @@
 {
-  "name": "Whisper.Analytics",
-  "rootNamespace": "Whisper.Analytics",
-  "references": [
-    { "name": "Whisper.Core" }
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "Whisper.Analytics",
+    "rootNamespace": "Whisper.Analytics",
+    "references": [
+        "Whisper.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }
