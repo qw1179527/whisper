@@ -1,0 +1,84 @@
+# Project Whisper · 自动获取 Unity 个人版许可证（无需本地 Unity Hub）
+#
+# 为什么这样做：Unity 个人版官方要求用 Unity Hub 桌面端激活，而本项目的开发环境
+# （Android 手机 + AI）没有桌面端；即使用户有电脑，Hub 在受限网络下也会启动崩溃。
+# GameCI 官方维护的 unity-license-activate 用浏览器自动化替代了"上传 .alf → 登录 → 下载 .ulf"
+# 这一步，且明确面向 personal license（免费版）用户。
+#
+# 需要你配置 2 个 Secret（Settings → Secrets and variables → Actions）：
+#   UNITY_EMAIL    —— Unity 账号邮箱
+#   UNITY_PASSWORD —— Unity 账号密码
+#   （若账号开了两步验证，另加 UNITY_TOTP_KEY，见 README）
+#
+# 跑完在 Artifacts 里下载 Unity_lic.ulf —— 那就是 CI 构建所需的许可证。
+name: unity-license
+
+on:
+  workflow_dispatch:
+
+jobs:
+  acquire:
+    name: 获取 Unity 许可证（.ulf）
+    runs-on: ubuntu-latest
+    steps:
+      - name: 未配置凭据时给出明确提示
+        env:
+          UE: ${{ secrets.UNITY_EMAIL }}
+          UP: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          if [ -z "$UE" ] || [ -z "$UP" ]; then
+            echo "::error title=缺 Unity 账号::请先添加 UNITY_EMAIL 与 UNITY_PASSWORD 两个 Secret"
+            echo "地址：仓库 Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          echo "✓ 已检测到 Unity 账号凭据"
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装 unity-license-activate（GameCI 官方，面向个人版）
+        run: npm install --global unity-license-activate
+
+      - name: 获取 .alf 激活请求文件
+        id: alf
+        run: |
+          # GameCI 的 Unity 镜像内置编辑器；用 -createManualActivationFile 生成 .alf。
+          # 该步骤只生成请求文件，不需要任何许可证。
+          docker run --rm -v "$PWD:/work" -w /work \
+            unityci/editor:ubuntu-6000.3.25f1-base-3 \
+            /opt/unity/Editor/Unity -batchmode -nographics -quit \
+            -logFile /dev/stdout \
+            -createManualActivationFile || true
+          ls -la *.alf || true
+          ALF=$(ls *.alf 2>/dev/null | head -1 || true)
+          if [ -z "$ALF" ]; then echo "::error title=.alf 生成失败::见上方 docker 日志"; exit 1; fi
+          echo "alf=$ALF" >> "$GITHUB_OUTPUT"
+          echo "✓ 生成 $ALF"
+
+      - name: 用账号凭据换取 .ulf 许可证
+        env:
+          UE: ${{ secrets.UNITY_EMAIL }}
+          UP: ${{ secrets.UNITY_PASSWORD }}
+          TOTP: ${{ secrets.UNITY_TOTP_KEY }}
+        run: |
+          set -e
+          ALF="${{ steps.alf.outputs.alf }}"
+          if [ -n "$TOTP" ]; then
+            unity-license-activate "$UE" "$UP" "$ALF" --authenticator-key "$TOTP"
+          else
+            unity-license-activate "$UE" "$UP" "$ALF"
+          fi
+          ls -la *.ulf || true
+          ULF=$(ls *.ulf 2>/dev/null | head -1 || true)
+          [ -n "$ULF" ] || { echo "::error title=.ulf 生成失败::见上方日志"; exit 1; }
+          echo "✓ 生成 $ULF"
+
+      - name: 上传许可证（下载后作为 UNITY_LICENSE 使用）
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-license-ulf
+          path: ./*.ulf
+          if-no-files-found: error
+          retention-days: 7
