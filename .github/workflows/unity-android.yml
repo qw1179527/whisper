@@ -29,6 +29,26 @@ jobs:
     name: 构建 Android APK
     runs-on: ubuntu-latest
     steps:
+      # 先给出**可操作的报错**：缺许可证时 GitHub 的默认报错很难读懂（实测只提示
+      # "Missing Unity License File"），这里直接把该做什么写清楚，避免来回试错。
+      - name: 检查 Unity 许可证 Secrets 是否已配置
+        env:
+          UL: ${{ secrets.UNITY_LICENSE }}
+          UE: ${{ secrets.UNITY_EMAIL }}
+          UP: ${{ secrets.UNITY_PASSWORD }}
+          US: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          if [ -z "$UL" ] && [ -z "$US" ]; then
+            echo "::error title=缺 Unity 许可证::未找到 UNITY_LICENSE（也没有 UNITY_SERIAL）。"
+            echo "免费个人版做法（约 5 分钟）："
+            echo "  1) Actions 页运行 'unity-activation' 工作流，下载 .alf 文件"
+            echo "  2) 打开 https://license.unity3d.com/manual 上传 .alf，选 Personal → 下载 .ulf"
+            echo "  3) Settings → Secrets and variables → Actions 添加 UNITY_LICENSE（.ulf 全文）"
+            echo "     以及 UNITY_EMAIL / UNITY_PASSWORD（你的 Unity 账号）"
+            exit 1
+          fi
+          echo "✓ 已检测到许可证凭据（UNITY_LICENSE 或 UNITY_SERIAL）"
+
       - uses: actions/checkout@v4
         with:
           lfs: true

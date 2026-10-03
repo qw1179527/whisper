@@ -1,0 +1,28 @@
+# Project Whisper · 获取 Unity 激活文件（免费个人版许可证用）
+#
+# 为什么需要这一步：GameCI 构建时必须提供 UNITY_LICENSE（.ulf 文件内容）。
+# 免费个人版拿许可证的流程是**三段式**（Unity 官方设计，无法绕过）：
+#   ① 生成 .alf 请求文件（本工作流干这件事）
+#   ② 把 .alf 上传到 https://license.unity3d.com/manual → 换回 .ulf
+#   ③ 把 .ulf 全文存进仓库 Secret: UNITY_LICENSE（配合 UNITY_EMAIL / UNITY_PASSWORD）
+#
+# 用法：仓库 Actions 页 → 选 "unity-activation" → Run workflow → 跑完在 Artifacts 里下载 .alf
+name: unity-activation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  activation:
+    name: 生成激活请求文件（.alf）
+    runs-on: ubuntu-latest
+    steps:
+      - name: 请求 .alf 激活文件
+        id: requestActivationFile
+        uses: game-ci/unity-request-activation-file@v2
+      - name: 上传 .alf 供下载
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.requestActivationFile.outputs.filePath }}
+          path: ${{ steps.requestActivationFile.outputs.filePath }}
+          retention-days: 7
