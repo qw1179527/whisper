@@ -338,3 +338,159 @@ bash unity-check.sh                      # 期望：全步骤 · exit 0 · 156 �
    所以 Editor API 必须留官方文档出处（`gate-editor-api`）。
 3. **"无法判定"绝不能当成"通过"** —— 像素格式不支持、判据没参与退出码、期待值由被测常量自算……
    这些都会产出"看着绿其实没验"的结果。**判据必须能失败。**
+
+---
+
+## 十四、速查手册（Recipes：想做什么，敲什么）
+
+```bash
+cd ~/whisper
+
+# ── 验证与门禁 ──
+bash unity-check.sh                      # 一键链（21 步；务必确认 exit 0 且全部步骤都跑了）
+node tools/gate-test.mjs                 # 功能测试门禁（含 T6 启动关键契约）
+node tools/gate-physics.mjs              # 物理规则门禁
+node tools/gate-physics.mjs --inject-random   # 门禁自检：注入必须判红（验门禁本身可信）
+bash tools/unity-syntax-check.sh         # Roslyn 语义检查（含 Assets/Editor）
+cd native/csharp-verify && bash ../../native/dotnet.sh run --nologo   # 156 条断言
+
+# ── 生成与一致性 ──
+node tools/gen-meta.mjs                  # 生成缺失的 Unity .meta
+node tools/gen-meta.mjs --check          # 只校验（CI 用）
+node tools/gen-asmdef.mjs --check        # asmdef 与 V9 §13.1 规则表一致
+node tools/gen-design-tokens.mjs --check # DesignTokens 与 data/design-tokens.json 一致
+node tools/data-mirror.mjs               # 真源镜像一致性
+
+# ── 出包与真机 ──
+tools/git.sh push origin master:main     # 推送即触发 CI（只有 unity/** 变更才触发）
+GH_T=<token> node tools/gh/put-secret.mjs <owner/repo> <NAME> <value>   # 程序化写 Secrets
+bash tools/verify-apk-on-device.sh "/storage/emulated/0/DSH专用/whisper-unity-0.1.N.apk" 25
+node tools/shz-install.mjs <apk>         # 只装不验（注意：shz 不转发 stdin，此脚本可能不适用）
+
+# ── 看真机日志（不经脚本）──
+shz "logcat -d -b all -s Unity:V UnityPlayer:V GameActivity:V AndroidRuntime:E"
+shz "screencap -p /sdcard/s.png" && cp /storage/emulated/0/s.png ~/tmp/s.png
+shz "pidof com.whisper.projectwhisper"
+
+# ── 迁移打包 ──
+bash tools/make-migration-zip.sh         # 生成 DSH-MIGRATION-*.zip 到 /storage/emulated/0/DSH专用/
+```
+
+---
+
+## 十五、数值真源速查（`data/config.json` = 唯一真相源，代码不得硬编码）
+
+| 键 | 值 | 说明 |
+|---|---|---|
+| `network.tickRate` | 60 | 固定 60 Tick/s（V9 §13.4） |
+| `network.batchEveryTicks` | 3 | 每 3 Tick（50ms）一批 → 20 批/秒 |
+| `network.bandwidth.upKbps` / `downKbps` | 6 / 12 | 上行/下行预算（预算批 100 字节/600 字节） |
+| `network.transformSendHz` | 10 | 玩家位姿发送频率 |
+| `player.walkSpeedMps` / `runSpeedMps` / `crouchSpeedMps` | 3.5 / 5.6 / 1.6 | 三形态速度；**必须 ≥ 比值自洽**（跑≥走≥蹲） |
+| `monsterBehavior.contactSanityLoss` | 35 | 接触损失理智（**正数=损失量**，消费方取负） |
+| `monsterBehavior.lostContactSeconds` | 12 | 失去视线后转搜索的秒数 |
+| `monsterBehavior.finalRageWindowBeforeExtractionSec` | 60 | 撤离前狂暴窗口 |
+| `level.startGraceSeconds` | 20 | 开局保护期 |
+| `level.matchSeconds` | [600, 900] | 对局时长区间 |
+| `economy.formula.*` | evidence 200 / ally 150 / efficiency 100 / deepScale 1.3 | 残响碎片公式 |
+| `sanity.max` | 100 | 理智上限；5 档区间不重叠 |
+| `monsters.{stitcher,whisperer,coroner}` | 速度 3.6/4.2/3.2 · 听觉阈值 30/10/55 · 视野 14/6/20 | 三怪差异化（V9 §7 表7-2） |
+| `stimulusSources.*` | 跑 52/15m · 走 8/8m · 蹲 8/3m · 喊叫 80/25m | 刺激源强度/半径 |
+| `performanceGates.apkMaxMb` | 200 | 包体硬门禁（V9 §13.8） |
+| `capacity.ccuHardCap` | 100 | 联机容量硬顶 |
+| `voiceCalibration.targets.crossDeviceAgreement` | 0.9 | M0 验收硬指标 |
+
+---
+
+## 十六、工具清单（41 个，按用途分组）
+
+| 组 | 工具 |
+|---|---|
+| **门禁（6）** | `gate-model` · `gate-physics` · `gate-code` · `gate-test` · `gate-asset-bbox` · `gate-editor-api` |
+| **生成器（7）** | `gen-asmdef` · `gen-meta` · `gen-manifest` · `gen-design-tokens` · `gen-kits` · `gen-asylum-v1` · `tokens-map-check` |
+| **校验（6）** | `arch-guard` · `config-lint` · `cs-lint` · `data-mirror` · `validate-assets` · `validate-levels` |
+| **移植对拍（5）** | `compare-parity` · `compare-trajectory` · `voice-port-vectors` · `hearing-port-vectors` · `monster-port-vectors` |
+| **灰盒提取（6）** | `extract-config` · `extract-modules` · `extract-spec` · `split-modules` · `spec-ledger` · `verify-sourcetree` |
+| **构建/打包（4）** | `bundle-web` · `verify-bundle` · `make-migration-zip` · `version` |
+| **真机（2）** | `shz-install` · `verify-apk-on-device` |
+| **运行时探针（2）** | `nav-probe`（怪物导航仿真）· `smoke-run`（启动冒烟） |
+| **契约/语法（3）** | `contract-diff` · `unity-syntax-check` · `git.sh` |
+
+---
+
+## 十七、排障表（症状 → 先怀疑什么 → 怎么处理）
+
+| 症状 | 首先怀疑 | 处理 |
+|---|---|---|
+| 真机**全黑** | 着色器被剥离 / 场景无相机 / `Text.font` 为 null | 看 logcat 有无 `ArgumentNullException(shader)`；确认 `Resources/Shaders/*.shader` 在包内 |
+| 真机**洋红屏** | 着色器编译失败 | 看 CI 构建日志的 Shader error；检查 pragma 与宏是否配对 |
+| 真机**纯色块** | 相机贴墙 / 雾把画面洗白 / 几何没建出来 | 看 `BOOT OK` 行的房间/门/道具计数；用像素判据看标准差与边缘密度 |
+| 真机**反复闪屏** | 崩溃重启循环（pid 会变） | `shz "pidof <pkg>"` 采三次看是否一致；`logcat -s AndroidRuntime:E` |
+| **摇杆不动** | Input System（新/旧）不匹配 | `Packages/manifest.json` 有 `com.unity.inputsystem` 但无 `ProjectSettings.asset` → 需真机确认 `activeInputHandler` |
+| 一键链**只跑到第 N 步** | `set -euo pipefail` 掩盖后续步骤 | 看日志尾部确认是否到 `[21/21]`；修掉红的那步再跑 |
+| 门禁**自报"不可信"** | 判据写错（如把 C# 写成 `Math.Random`） | 用 `--inject-*` 自检；判据必须在注入后判红 |
+| `.meta` 缺失导致 CI 报 CS0234 | Unity 不把 .cs 归入 asmdef | `node tools/gen-meta.mjs` 然后提交 |
+| CI **构建失败**但本地绿 | 桩为臆造 API 背书 | 看 CI 日志的真实 error CS；查 `data/unity-api-registry.json` 有无出处 |
+| 推送**403** | 令牌只读 | 细粒度令牌需 `Contents: Read and write` |
+| `pm install` 失败 `fuse:s0` | 直接从共享存储装 | 先 `shz "cp <共享路径> /data/local/tmp/x.apk"` 再装 |
+| 产物下载**很久** | GitHub artifact 慢（实测 ~16 分钟） | 属正常；用后台任务盯，别在前台等 |
+
+---
+
+## 十八、术语表
+
+| 术语 | 含义 |
+|---|---|
+| **V9** | 方案终稿（`恐怖整合.pdf`），五版整合，冲突以其 §3 裁决表为准 |
+| **灰盒版** | WebView + 自研 WebGL2 光栅器的旁路验证台（`baseline/index-*.html`），**不是** Unity 版 |
+| **门禁** | 自动化判据（六项主门禁 + 两项补充），必须"注入验证有效 + 正常态通过"，不允许假绿 |
+| **假绿** | 看着通过、实际没验（判据没参与、只比对常量、无法判定当成通过…）。本项目最提防的失效模式 |
+| **T6 启动关键契约** | `gate-test` 里盯"着色器资产+相机+字体齐备"的判据（黑屏事故的产物） |
+| **打卡** | 本会话语境 = **质检审计轮次**（用户定义），每轮要有台账 → `docs/qa-ledger.md` |
+| **C1~C4** | V9 §19.1 的四条代码优先纪律（场景零手工 / UI 代码构建 / 资产清单驱动 / 运行时烘焙占位） |
+| **四类同步对象** | V9 §13.4：①玩家位姿 ②声纹事件（瞬时 RPC，不走状态同步）③道具门状态 ④对局阶段 |
+| **三层免参** | V9 §19.5：改数值不碰代码（配置 → 代码 → 场景三层） |
+| **零信令房间码** | 把主机地址编进码里（`Net/RoomCode.cs`），从而不需要信令服务器 |
+
+---
+
+## 十九、决策记录（为什么这么选，以及代价）
+
+| 决策 | 理由 | 代价 / 风险 |
+|---|---|---|
+| **出包走 GitHub Actions** | 本机无 Unity 引擎（aarch64 + bionic + 区域 CDN 404 + 内存不足，四项都实测过） | 一次迭代 25~45 分钟；产物下载另需 ~16 分钟 |
+| **几何全部运行时用代码生成** | 无 Unity 编辑器 → 场景零手工（V9 §19.1 C1） | 无法用编辑器调美术；资产管线更难接通（套件至今没进包） |
+| **自研 Unlit 着色器并放 `Resources/`** | 黑屏根因是内置着色器被剥离；`Resources/` 无条件进包 | 没有光照模型 → 观感偏平，靠配色乘数补偿 |
+| **配色算式搬进纯逻辑 `LevelPalette`** | 门框 `×1.3` 截顶这类错误在 Unity 侧只看得到结果 | 多一层间接 |
+| **联机走 IPv6 直连 + 房间码** | 实测 IPv4 对称 NAT 无法打洞；Photon 有硬顶、Unity Relay 要绑卡 | 对面没 IPv6 就连不上（只能同 WiFi） |
+| **子代理只审计不改文件** | 保持独立性；审计与开发分离 | 子代理跑完即停，无法真常驻 → 需主动唤醒 |
+| **`INetService` 作为唯一 SDK 槽位** | 换 SDK 只换实现，玩法代码不动（V9 §13.2） | 只遮挡 SDK，**不遮挡架构假设**（Host 迁移、批量发送仍要自己写） |
+| **不提交手写 `ProjectSettings.asset`** | 手写 YAML 无对照物，写错整包构建失败 | 所有 PlayerSettings 必须用 `BuildConfigurator` 代码表达 |
+
+---
+
+## 二十、迁移到电脑端 DSH 的清单
+
+**已打包进 `DSH-MIGRATION-*.zip`（核心包，可移植部分）**：
+- `whisper/` 完整仓库（含 **58 次提交的 git 历史**、全部源码、41 个工具、docs、data 真源）
+- DSH 配置与状态：`profiles/` · `external/` · `storages/`（已剔除可能残留凭据的 `session_projcache`）·
+  `sessions/` · `AGENTS.md` · `graded-state` · `router-standard` · `super-injector`
+- `方案原文/`：5 份 PDF + 已提取文本
+- `README-MIGRATION.md`：电脑端的开工步骤
+
+**刻意不打包（`DSH-MIGRATION-*-engines-arm64.zip` 单独放，或按需重装）**：
+| 内容 | 体积 | 为什么不建议带 |
+|---|---|---|
+| `engine/extensions/*`（19 个） | **4.2 GB** | 全是 **aarch64 + bionic** 二进制，电脑上**跑不了**；应用电脑端 DSH 扩展中心原生安装 |
+| `whisper/native/dotnet` | 472 MB | 同上（Android/arm64 版 .NET 8）；电脑端用 `native/fetch-dotnet.sh` 或系统 dotnet |
+
+**电脑端开工顺序**（详见 `README-MIGRATION.md`）：
+1. 解压 → 2. 用电脑端 DSH 的扩展中心装 `git`（必须）→ 3. `cd whisper && tools/git.sh log --oneline`
+4. `bash native/fetch-dotnet.sh`（若要用本机断言）→ 5. `bash unity-check.sh` 期望 exit 0 · 156 断言
+6. 配 4 个 GitHub Secrets（见 §3）→ 7. **强烈建议**：在电脑上装 Unity 6000.3.25f1，
+   从此**不必再靠 CI 出包**（这是迁到电脑的最大收益：迭代从 45 分钟降到分钟级）
+
+**电脑端的两个即刻收益**：
+- **Unity 编辑器可用** → 能真机调试、能拖场景、能用 Profiler，出包不再依赖 CI
+- **Blender 可本地跑** → 不需要再经局域网调 MCP（当前 Blender MCP 跑在你的电脑上，工作目录是
+  `/storage/emulated/0/DSH专用/DSH文件`，与仓库是两个位置，需手工拷贝）
