@@ -528,3 +528,50 @@ bash whisper/native/android-tools/aapt2.sh dump badging whisper-unity-0.1.20.apk
 
 **该装哪个**：看项目真身 → Unity 包（但**不含**最新的自由视角/暗调修正，那些在 CI `0.1.23`）；
 验机制数值 → 灰盒 `0.7.5-dev`。两包可共存（包名不同），但别同时开（争音频/焦点）。
+
+---
+
+## 二十二、从这里接上（2026-10-03 19:35 收工点）
+
+**收工状态**：仓库干净 · 全部已推送（）· 本机门禁 exit 0 · 156 断言 0 失败 ·
+迁移包 （70.8 MB / 3110 条目 / UnZip 6.00 of 20 April 2009, by Info-ZIP.  Maintained by C. Spieler.  Send
+bug reports using http://www.info-zip.org/zip-bug.html; see README for details.
+
+Usage: unzip [-Z] [-opts[modifiers]] file[.zip] [list] [-x xlist] [-d exdir]
+  Default action is to extract files in list, except those in xlist, to exdir;
+  file[.zip] may be a wildcard.  -Z => ZipInfo mode ("unzip -Z" for usage).
+
+  -p  extract files to pipe, no messages     -l  list files (short format)
+  -f  freshen existing files, create none    -t  test compressed archive data
+  -u  update files, create if necessary      -z  display archive comment only
+  -v  list verbosely/show version info       -T  timestamp archive to latest
+  -x  exclude files that follow (in xlist)   -d  extract files into exdir
+modifiers:
+  -n  never overwrite existing files         -q  quiet mode (-qq => quieter)
+  -o  overwrite files WITHOUT prompting      -a  auto-convert any text files
+  -j  junk paths (do not make directories)   -aa treat ALL files as text
+  -U  use escapes for all non-ASCII Unicode  -UU ignore any Unicode fields
+  -C  match filenames case-insensitively     -L  make (some) names lowercase
+  -X  restore UID/GID info                   -V  retain VMS version numbers
+  -K  keep setuid/setgid/tacky permissions   -M  pipe through "more" pager
+See "unzip -hh" or unzip.txt for more help.  Examples:
+  unzip data1 -x joe   => extract all files except joe from zipfile data1.zip
+  unzip -p foo | more  => send contents of foo.zip via pipe into program more
+  unzip -fo foo ReadMe => quietly replace existing ReadMe if archive file newer 通过）已就绪。
+
+**唯一在跑的事**：CI **#23**（ = 自由视角 + 暗调配色 + 真机脚本判据修复），
+出包后**第一件事就是真机验收**：
+
+[verify] 真机装机验收 · APK=whisper-unity-0.1.23.apk · 观察 25s
+  ✗ APK 不存在：/storage/emulated/0/DSH专用/whisper-unity-0.1.23.apk
+
+**验收时必查的头号未知**：**摇杆与视角到底能不能动**。
+ 有 ，但仓库无 ，
+ 由 CI 默认生成 —— 若是"新输入系统 Only"， 恒 0，
+**摇杆完全不动**，而本机 Unity 桩恒返回 0，所以本机永远绿。（质检第 2 轮 N5）
+
+**之后按这个顺序**：
+1. 补质检第 2 轮残余（CI 版本号静默回落 N1 · 3 条断面拦停 N2/N3 · 脚步断言判别力 N4 ·  覆盖 Runtime N6 ·  三份拷贝 N7）
+2. 继续分级计划的 **L2 小类编写**（L1 已锁定 5 大类）
+3. **零成本联机**（用户指定优先）：房间码 + 线格式已就绪且有断言，**缺的是真发包的 UDP 传输层**
+4. 建模（Blender MCP 已可用，23 工具）
