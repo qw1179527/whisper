@@ -258,7 +258,7 @@ GITHUB_TOKEN=xxx node tools/gh/put-secret.mjs <owner/repo> <NAME> <value>
 | `aapt` 需要 `ANDROID_DATA` | 构建脚本已设 |
 | git 需要两个环境变量 | `GIT_EXEC_PATH` + `GIT_SSL_CAINFO`（`tools/git.sh` 已封装） |
 | 无 npm，有 pnpm | pnpm 在 Android 上因文件锁常失败 → 手工 vendor npm 包（如 libsodium） |
-| 迁移包 | `/storage/emulated/0/DSH专用/DSH-MIGRATION-20261003-1202.zip`（39.4 MB） |
+| 迁移包 | `/storage/emulated/0/DSH专用/DSH-MIGRATION-20261003-1651.zip`（41.5 MB / 2863 条目，已 `unzip -t` 校验、凭据扫描 0 命中） |
 
 ---
 
