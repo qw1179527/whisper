@@ -47,6 +47,7 @@ namespace Whisper.Runtime
 
         LevelBuilder _levelBuilder;
         PlayerController _player;
+        MonsterViews _monsters;
         Text _status;
         Canvas _canvas;
         Camera _camera;
@@ -174,6 +175,7 @@ namespace Whisper.Runtime
             var spawn = TryBuildGeometry(lines);
             if (!spawn.HasValue) return;      // Fail 已调用
             if (!TrySpawnPlayer(lines, spawn.Value)) return;
+            if (!TrySpawnMonsters(lines)) return;
 
             FinishBoot(t0, lines);
         }
@@ -325,6 +327,21 @@ namespace Whisper.Runtime
             catch (System.Exception ex) { Fail(lines, $"玩家控制初始化失败（{ex.GetType().Name}）：{ex.Message}"); return false; }
         }
 
+        /// <summary>⑤b 怪物实例化（V9 §7）—— 在它之前，状态机与听觉判定都完备但**没有任何东西实例化它们**。</summary>
+        bool TrySpawnMonsters(System.Text.StringBuilder lines)
+        {
+            try
+            {
+                var go = new GameObject("Monsters", typeof(MonsterViews));
+                go.transform.SetParent(transform, false);
+                _monsters = go.GetComponent<MonsterViews>();
+                _monsters.Initialize(_levelBuilder.Geometry, Level, _player, _status);
+                lines.AppendLine($"怪物：{_monsters.LastViews.Length} 只已实例化（缝匠/低语者/收殓人）");
+                return true;
+            }
+            catch (System.Exception ex) { Fail(lines, $"怪物实例化失败（{ex.GetType().Name}）：{ex.Message}"); return false; }
+        }
+
         /// <summary>收尾：进入 Play 循环并把摘要打进 logcat（真机验收唯一要 grep 的一行）。</summary>
         void FinishBoot(System.Diagnostics.Stopwatch t0, System.Text.StringBuilder lines)
         {
@@ -383,7 +400,7 @@ namespace Whisper.Runtime
             _status.text = string.Format(
                 "Project Whisper · 运行中\nTick {0} · {1} fps · tickRate={2}\n{3}\n关卡 {4}：房间 {5} · 走廊 {6}"
                 + "\n几何着色器 {7} · 相机 {8} · Boot {9:0} ms"
-                + "\n{10}",
+                + "\n{10}\n{11}",
                 Ticks, (int)(1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f)),
                 Services.HasNet ? Services.Net.TickRate : 0,
                 DescribeServices(),
@@ -393,7 +410,8 @@ namespace Whisper.Runtime
                 LevelBuilder.GeometryShader != null ? "✓" : "✗",
                 _camera != null ? "✓" : "✗",
                 BootMs,
-                _player != null ? _player.Describe() : "玩家：—");
+                _player != null ? _player.Describe() : "玩家：—",
+                _monsters != null ? _monsters.Describe() : "怪物：—");
         }
 
         /// <summary>

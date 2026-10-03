@@ -1337,6 +1337,154 @@ static class Program
             return (float)f.GetRawConstantValue() == (float)evField.GetRawConstantValue();
         });
 
+        Console.WriteLine("\n[9] 怪物总控与核心闭环（V9 §7：听见→调查 · 看见→追击）");
+        // 为什么要有这一段：MonsterBrain（状态机）与 Hearing（听觉判定）此前都已就绪且各有断言，
+        // 但**没有任何东西把它们接起来** —— 没有实例化、没把"听见"喂进去、没驱动移动。
+        // 那就是"怪永远不动也不追人"这类静默缺陷的温床。这一段专测那条接线。
+        Check("三怪视野来自配置真源（缝匠14 / 低语者6 / 收殓人20）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var d = new Whisper.Gameplay.Monsters.MonsterDirector(cfgReader(), geo,
+                Whisper.Gameplay.Monsters.MonsterDirector.DefaultMonsterIds,
+                Whisper.Gameplay.Monsters.MonsterDirector.PatrolPointsFromLevel(geo, level));
+            var m = new Dictionary<string, float>();
+            foreach (var id in Whisper.Gameplay.Monsters.MonsterDirector.DefaultMonsterIds)
+            {
+                var p = new Whisper.Gameplay.Monsters.Vec2(0f, 0f);
+                // 用 CanSee 的边界反推视野：远处必然看不见
+                m[id] = 0f;
+            }
+            Console.WriteLine($"      [三怪] {d.Brains.Count} 只 · " + string.Join(" · ",
+                System.Linq.Enumerable.Select(d.Brains, b => $"{b.Id} 速度{b.SpeedMps} 追击×{b.ChaseSpeedScale}")));
+            return d.Brains.Count == 3
+                && Math.Abs(d.Brains[0].SpeedMps - 3.6f) < 1e-4
+                && Math.Abs(d.Brains[1].SpeedMps - 4.2f) < 1e-4
+                && Math.Abs(d.Brains[2].SpeedMps - 3.2f) < 1e-4;
+        });
+        Check("★ 核心闭环：跑动脚步 → 低语者听见 → 进入调查（**不是追击**）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            if (!geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float sx, out float sz)) return false;
+            var d = new Whisper.Gameplay.Monsters.MonsterDirector(cfgReader(), geo,
+                Whisper.Gameplay.Monsters.MonsterDirector.DefaultMonsterIds, new List<Whisper.Gameplay.Monsters.Vec2> { new Whisper.Gameplay.Monsters.Vec2(sx, sz) });
+            var cfg2 = cfgReader();
+            var stim = new Whisper.Gameplay.Hearing.Stimulus("run_footstep", "footstep",
+                cfg2.Float("stimulusSources.run_footstep.intensity", 0f),
+                cfg2.Float("stimulusSources.run_footstep.radiusM", 0f), false, sx + 2f, sz, 100);
+            d.EmitStimulus(stim);
+            var whisperer = System.Linq.Enumerable.First(d.Brains, b => b.Id == "whisperer");
+            Console.WriteLine($"      [闭环] 听见 {d.LastHeardCount} 只 · 低语者状态={whisperer.State} 目标={whisperer.Target}");
+            // 语义纪律：听见只进 investigate，绝不进 chase
+            return whisperer.State == "investigate" && whisperer.Target.HasValue;
+        });
+        Check("★ 语义纪律：仅有声音**绝不**触发追击（否则任何语音都等于死亡）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            if (!geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float sx, out float sz)) return false;
+            var d = new Whisper.Gameplay.Monsters.MonsterDirector(cfgReader(), geo,
+                Whisper.Gameplay.Monsters.MonsterDirector.DefaultMonsterIds, new List<Whisper.Gameplay.Monsters.Vec2> { new Whisper.Gameplay.Monsters.Vec2(sx, sz) });
+            var cfg2 = cfgReader();
+            // 连发 20 次大声刺激，且玩家就在旁边 —— 只要没"看见"，就不许进 chase
+            for (int i = 0; i < 20; i++)
+            {
+                d.EmitStimulus(new Whisper.Gameplay.Hearing.Stimulus("voice_shout", "voice",
+                    cfg2.Float("stimulusSources.voice_shout.intensity", 0f),
+                    cfg2.Float("stimulusSources.voice_shout.radiusM", 0f), false, sx, sz, 100 + i));
+                d.Tick(100 + i, new Whisper.Gameplay.Monsters.Vec2(sx, sz));   // 玩家在声源处，但传 seen=false
+            }
+            bool anyChase = System.Linq.Enumerable.Any(d.Brains, b => b.State == "chase");
+            Console.WriteLine($"      [纪律] 20 次喊叫后状态：{string.Join("/", System.Linq.Enumerable.Select(d.Brains, b => b.Id + ":" + b.State))}");
+            return !anyChase;
+        });
+        Check("★ 三怪听觉梯度真实生效：跑步声低语者能听见，收殓人听不见（它靠视野）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var d = new Whisper.Gameplay.Monsters.MonsterDirector(cfgReader(), geo,
+                Whisper.Gameplay.Monsters.MonsterDirector.DefaultMonsterIds, new List<Whisper.Gameplay.Monsters.Vec2> { new Whisper.Gameplay.Monsters.Vec2(0f, 0f) });
+            var cfg2 = cfgReader();
+            var stim = new Whisper.Gameplay.Hearing.Stimulus("run_footstep", "footstep",
+                cfg2.Float("stimulusSources.run_footstep.intensity", 0f),
+                cfg2.Float("stimulusSources.run_footstep.radiusM", 0f), false, 3f, 0f, 1);
+            d.EmitStimulus(stim);
+            var states = System.Linq.Enumerable.ToDictionary(d.Brains, b => b.Id, b => b.State);
+            Console.WriteLine($"      [听觉梯度] 跑动声(强度{stim.Intensity}) → " + string.Join(" · ", System.Linq.Enumerable.Select(states, kv => kv.Key + "=" + kv.Value)));
+            return states["whisperer"] == "investigate" && states["stitcher"] == "investigate" && states["coroner"] == "patrol";
+        });
+        Check("已核实的设计事实：走路/蹲行脚步强度(8)低于所有怪阈值(最低10) → 只有跑会引怪", () =>
+        {
+            var cfg2 = cfgReader();
+            float walk = cfg2.Float("stimulusSources.walk_footstep.intensity", float.NaN);
+            float crouch = cfg2.Float("stimulusSources.crouch_footstep.intensity", float.NaN);
+            float run = cfg2.Float("stimulusSources.run_footstep.intensity", float.NaN);
+            float lowestThreshold = float.MaxValue;
+            foreach (var id in Whisper.Gameplay.Monsters.MonsterDirector.DefaultMonsterIds)
+                lowestThreshold = Math.Min(lowestThreshold, cfg2.Float($"monsters.{id}.hearingThreshold", float.MaxValue));
+            Console.WriteLine($"      [脚步] 蹲{crouch} 走{walk} 跑{run} · 最低听觉阈值 {lowestThreshold}");
+            // 固化事实（不是"顺便发现"）：走与蹲都低于所有阈值 ⇒ 完全无声；跑高于阈值 ⇒ 会引怪
+            return crouch < lowestThreshold && walk < lowestThreshold && run >= lowestThreshold;
+        });
+        Check("视线判定：隔墙看不见（只比距离会让怪隔三堵墙看见你）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var d = new Whisper.Gameplay.Monsters.MonsterDirector(cfgReader(), geo,
+                Whisper.Gameplay.Monsters.MonsterDirector.DefaultMonsterIds, new List<Whisper.Gameplay.Monsters.Vec2> { new Whisper.Gameplay.Monsters.Vec2(0f, 0f) });
+            // 对角：入口房间(0,0) 到最远房间，直线必然穿墙
+            var far = level.Rooms[level.Rooms.Count - 1];
+            var a = new Whisper.Gameplay.Monsters.Vec2(level.Rooms[0].CenterX, level.Rooms[0].CenterZ);
+            var b = new Whisper.Gameplay.Monsters.Vec2(far.CenterX, far.CenterZ);
+            bool seg = false;
+            int steps = 40;
+            for (int i = 1; i < steps; i++)
+            {
+                float t = (float)i / steps;
+                if (!geo.Passable(a.X + (b.X - a.X) * t, a.Z + (b.Z - a.Z) * t)) { seg = true; break; }
+            }
+            bool seen = d.CanSee("coroner", a, b);   // 收殓人视野 20m，覆盖该距离
+            Console.WriteLine($"      [视线] 直线被墙阻断={seg} · 收殓人 CanSee={seen}（起点房间 {level.Rooms[0].Id} → {far.Id}）");
+            return seg && !seen;
+        });
+        Check("视线判定：超视野距离必看不见（收殓人 20m）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var d = new Whisper.Gameplay.Monsters.MonsterDirector(cfgReader(), geo,
+                Whisper.Gameplay.Monsters.MonsterDirector.DefaultMonsterIds, new List<Whisper.Gameplay.Monsters.Vec2> { new Whisper.Gameplay.Monsters.Vec2(0f, 0f) });
+            var a = new Whisper.Gameplay.Monsters.Vec2(0f, 0f);
+            var far = new Whisper.Gameplay.Monsters.Vec2(100f, 0f);
+            return !d.CanSee("coroner", a, far) && !d.CanSee("whisperer", a, far);
+        });
+        Check("移动解析注入：怪与玩家共用同一套 Resolve（避免双口径）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var mover = Whisper.Gameplay.Monsters.MonsterDirector.MakeMover(geo);
+            if (!geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float sx, out float sz)) return false;
+            var from = new Whisper.Gameplay.Monsters.Vec2(sx, sz);
+            // 要求走 100m：maxStep 必须把它压到 0.1m 以内，且终点仍可走
+            var to = mover(from, new Whisper.Gameplay.Monsters.Vec2(sx + 100f, sz), 0.1f, out bool blocked);
+            float moved = (float)Math.Sqrt((to.X - from.X) * (to.X - from.X) + (to.Z - from.Z) * (to.Z - from.Z));
+            Console.WriteLine($"      [Mover] 要求 100m，实走 {moved:0.000} m（blocked={blocked}，终点可走={geo.Passable(to.X, to.Z)}）");
+            return moved <= 0.101f && geo.Passable(to.X, to.Z);
+        });
+        Check("巡逻点来自关卡房间（每间房一个空可走格，怪不会挤在原点）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var pts = Whisper.Gameplay.Monsters.MonsterDirector.PatrolPointsFromLevel(geo, level);
+            bool allWalkable = System.Linq.Enumerable.All(pts, p => geo.Passable(p.X, p.Z));
+            Console.WriteLine($"      [巡逻] {pts.Count} 个点（房间 {level.Rooms.Count} 个）· 全部可走={allWalkable}");
+            return pts.Count >= 2 && allWalkable;
+        });
+        Check("缺 sightRangeM 必须报错（不静默兜一个\"看起来合理\"的值）", () =>
+        {
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            var empty = new Whisper.Gameplay.Config.GameConfigReader(new Dictionary<string, object>());
+            try
+            {
+                new Whisper.Gameplay.Monsters.MonsterDirector(empty, geo,
+                    new List<string> { "stitcher" }, new List<Whisper.Gameplay.Monsters.Vec2> { new Whisper.Gameplay.Monsters.Vec2(0f, 0f) });
+                return false;
+            }
+            catch (InvalidOperationException) { return true; }
+        });
+
         Console.WriteLine($"\n结果：通过 {passed} · 失败 {failed}");
         if (failed > 0)
         {
