@@ -1,16 +1,14 @@
-# Project Whisper · 自动获取 Unity 个人版许可证（无需本地 Unity Hub）
+# Project Whisper · 自动获取 Unity 个人版许可证
 #
-# 为什么这样做：Unity 个人版官方要求用 Unity Hub 桌面端激活，而本项目的开发环境
-# （Android 手机 + AI）没有桌面端；即使用户有电脑，Hub 在受限网络下也会启动崩溃。
-# GameCI 官方维护的 unity-license-activate 用浏览器自动化替代了"上传 .alf → 登录 → 下载 .ulf"
-# 这一步，且明确面向 personal license（免费版）用户。
+# 背景：Unity 官方要求个人版必须用 Unity Hub 桌面端激活，而本项目在 Android 手机上开发，
+# 没有桌面端。GameCI 提供了官方的命令行激活动作 game-ci/unity-activate，
+# 它支持 personal license 并直接接受账号凭据 —— 不需要本地 Hub。
 #
-# 需要你配置 2 个 Secret（Settings → Secrets and variables → Actions）：
-#   UNITY_EMAIL    —— Unity 账号邮箱
-#   UNITY_PASSWORD —— Unity 账号密码
-#   （若账号开了两步验证，另加 UNITY_TOTP_KEY，见 README）
+# 曾用方案（已废弃）：game-ci/unity-license-activate（浏览器自动化）
+#   实测失败：waiting for selector `#new_conversations_create_session_form ..._password` timeout
+#   —— 该工具硬编码了 Unity 旧登录页的选择器，页面改版后就失效了。
 #
-# 跑完在 Artifacts 里下载 Unity_lic.ulf —— 那就是 CI 构建所需的许可证。
+# 需要 2 个 Secret：UNITY_EMAIL / UNITY_PASSWORD（已配置）
 name: unity-license
 
 on:
@@ -18,25 +16,22 @@ on:
 
 jobs:
   acquire:
-    name: 获取 Unity 许可证（.ulf）
+    name: 激活 Unity 个人版许可证
     runs-on: ubuntu-latest
     steps:
-      - name: 未配置凭据时给出明确提示
+      - name: 校验凭据
         env:
           UE: ${{ secrets.UNITY_EMAIL }}
           UP: ${{ secrets.UNITY_PASSWORD }}
         run: |
           if [ -z "$UE" ] || [ -z "$UP" ]; then
-            echo "::error title=缺 Unity 账号::请先添加 UNITY_EMAIL 与 UNITY_PASSWORD 两个 Secret"
-            echo "地址：仓库 Settings → Secrets and variables → Actions → New repository secret"
+            echo "::error title=缺 Unity 账号::请添加 UNITY_EMAIL 与 UNITY_PASSWORD"
             exit 1
           fi
-          echo "✓ 已检测到 Unity 账号凭据"
+          echo "✓ 已检测到凭据（邮箱 ${UE:0:3}***）"
 
-      # GitHub 的 ubuntu runner 默认只剩 ~14GB，而 Unity 编辑器镜像解压后 8.7GB，
-      # 实测会报 "failed to register layer: no space left on device"。
-      # 这一步清掉 runner 预装但本项目用不到的大件（Android SDK/NDK、.NET、Haskell 等），
-      # 腾出约 20~30GB —— 这是 GameCI 官方推荐的常规做法。
+      - uses: actions/checkout@v4
+
       - name: 释放 runner 磁盘空间
         uses: jlumbroso/free-disk-space@main
         with:
@@ -48,52 +43,32 @@ jobs:
           docker-images: false
           swap-storage: false
 
-      - name: 安装 Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: 安装 unity-license-activate（GameCI 官方，面向个人版）
-        run: npm install --global unity-license-activate
-
-      - name: 获取 .alf 激活请求文件
-        id: alf
-        run: |
-          # GameCI 的 Unity 镜像内置编辑器；用 -createManualActivationFile 生成 .alf。
-          # 该步骤只生成请求文件，不需要任何许可证。
-          docker run --rm -v "$PWD:/work" -w /work \
-            unityci/editor:ubuntu-6000.3.25f1-base-3 \
-            /opt/unity/Editor/Unity -batchmode -nographics -quit \
-            -logFile /dev/stdout \
-            -createManualActivationFile || true
-          ls -la *.alf || true
-          ALF=$(ls *.alf 2>/dev/null | head -1 || true)
-          if [ -z "$ALF" ]; then echo "::error title=.alf 生成失败::见上方 docker 日志"; exit 1; fi
-          echo "alf=$ALF" >> "$GITHUB_OUTPUT"
-          echo "✓ 生成 $ALF"
-
-      - name: 用账号凭据换取 .ulf 许可证
+      - name: 用账号凭据激活许可证（GameCI 官方动作）
+        uses: game-ci/unity-activate@v2
         env:
-          UE: ${{ secrets.UNITY_EMAIL }}
-          UP: ${{ secrets.UNITY_PASSWORD }}
-          TOTP: ${{ secrets.UNITY_TOTP_KEY }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          unityVersion: 6000.3.25f1
+
+      - name: 收集 .ulf（若生成）
         run: |
           set -e
-          ALF="${{ steps.alf.outputs.alf }}"
-          if [ -n "$TOTP" ]; then
-            unity-license-activate "$UE" "$UP" "$ALF" --authenticator-key "$TOTP"
+          echo "--- 查找许可证文件 ---"
+          find / -name "*.ulf" -not -path "*/proc/*" 2>/dev/null | head -10 || true
+          ULF=$(find / -name "Unity_lic.ulf" -not -path "*/proc/*" 2>/dev/null | head -1 || true)
+          if [ -n "$ULF" ]; then
+            cp "$ULF" ./Unity_lic.ulf
+            echo "✓ 取到 $ULF"
           else
-            unity-license-activate "$UE" "$UP" "$ALF"
+            echo "::warning title=未取到 .ulf::激活可能已写入缓存，见上方日志"
           fi
-          ls -la *.ulf || true
-          ULF=$(ls *.ulf 2>/dev/null | head -1 || true)
-          [ -n "$ULF" ] || { echo "::error title=.ulf 生成失败::见上方日志"; exit 1; }
-          echo "✓ 生成 $ULF"
 
-      - name: 上传许可证（下载后作为 UNITY_LICENSE 使用）
+      - name: 上传 .ulf（如有）
+        if: hashFiles('Unity_lic.ulf') != ''
         uses: actions/upload-artifact@v4
         with:
           name: unity-license-ulf
-          path: ./*.ulf
-          if-no-files-found: error
+          path: Unity_lic.ulf
           retention-days: 7
