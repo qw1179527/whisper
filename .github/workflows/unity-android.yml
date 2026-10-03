@@ -31,6 +31,21 @@ jobs:
     steps:
       # 先给出**可操作的报错**：缺许可证时 GitHub 的默认报错很难读懂（实测只提示
       # "Missing Unity License File"），这里直接把该做什么写清楚，避免来回试错。
+      # GitHub 的 ubuntu runner 默认只剩 ~14GB，而 Unity 编辑器镜像解压后 8.7GB，
+      # 实测会报 "failed to register layer: no space left on device"。
+      # 这一步清掉 runner 预装但本项目用不到的大件（Android SDK/NDK、.NET、Haskell 等），
+      # 腾出约 20~30GB —— 这是 GameCI 官方推荐的常规做法。
+      - name: 释放 runner 磁盘空间
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: false
+
       - name: 检查 Unity 许可证 Secrets 是否已配置
         env:
           UL: ${{ secrets.UNITY_LICENSE }}

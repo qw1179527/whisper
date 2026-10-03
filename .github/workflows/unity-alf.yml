@@ -16,6 +16,21 @@ jobs:
     name: 生成激活请求文件
     runs-on: ubuntu-latest
     steps:
+      # GitHub 的 ubuntu runner 默认只剩 ~14GB，而 Unity 编辑器镜像解压后 8.7GB，
+      # 实测会报 "failed to register layer: no space left on device"。
+      # 这一步清掉 runner 预装但本项目用不到的大件（Android SDK/NDK、.NET、Haskell 等），
+      # 腾出约 20~30GB —— 这是 GameCI 官方推荐的常规做法。
+      - name: 释放 runner 磁盘空间
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: false
+
       - name: 生成 .alf（不需要许可证）
         run: |
           set -e
