@@ -30,6 +30,9 @@ node tools/gate-test.mjs
 step 6 "asmdef 与 V9 §13.1 规则表一致"
 node tools/gen-asmdef.mjs --check
 
+step 6.5 "Editor 代码 Unity API 出处（防臆造 API · CI #18 教训）"
+node tools/gate-editor-api.mjs
+
 step 7 "Packages/manifest.json 与 dependency-lock.json 一致"
 node tools/gen-manifest.mjs --check
 

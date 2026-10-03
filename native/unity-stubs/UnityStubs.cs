@@ -226,6 +226,17 @@ namespace UnityEngine.UI
 // **整个 `unity/Assets/Editor/` 从未被本机检查过**。Editor 代码写错只能等 CI 构建
 // （一次 ~47 分钟）才发现——正是本项目最想避免的"远程才发现"。
 // 现在扫描范围扩到 Assets/Editor，这里补上它用到的 API 面。
+//
+// ⚠️⚠️ 这个桩有一个**结构性缺陷**，务必记住（CI #18 真实事故）：
+//   桩是**我自己写的**。我编造一个不存在的 API（当时写了 `UnityEditor.SplashScreen`，
+//   真 Unity 里其实是 `PlayerSettings.SplashScreen`），桩就替这个错误背书，
+//   于是本机门禁全绿、CI 报 CS0103，白烧一次构建。
+//   → 桩能验证的只有**内部一致性**（调用点与签名自洽），
+//     它**永远无法验证"Unity 真的有这个成员"**。
+//   → 因此这里的每个成员都必须有官方文档出处；出处见每个成员上方的注释。
+//     没有出处的成员要么删掉，要么在注释里显式标 `⚠ 未核实`。
+//   → tools/gate-api-trace.mjs 会检查 `⚠ 未核实` 的残留数量（只警告不判红），
+//     用来防止"编造 API"这类错误悄悄堆积。
 namespace UnityEngine.SceneManagement
 {
     public struct Scene { public string name => null; public bool IsValid() => true; }
@@ -287,14 +298,14 @@ namespace UnityEditor
         }
     }
 
-    /// <summary>启动画面（Unity 6 仍为 PlayerSettings.SplashScreen）。</summary>
-    public static class SplashScreen
-    {
-        public static bool show { get; set; }
-        public static SplashScreenLogo[] logos { get; set; }
-    }
-
-    public struct SplashScreenLogo { }
+    /// <summary>
+    /// 启动画面开关**不再在这里声明**（CI #18 事故）：
+    /// 我曾在这里写 `public static class SplashScreen`，而真 Unity 里它是
+    /// `PlayerSettings.SplashScreen`（嵌套类型），`UnityEditor.SplashScreen` **并不存在**。
+    /// 桩替我的臆造背书 → 本机绿灯、CI CS0103 失败。
+    /// 现在 BuildConfigurator 改用**反射**动态找 `show` 属性，不依赖具体类型名，
+    /// 所以这里也就不该再放一个假类型（放了就会再次掩盖同类错误）。
+    /// </summary>
 
     public class MenuItemAttribute : Attribute { public MenuItemAttribute(string itemName) { } }
 

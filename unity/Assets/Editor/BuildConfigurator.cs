@@ -140,15 +140,39 @@ namespace Whisper.Editor
         }
 
         /// <summary>
-        /// 关闭 Unity 启动画面。Unity 6 的 SplashScreen API 有过改动，
-        /// 因此全程 try/catch —— 关不掉只是观感问题，**绝不能因此让构建失败**。
+        /// 关闭 Unity 启动画面。
+        ///
+        /// 这里有一段**必须记住的教训**（CI 构建 #18 失败）：
+        /// 我最初写成 `SplashScreen.show = false;` —— 因为我在本机手写的 UnityEditor 桩里
+        /// 就是这么定义的，于是本机语法门禁**通过**了。但真 Unity 里它叫
+        /// `PlayerSettings.SplashScreen`（`UnityEditor.SplashScreen` 并不存在），CI 报：
+        ///     CS0103: The name 'SplashScreen' does not exist in the current context
+        /// 根因不是"名字记错了"，而是**桩是我自己写的：我编造一个 API，桩就替它背书，
+        /// 于是这道门禁永远发现不了"我编造 API"这个错误类别**。桩能验证"内部一致性"，
+        /// 不能验证"Unity 真的有这个成员"。
+        ///
+        /// 所以现在改成**反射动态查找**：不去记属性名，只要类型上存在名为 `show` 的
+        /// bool 可写属性就关掉它；找不到就只记一条警告。这样既拿到了"关启动画面"的收益，
+        /// 又不会因为 API 名字/位置变化而**再让整次构建失败**（一次 CI ≈ 45 分钟）。
         /// </summary>
         static void TryDisableSplash(System.Collections.Generic.List<string> problems)
         {
+            var t = typeof(PlayerSettings).GetNestedType("SplashScreen", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (t == null)
+            {
+                problems.Add("未找到 PlayerSettings.SplashScreen 类型，跳过关闭启动画面（不影响功能）");
+                return;
+            }
+            var prop = t.GetProperty("show", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (prop == null || !prop.CanWrite)
+            {
+                problems.Add("PlayerSettings.SplashScreen.show 不可写，跳过（不影响功能）");
+                return;
+            }
             try
             {
-                SplashScreen.show = false;
-                SplashScreen.logos = Array.Empty<SplashScreenLogo>();
+                prop.SetValue(null, false);
+                Debug.Log("[Whisper] 已关闭 Unity 启动画面（PlayerSettings.SplashScreen.show = false）");
             }
             catch (Exception ex)
             {
