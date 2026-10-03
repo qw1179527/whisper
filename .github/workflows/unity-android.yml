@@ -1,0 +1,71 @@
+# Project Whisper · Unity Android 构建（GameCI）
+#
+# 为什么要有这个文件：本机（Android/Termux 环境）**出不了 Unity 包** ——
+#   ① Unity 官方发布索引里 Linux 编辑器只有 X86_64（实测最新 6000.3.25f1，4.2GB），
+#      本机是 aarch64，需 box64/qemu 模拟；IL2CPP 编译在模拟下从"分钟级"变成"小时级"；
+#   ② download.unity3d.com 对本区域返回 404（根路径同样 404，属区域拦截）；
+#   ③ 本机可用于编译的内存约 6GB，Unity 编辑器 + IL2CPP 在这个量级上极易 OOM。
+# 所以出包这一步交给 CI：推一次代码即产出 APK 工件。
+#
+# 需要配置的 Secrets（仓库 Settings → Secrets and variables → Actions）：
+#   UNITY_LICENSE   —— Unity 个人版/专业版许可证（.ulf 内容；GameCI 文档有获取脚本）
+#   UNITY_EMAIL     —— Unity 账号邮箱
+#   UNITY_PASSWORD  —— Unity 账号密码
+#   UNITY_SERIAL    —— 仅专业版需要（个人版留空）
+#
+# 详细获取方式见 https://game.ci/docs/unity/activation
+name: unity-android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'unity/**'
+      - '.github/workflows/unity-android.yml'
+
+jobs:
+  build:
+    name: 构建 Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: 缓存 Library
+        uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-Android-${{ hashFiles('unity/Assets/**', 'unity/ProjectSettings/**') }}
+          restore-keys: Library-Android-
+
+      - name: 构建（GameCI）
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          projectPath: unity
+          targetPlatform: Android
+          androidExportType: androidPackage
+          buildMethod: Whisper.Editor.BuildScript.BuildAndroid
+          allowDirtyBuild: true
+
+      - name: 上传 APK 工件
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-android-apk
+          path: build/Android/*.apk
+          if-no-files-found: error
+
+      - name: 校验包体门禁（V9 §13.8：APK ≤200MB）
+        run: |
+          set -e
+          f=$(ls build/Android/*.apk | head -1)
+          sz=$(stat -c%s "$f")
+          echo "APK: $f · $sz 字节（$((sz/1048576)) MB）"
+          if [ "$sz" -gt 209715200 ]; then echo "✗ 超过 200MB 包体门禁"; exit 1; fi
+          echo "✓ 包体门禁通过"

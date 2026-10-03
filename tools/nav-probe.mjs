@@ -146,9 +146,12 @@ function trial(from, to, id = 'stitcher') {
       if (here && here.id !== to) {
         const p2 = M.__m4.findRoomPath(level, here.id, to);
         const w2 = M.__m4.roomPathToWaypoints(level, p2 ?? [here.id]);
-        if (w2.length) { waypoints = w2; }
-        else waypoints = wps;
-      } else if (here && here.id === to) waypoints = [{ x: goal.x, z: goal.z }];
+        // ⚠ 重算路点后**必须重置 wpIndex**：我第一版忘了重置，而下一行的
+        // `Math.min(wpIndex, len-1)` 会把索引夹到最后一个路点 —— 于是怪物永远直奔**最终目标**、
+        // 被墙卡住不动。探针据此报"3 条路线全未到达"，看起来像游戏寻路坏了，其实是探针自伤。
+        if (w2.length) { waypoints = w2; wpIndex = 0; }
+        else { waypoints = wps; wpIndex = 0; }
+      } else if (here && here.id === to) { waypoints = [{ x: goal.x, z: goal.z }]; wpIndex = 0; }
     }
     const wp = waypoints[Math.min(wpIndex, waypoints.length - 1)];
     if (Math.hypot(wp.x - brain.position.x, wp.z - brain.position.z) < 0.65) {
@@ -174,6 +177,10 @@ function trial(from, to, id = 'stitcher') {
       const nav = brain._nav ?? {};
       const here = M.__m4.roomAt(level, brain.position.x, brain.position.z);
       console.log(`      [dbg] t=${tick} pos=(${brain.position.x.toFixed(2)},${brain.position.z.toFixed(2)}) room=${here ? here.id : '(空)'} wpIndex=${wpIndex}/${waypoints.length} wp=(${waypoints[Math.min(wpIndex, waypoints.length-1)].x},${waypoints[Math.min(wpIndex, waypoints.length-1)].z}) sidestep=${!!r.sidestep}`);
+    }
+    if (process.env.NAV_DEBUG === '1' && tick % 30 === 0 && tick < 400) {
+      const w = waypoints[Math.min(wpIndex, waypoints.length - 1)];
+      console.log(`      [mv] t=${tick} pos=(${r.position.x.toFixed(2)},${r.position.z.toFixed(2)}) wp=${wpIndex} target=(${w.x},${w.z}) blocked=${!!r.blocked} state=${brain.state}`);
     }
     const moved = Math.hypot(r.position.x - before.x, r.position.z - before.z);
     if (moved < 0.005) { stuckTicks++; maxStuck = Math.max(maxStuck, stuckTicks); } else stuckTicks = 0;
