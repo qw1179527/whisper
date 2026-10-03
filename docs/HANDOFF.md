@@ -1,207 +1,194 @@
 # Project Whisper · 项目状态与接续文档
 
-> 最后更新：2026-10-03 17:00（提交 `11b4fa1`）
+> 最后更新：2026-10-03 18:40（提交 `b7ad671`）
 > 用途：**上下文压缩后仅凭本文件即可继续工作**。所有结论都标注了验证方式与证据。
+> 纪律：不掩饰缺口；「构建成功」≠「能玩」；一切结论附可复核证据。
 
 ---
 
 ## 〇、一句话现状
 
-**从"手机端无 Unity"走到了"GitHub 云端成功产出 Unity APK"**（29.9 MB，已验证内容进包）；
-但该 APK **从未在任何设备上运行过** —— 下一步是装机验证。
+**真机第一次跑起来了**：装机成功、`BOOT OK`（23ms）、HUD 完整渲染、60fps 稳定、无崩溃重启。
+**但 3D 视图还是纯色**（相机/雾问题已修，待 CI #20 出包复验）。
+方案基线 V9；本机门禁全绿（132 断言）。
 
 ---
 
 ## 一、项目是什么
 
 **Project Whisper（低语计划）**：Unity 6 的 Android 合作恐怖游戏（语音驱动机制）。
-方案基线为 `/storage/emulated/0/DSH专用/恐怖整合.pdf`（V9.0 终稿，五版整合）。
-V5~V8 已归档，冲突以 V9 §3「冲突裁决终表」为准。
+方案基线 `/storage/emulated/0/DSH专用/恐怖整合.pdf`（V9.0 终稿，五版整合）；
+V5~V8 归档，冲突以 V9 §3「冲突裁决终表」为准。
+全文提取在 `docs/spec/V9-fulltext.txt`。
 
-**开发环境**：Android 手机 + DSH Mobile（AI 全栈执行模式），仓库在 `$HOME/whisper`。
-**远程仓库**：`github.com/qw1179527/whisper`（私有，44 次提交）
+- 仓库：`$HOME/whisper`（40+ 次提交）
+- 远端：`github.com/qw1179527/whisper`（私有，分支 **master → origin/main**）
+- 开发环境：Android 手机 + DSH（bionic libc），**本机无 Unity 引擎** → 出包走 GitHub Actions
 
 ---
 
-## 二、已验证的成果（有证据）
+## 二、真机验收结果（2026-10-03，CI #19 / `whisper-unity-0.1.19.apk`）
 
-### 2.1 Unity 工程
+设备 RMX5062 · Android 16 (API 36) · 中国移动。工具：`tools/verify-apk-on-device.sh`
 
-| 项 | 状态 | 证据 |
+| 判据 | 结果 | 证据 |
 |---|---|---|
-| 七 ASMDEF 结构（V9 §13.1） | ✅ | 10 个 `.asmdef`（7 业务 + UI/Analytics/Tests） |
-| 玩法代码 | ✅ | 40 个 C# 文件 / 5330 行 |
-| 编译通过 | ✅ | IL2CPP 产出 `libil2cpp.so`（62MB） |
-| Boot 场景 | ✅ | 由 `EditorSceneBootstrap.cs` 代码生成（本机无编辑器） |
+| V1 安装 + 包名 | ✅ | `com.whisper.projectwhisper`（PlayerSettings 真生效）· 版本 0.1.1 |
+| V2 进程 / 无重启循环 | ✅ | pid 三次采样一致（排除首包那种"闪屏"形态） |
+| V3 boot 走完 | ✅ | `[Whisper] BOOT OK · 23 ms · 房间 11 · 门 20 · 道具 7 · 可走格 405 · 着色器 Whisper/UnlitColor` |
+| V4 无着色器异常 | ✅ | logcat 无 `ArgumentNullException(shader)` |
+| V5/V6 屏幕有场景 | ❌ | 亮度 207/255 · 标准差 2.1 · **边缘密度 0.0%** |
 
-**已实现的机制**（均在 `unity/Assets/Scripts/Gameplay/`）：
-声纹校准 + 分档分类器 · 听觉判定 · 三怪状态机 · 理智系统 · 道具系统 ·
-撤离结算（双点制）· 关卡 DSL 加载 + 几何编译 + 装配计划 · HUD 模型 · 会话/对局流程
+**HUD 实测截图内容**（真的渲染出来了）：
+```
+Project Whisper · 运行中
+Tick 305 · 60 fps · tickRate=60
+接口: INetService 已注入 · IVoiceService 已注入 · IBackendService 已注入（无后端模式，§15.2）
+关卡 asylum_v1: 房间 11 · 走廊 10
+几何着色器 ✓ · 相机 ✓ · Boot 23 ms
+```
+3D 视图是一片均匀 `#D8CFBB`（= `ColorBone`，安全区墙色）→ 相机贴在墙外/雾洗白。
 
-### 2.2 门禁体系（四类 + 两个补充）
+**已修、待 CI #20 复验**：
+1. 着色器去掉 `multi_compile_fog` + `UNITY_TRANSFER/APPLY_FOG`
+   （雾是全局效果，依赖 Lighting 设置，而本工程连 ProjectSettings 都没有 → 不可控；关卡仅 22m×10m 不需要雾）
+2. 相机改为**站在房间内、朝最近门口方向看**（原先放在 `spawn-2.5m`，而入口房间只有 4m×3m → 已落到墙外）
+
+---
+
+## 三、许可证这条路（别再重复趟）
+
+| 步骤 | 结论 |
+|---|---|
+| Unity 官方发布索引 | Linux 编辑器**只有 X86_64**（6000.3.25f1，4.2GB） |
+| 本机架构 | `aarch64`，无 arm64 编辑器 |
+| `download.unity3d.com` | 对本区域 **404** |
+| `id.unity.com` | 对本机网络**超时不可达** |
+| 个人版激活方式 | **只能通过 Unity Hub**（官方手册明确） |
+| 命令行 `-username/-password` | 能登录但 **0 entitlements** |
+| 电脑 Hub 生成的 `.ulf` | 含 MachineBindings，**CI 上无效** |
+| **最终解法** | `.ulf` 的 `DeveloperData` base64 解码得**明文序列号**，用 `UNITY_SERIAL` 激活 ✅ |
+
+**Secrets（已配 4 个）**：`UNITY_EMAIL` · `UNITY_PASSWORD` · `UNITY_SERIAL` · `UNITY_LICENSE`
+
+---
+
+## 四、踩过的真实事故（每条都有实证）
+
+| # | 事故 | 根因 | 现在怎么守 |
+|---|---|---|---|
+| 1 | **真机黑屏**（首包） | `Shader.Find("Standard")` 被剥离→返回 null→`new Material(null)` 抛异常；且场景无相机、`Text.font` 为 null | 着色器作为资产放 `Resources/`（无条件进包）；相机与字体代码创建；`gate-test` **T6** 盯住 |
+| 2 | **CI 构建失败**（#18） | 我**臆造 Unity API**：写成 `UnityEditor.SplashScreen`，真名是 `PlayerSettings.SplashScreen`。而我手写的 Unity 桩替这个错误背书 → 本机假绿 | `data/unity-api-registry.json` + `tools/gate-editor-api.mjs`：每个 Editor Unity API 必须有官方文档出处；反射式调用豁免 |
+| 3 | **缺 96 个 `.meta`** | Unity 不把 .cs 归入 asmdef → 181 条 CS0234 | `tools/gen-meta.mjs`（确定性 GUID）+ 门禁 |
+| 4 | **asmdef 引用用对象形式** | `{name:...}` 被 Unity 静默忽略 | 改字符串数组；**生成器同步**（否则生成器与文件漂移，一键链第 6 步长期判红、后 15 步被掩盖） |
+| 5 | **`set -euo pipefail` 掩盖后续步骤** | 第 3 步一红，第 4~21 步从不执行；质检发现"HEAD 的 132 全绿"在工作区不可复现 | 每次改动后跑**完整** `unity-check.sh` 并确认 exit 0 |
+| 6 | **假绿四连**（质检第 1 轮抓出） | ① `WireFormat` 三类型缺 `<summary>` ② `gate-physics` P2 判据写成 C# 里不存在的 `Math.Random` ③ 真机脚本 V5/V6 只打印不参与退出码 ④ `StimulusSize` 常量写成 10 实际 14 | 全部修掉；判据必须**参与退出码**，常量必须与**实测字节**一致 |
+| 7 | **线格式常量自证** | 断言只比对常量，常量错了也发现不了；我反推偏移错了三次 | 改为"先用空批量出固定开销，再算增量"；新增 `StateBatchFixedBytes=10` |
+
+---
+
+## 五、门禁体系（四类 + 四个补充）
 
 | 门禁 | 工具 | 规模 | 注入验证 |
 |---|---|---|---|
-| 建模 | `tools/gate-model.mjs` | M1~M11 | 4 种注入全部判红 |
-| 物理规则 | `tools/gate-physics.mjs` | P0~P4 | P3/P4 有效；**P1/P2 注入仍未被判据发现（缺口）** |
-| 代码质量 | `tools/gate-code.mjs` | C1~C7 | 6 种注入全部判红 |
-| 功能测试 | `tools/gate-test.mjs` | T1~T3 | 注入必失败断言 → 判红 |
+| 建模 | `tools/gate-model.mjs` | M1~M11 | 4 种注入全判红 |
+| 物理规则 | `tools/gate-physics.mjs` | P0~P4 | P2 已修（正常绿+注入红）；**P1 注入仍是伪造的** |
+| 代码质量 | `tools/gate-code.mjs` | C1~C7 | 6 种注入全判红 |
+| 功能测试 | `tools/gate-test.mjs` | T1~T3 + **T6 启动关键契约** | 注入必失败断言 → 判红 |
 | 资产几何 | `tools/gate-asset-bbox.mjs` | B1~B3 | 2 种注入判红 |
-| 程序集编译 | `native/asmdef-check/build.sh` | 逐 ASMDEF | 新增（补本机盲区） |
-| 接口一致性 | `native/asmdef-check/iface-check.mjs` | 3 接口 | 新增（补 Tests/ 盲区） |
+| 程序集编译 | `native/asmdef-check/build.sh` | 逐 ASMDEF | 新增 |
+| 接口一致性 | `native/asmdef-check/iface-check.mjs` | 3 接口 | 新增 |
+| **Editor API 出处** | `tools/gate-editor-api.mjs` | 35 处引用 / 36 项台账 | 新增（防臆造 API） |
 
-**一键链**：`bash unity-check.sh` → 21 步 · exit 0 · **113 条本机断言全绿**
-
-### 2.3 CI / 出包
-
-| 工作流 | 用途 | 状态 |
-|---|---|---|
-| `unity-android.yml` | 构建 Android APK | ✅ **#17 success** |
-| `unity-license.yml` | 序列号激活许可证 | ✅ success |
-| `unity-alf.yml` | 生成 `.alf`（备用） | 可选 |
-
-**所需 Secrets（已配置 4 个）**：
-`UNITY_EMAIL` · `UNITY_PASSWORD` · `UNITY_SERIAL` · `UNITY_LICENSE`
-
-**产物**：`/storage/emulated/0/DSH专用/whisper-unity-0.1.0.apk`
-（29.9 MB · sha256 `6bbaf39611fee3b6`）
-
-**APK 内容已核实进包**（解压后二进制搜索）：
-```
-asylum_v1        ✓ level0 + globalgamemanagers
-entrance_safe    ✓ 8dc39935…
-stimulusSources  ✓ 666dc568…
-Whisper          ✓ ScriptingAssemblies.json + globalgamemanagers.assets
-```
-
-### 2.4 灰盒版（旁路验证台）
-
-`/storage/emulated/0/DSH专用/whisper-graybox-0.7.5-dev.apk`（86 KB）——**可玩**：
-13 房间全连通 · 5 个证据点全部可达 · 启动冒烟通过。
-用途：低成本验证机制与数值（与 Unity 共用 `data/config.json` 与关卡语义）。
+**一键链**：`bash unity-check.sh` → 全部步骤 · exit 0 · **132 条本机断言 0 失败**
 
 ---
 
-## 三、许可证这条路的完整结论（别再重复趟）
+## 六、联机方案（含真机实测结论）
 
-| 步骤 | 结论 | 证据 |
-|---|---|---|
-| Unity 官方发布索引 | Linux 编辑器**只有 X86_64** | API 查询：6000.3.25f1 · 4.2GB |
-| 本机架构 | `aarch64`，无 arm64 编辑器 | `uname -m` |
-| `download.unity3d.com` | 对本区域 **404** | 实测（URL 取自官方 API） |
-| `id.unity.com` | 对本机网络**超时不可达** | 15s timeout，多次实测 |
-| 个人版激活方式 | **只能通过 Unity Hub** | [官方手册](https://docs.unity3d.com/6000.0/Documentation/Manual/LicenseActivationMethods.html) |
-| 命令行 `-username/-password` | 能登录（返回 access token）但 **0 entitlements** | CI 日志 |
-| 电脑 Hub 激活生成的 `.ulf` | 是 `License id="Terms"` + **MachineBindings**（机器绑定），CI 上无效 | 解析 .ulf |
-| **最终解法** | `.ulf` 的 `DeveloperData` base64 里藏着**完整序列号** `F4-WU6R-BA2X-RPYN-22M3-9CPX`，用 `UNITY_SERIAL` 激活 | CI #17 成功 |
+**实测（本机 RMX5062 / 中国移动）**：
+- **IPv4 侧是对称 NAT**：三个 STUN 服务器给出同 IP 不同端口（:4339/:4201/:4858）→ **UDP 打洞不可行**
+- **IPv6 侧全局可路由且端口守恒**：绑定 `[2409:...]:38000`，三个 STUN 服务器看到的都是同一地址同一端口
+  → **端到端无 NAT，拿地址就能直连**
 
-**关键教训**：`SerialMasked` 是掩码的，但 `DeveloperData` 字段 base64 解码即得明文序列号。
+**免费结论**：
+| 方案 | 判定 |
+|---|---|
+| Photon Fusion 免费档 | ⚠️ 100 CCU 硬顶，付费不可降档（单向门）→ 排除 |
+| Unity Relay | ⚠️ UGS 要绑支付方式 → 排除 |
+| **IPv6 直连 + 房间码内嵌地址** | ✅ **已实现**（`Net/RoomCode.cs`）：零服务器、零账号、零绑卡 |
+| 同 WiFi 广播发现 | ✅ 免操作 |
+| EOS | ✅ 真免费（无 CCU 上限），但要集成工作量 |
+
+**线格式**（`Net/WireFormat.cs`，V9 §13.4 首次有可核对字节数）：
+```
+满房 4 人 + 4 理智 + 6 道具变更 = 68 字节 / 预算 100 字节
+容量上限：每批最多 16 条道具/门变更
+尺寸实测：空批固定 10 · 头 5 · 玩家 8 · 道具 3 · 理智 2 · 声纹 14
+```
+**硬边界**：对面若没有 IPv6，免费方案连不上（只能同 WiFi 或用电脑开一次中继）。
 
 ---
 
-## 四、构建失败 → 成功的 6 个真实缺陷（都已修）
-
-| # | 缺陷 | 症状 | 修法 | 错误数 |
-|---|---|---|---|---|
-| 1 | **缺 96 个 `.meta`** | Unity 不把 .cs 归入 asmdef | `tools/gen-meta.mjs`（确定性 GUID） | 崩溃 → 181 |
-| 2 | **asmdef 引用用对象形式** `{name:...}` | 程序集互相看不见 | 改字符串形式 `["Whisper.Core"]` | 181 → 45 |
-| 3 | **测试 asmdef 缺 `Whisper.Net` 引用** | Net 类型找不到 | 补引用 | 45 → 14 |
-| 4 | **`FakeNet` 未实现接口新增成员** | CS0535 | 补同步对象成员 | 14 → 0 |
-| 5 | **APK 路径写错** | 构建成功但传不上 | 改 `unity/build/Android/` | — |
-| 6 | **缓存键没含 `.meta` 指纹** | 旧程序集图残留 | 缓存键升 v2 | 干扰排查 |
-
-**#1 与 #4 是本机门禁的盲区**（跑手把源码当普通 C# 编译，不经资产数据库，也不编 Tests/）——
-已用 `asmdef-check` + `iface-check` 补上。
-
----
-
-## 五、⚠️ 下一步：装机验证（最优先）
-
-**当前唯一未知**：APK 能否在真机启动。
-
-```
-安装：/storage/emulated/0/DSH专用/whisper-unity-0.1.0.apk
-```
-
-| 现象 | 可能原因 | 处理方向 |
-|---|---|---|
-| 正常进游戏、看到 HUD | —— | 继续做玩家控制器与怪物 |
-| 黑屏 | Boot 场景里组件没挂上（本机无编辑器，场景是脚本生成） | 改 `EditorSceneBootstrap` 用 `AddComponent` 显式挂载 |
-| 闪退 | 缺资源 / IL2CPP 剥离 | 查 logcat；加 `link.xml` |
-| 提示缺资源 | Resources 打包问题 | 检查 `Assets/Resources/**` 与加载路径 |
-
-**抓日志**：
-```bash
-adb logcat | grep -i unity        # 连电脑时
-# 或手机装 logcat 阅读器 App，过滤 Unity
-```
-
----
-
-## 六、代码与工具地图
+## 七、代码与工具地图
 
 ```
 whisper/
-├── unity/Assets/Scripts/
-│   ├── Core/Contracts/        三接口 + 四类同步对象（MatchState/StimulusEvent/TokenBundle）
-│   ├── Core/DesignTokens.cs   41 个设计常量（V9 §11 色板，由生成器产出）
-│   ├── Gameplay/
-│   │   ├── Level/             LevelData/Loader/Geometry/Builder/Assembly
-│   │   ├── Voice/             VoiceCalibrator(149) + VoiceBandClassifier(299)
-│   │   ├── Hearing/           听觉判定
-│   │   ├── Monsters/          MonsterBrain（状态机）
-│   │   ├── Sanity/ Items/ Extraction/ Hud/ Session/ Match/
-│   ├── Net|Audio|Backend/     Local*Service 桩（SDK 唯一槽位）
-│   ├── Runtime/GameBootstrap.cs   组合根（读配置→注入三接口→装配几何→HUD）
-│   ├── Editor/                BuildScript + EditorSceneBootstrap（C1 场景零手工）
-│   └── Tests/                 EditMode×3 + PlayMode×1（**从未执行过**）
+├── unity/Assets/
+│   ├── Scripts/
+│   │   ├── Core/Contracts/     三接口 + 四类同步对象
+│   │   ├── Core/DesignTokens.cs 41 个设计常量（V9 §11）
+│   │   ├── Gameplay/           Level/ Voice/ Hearing/ Monsters/ Sanity/ Items/ Extraction/ Hud/ Session/ Match/
+│   │   ├── Net/                LocalNetService(桩) · RoomCode · WireFormat
+│   │   ├── Audio|Backend/      Local*Service 桩（SDK 唯一槽位）
+│   │   ├── Runtime/GameBootstrap.cs  组合根：相机+HUD+配置+三接口+几何
+│   │   ├── Editor/             BuildScript + BuildConfigurator + EditorSceneBootstrap
+│   │   └── Tests/              EditMode×3 + PlayMode×1（**从未执行过**）
+│   └── Resources/
+│       ├── Data/config.json · asset-manifest.json
+│       ├── Levels/asylum_v1.json
+│       └── Shaders/WhisperUnlitColor.shader   ← 无条件进包（黑屏修复的关键）
 ├── native/
-│   ├── csharp-verify/         113 条断言的跑手（本机真编译真跑）
-│   ├── asmdef-check/          逐程序集编译 + 接口一致性（新增）
-│   ├── graybox-apk/           灰盒 APK 构建链（不用 gradle）
-│   └── dotnet.sh              本地 .NET 8 SDK 包装
-├── tools/                     38 个工具（门禁/生成器/校验/探针）
-├── docs/
-│   ├── HANDOFF.md             ← 本文件
-│   ├── mechanism-gaps.md      缺口登记表
-│   └── spec/LEDGER.md         五版方案要求台账（399 章 / 318 条承重行）
-└── data/config.json           数值唯一真源（V9 §19.5）
+│   ├── csharp-verify/          132 条断言的跑手（本机真编译真跑）
+│   ├── asmdef-check/           逐程序集编译 + 接口一致性
+│   ├── unity-stubs/            Unity 桩（**注意：桩会为臆造 API 背书，见事故 #2**）
+│   ├── unity-syntax/           Roslyn 语义检查
+│   └── graybox-apk/            灰盒 APK 构建链
+├── tools/                      40+ 工具（门禁/生成器/校验/真机验收）
+└── data/unity-api-registry.json  Editor Unity API 出处台账
 ```
 
 ### 常用命令
 
 ```bash
-bash unity-check.sh                    # 一键链：21 步 / 113 断言
-node tools/gate-model.mjs              # 建模门禁 11 项
-node tools/gate-physics.mjs            # 物理规则 4 项
-node tools/gate-code.mjs               # 代码质量 7 项
-node tools/gate-test.mjs               # 功能测试 3 项
-node tools/gate-asset-bbox.mjs         # 资产几何 1 项
-bash native/asmdef-check/build.sh      # 逐 ASMDF 编译检查
-tools/git.sh <git 子命令>               # 本机 git（修了 exec-path 与 CA 路径）
+bash unity-check.sh                    # 一键链（务必确认 exit 0 与全部步骤都跑了）
+node tools/gate-test.mjs               # 功能测试门禁（含 T6）
+node tools/gate-physics.mjs            # 物理规则门禁（含 --inject-random 注入验证）
+node tools/gate-editor-api.mjs         # Editor API 出处门禁
+bash tools/unity-syntax-check.sh       # Roslyn 语义检查（含 Assets/Editor）
 node tools/gen-meta.mjs [--check]      # 生成/校验 Unity .meta
-bash build.sh --quick                  # 灰盒产物（V1~V6 门禁）
-node tools/nav-probe.mjs               # 怪物导航仿真探针
-GITHUB_TOKEN=xxx node tools/gh/put-secret.mjs <owner/repo> <NAME> <value>
-                                       # 程序化写 GitHub Secrets（libsodium 加密）
+tools/git.sh <子命令>                   # 本机 git（修了 exec-path 与 CA 路径）
+
+# 真机验收（需 Shizuku；约 90 秒）
+bash tools/verify-apk-on-device.sh "/storage/emulated/0/DSH专用/whisper-unity-0.1.N.apk" 25
 ```
 
 ---
 
-## 七、未完成清单（按优先级）
+## 八、未完成清单
 
 ### P0 —— 阻塞"能玩"
 | 项 | 说明 |
 |---|---|
-| **装机验证** | 见第五节。这是当前唯一未知 |
-| 玩家控制器 | `PlayerController.cs`：输入 → `LevelGeometry.Resolve` 子步进碰撞 → 相机跟随 |
+| **3D 视图复验** | 雾与相机已修，待 CI #20 出包验证屏幕上真有几何 |
+| 玩家控制器 | `PlayerController.cs`：输入 → `LevelGeometry.Resolve` 子步进碰撞 → 相机跟随（**当前相机是固定机位**） |
 | 场景实体接线 | `GameSession.Tick` ↔ Unity 生命周期（位置/状态同步到 GameObject） |
 
 ### P1 —— 玩法闭环
 | 项 | 说明 |
 |---|---|
-| 怪物实例化 | 三怪预制体 + 移动解析注入（`MonsterBrain` 逻辑已就绪） |
-| HUD 实渲染 | `HudModel` → `HudBuilder` 接真 uGUI |
+| 怪物实例化 | `MonsterBrain` 逻辑已就绪，缺预制体与移动解析注入 |
+| HUD 实渲染 | `HudModel` 已渲染；`HudBuilder` 未接真 uGUI |
 | 交互层 | 证据拾取（0.9m）/ 电闸（1.6m）/ 道具使用 |
 | 对局闭环 | 撤离双点 + 保护期 + 狂暴窗口 → 结算页 |
 
@@ -210,67 +197,69 @@ GITHUB_TOKEN=xxx node tools/gh/put-secret.mjs <owner/repo> <NAME> <value>
 |---|---|---|
 | C4 运行时烘焙占位 | §19.1 | ⚠️ 未实现（C1/C2/C3 已落地） |
 | 事件池场景表现 | §7 | 逻辑有，视觉缺 |
-| 三怪差异化 | §7 附录A | 逻辑有，外观缺 |
+| 三怪差异化外观 | §7 附录A | 逻辑有，外观缺 |
 | 第 0 局引导 / 档案残页 | §9 | 未做 |
-| 设计系统接入 uGUI | §11 | Token 已生成（41 常量），未接 UI |
+| 设计系统接入 uGUI | §11 | Token 已生成，未接 UI |
+| **5 个套件 GLB 重建** | — | APK 仍打旧的 `baseline/whisper-kits.glb` |
 
 ### P3 —— 需外部条件
-| 项 | 阻塞 |
-|---|---|
-| 联机同步（Fusion 2.x） | §13.4，需 SDK 与账号 |
-| 语音链路（Vivox 16.x） | §13.5，当前是 LocalVoiceService 桩 |
-| 后端六能力（Firebase） | §15，需云服务与预算 |
-| 合规十项 | §16，需法务与商店流程 |
+联机同步（已定 IPv6 直连方案，待实现传输层）· 语音链路（Vivox 16.x，当前是桩）· 后端六能力（Firebase）· 合规十项
 
 ### 已知缺口（登记在 `docs/mechanism-gaps.md`）
-- `gate-physics` 的 P1/P2 **注入是伪造的**（判据未参与），需改成真注入
+- `gate-physics` 的 **P1 注入仍是伪造的**（硬编码检测在 P0 且为警告级，不判红）
 - 台账产物未重新生成（行数口径代码已修，未 `--emit`）
-- APK 打的是旧的 `baseline/whisper-kits.glb`，非新的 5 个 CC0 套件
+- APK 打的是旧的 `whisper-kits.glb`，非新的 5 个 CC0 套件
 - PlayMode 用例（`BootSmokeTests`）**从未执行过**
+- `gate-editor-api` 的出处台账**从不访问 URL**（只做前缀校验），成员是否真在文档中未验证
 
 ---
 
-## 八、安全事项（务必处理）
+## 九、安全事项
 
-**本项目会话中出现过明文凭据，已暴露**：
+**本会话对话记录里出现过明文凭据**（会话缓存位于
+`$HOME/storages/session_projcache/sessions/*.json`，其中检出 3 个令牌）：
 
-| 凭据 | 风险 | 处理 |
-|---|---|---|
-| `ghp_PILk…`（经典令牌） | 仓库完整读写（含 Actions/Secrets） | [撤销重建](https://github.com/settings/tokens) |
-| `github_pat_11CQ…`（细粒度） | 同上（限单仓库） | 一并撤销 |
-| Unity 密码 `771010you@A` | 账号可登录 | [改密码](https://id.unity.com) |
+| 凭据 | 状态 |
+|---|---|
+| `ghp_PILk…`（经典令牌） | 已失效（撤销过） |
+| `github_pat_11CQ…`（细粒度，**当前在用**，需 Contents 读写） | **用完请撤销** |
+| Unity 账号密码 | **建议改密** |
 
-> 新的令牌只放环境变量或 Secrets，**不要再粘进对话**。
+> 新令牌只放环境变量或 Secrets，**不要再粘进对话**。
 
 ---
 
-## 九、关键环境事实（避免重复探索）
+## 十、关键环境事实
 
 | 事实 | 值 |
 |---|---|
-| 本机 libc | **bionic**（非 glibc），Unity 编辑器无法原生运行 |
-| 架构 | `aarch64` |
-| 可用存储 / 内存 | 282 GB / 约 6 GB（Unity 编辑器需 8.7GB 空间 + 大内存） |
-| 无 rsync | 用 `tar --exclude` 替代 |
+| 本机 libc / 架构 | **bionic**（非 glibc）· `aarch64` · Android 16 (API 36) |
+| 无 Unity 引擎 | 出包必须走 GitHub Actions（一次约 25~45 分钟） |
+| Shizuku（`shz`） | **可用** → 能 `pm install` / `logcat` / `screencap` / `pm list` |
+| 装机坑 1 | 直接从 `/storage/emulated/0/` 装会失败：`fuse:s0` system_server 读不了 |
+| 装机坑 2 | `shz` **不转发 stdin**；本进程写不进 `/data/local/tmp` |
+| 装机正解 | `shz "cp <共享存储路径> /data/local/tmp/x.apk"` → 再 `pm install` |
+| 无 rsync | 用 `tar --exclude` |
 | toybox grep | 不支持 `\s`/`\b`，用 `rg` |
 | `/tmp` 不可写 | 用 `$HOME/tmp` |
-| `execSync` 在 node 失效 | 用 `fs` + `execFileSync`（真二进制） |
-| `aapt` 需要 `ANDROID_DATA` | 构建脚本已设 |
-| git 需要两个环境变量 | `GIT_EXEC_PATH` + `GIT_SSL_CAINFO`（`tools/git.sh` 已封装） |
-| 无 npm，有 pnpm | pnpm 在 Android 上因文件锁常失败 → 手工 vendor npm 包（如 libsodium） |
-| 迁移包 | `/storage/emulated/0/DSH专用/DSH-MIGRATION-20261003-1651.zip`（41.5 MB / 2863 条目，已 `unzip -t` 校验、凭据扫描 0 命中） |
+| git 需两个环境变量 | `GIT_EXEC_PATH` + `GIT_SSL_CAINFO`（`tools/git.sh` 已封装） |
+| 推送 | `tools/git.sh push origin master:main`（本地分支 master，远端 main） |
+| Blender | **MCP 可用**：`http://192.168.1.17:8765/mcp` · Blender 5.0.1 · 工作目录 `/storage/emulated/0/DSH专用/DSH文件` |
 
 ---
 
-## 十、接续时怎么开工
+## 十一、接续时怎么开工
 
 ```bash
 cd ~/whisper
-git pull                                   # 同步 44 次提交
-bash native/fetch-dotnet.sh                # 若 .NET 缺失
-bash unity-check.sh                        # 期望：21 步 exit 0 · 113 断言 0 失败
+tools/git.sh log --oneline -10          # 看最近改了什么
+bash unity-check.sh                     # 期望：全步骤 · exit 0 · 132 断言 0 失败
 ```
+**若不全绿 → 先把红的那步修掉，不要带病往下做。**
+（特别注意：`set -euo pipefail` 会让第一步失败掩盖后续步骤，必须确认**全部步骤都跑了**。）
 
-**若全绿** → 环境正常，直接做第五节的装机验证，或按第七节 P0 开发。
-
-**若有报错** → 把报错原文发我，不要带病往下做。
+**当前第一优先**：CI #20 出包后跑
+```bash
+bash tools/verify-apk-on-device.sh "/storage/emulated/0/DSH专用/whisper-unity-0.1.20.apk" 25
+```
+看 V5/V6 是否转绿（3D 视图是否真有几何）。若仍为纯色，按 `#D8CFBB` 这个颜色反查是哪个 lightZone 的哪一面体。

@@ -58,3 +58,38 @@
 | — | `contactSanityLoss` 正数当增量 → 理智反而上涨 | 按机制取负 + 配置符号门禁 `config-lint` |
 | — | `chaseSpeedScale` 读错路径（被 `?? 1.6` 兜底掩盖） | 改读 `monsters.*` + 门禁规则 |
 | — | `LevelBuilder` 引用不存在的 `DesignTokens.ColorConcrete`、漏 `using Whisper.Core` | Roslyn + Unity 桩检查器抓出（该检查器自身修了三次才不假绿） |
+
+## G6 真机 3D 视图为纯色（2026-10-03 装机实测发现）
+- **现象**：CI #19 装机后 `BOOT OK · 23ms`、HUD 完整渲染、60fps 稳定、无崩溃；
+  但 3D 视图是一片均匀 `#D8CFBB`（= `ColorBone`，安全区墙色）。
+  判据实测：亮度 207/255 · 标准差 2.1 · 边缘密度 0.0%。
+- **已做**：① 着色器去掉 `multi_compile_fog` + `UNITY_TRANSFER/APPLY_FOG`
+  （雾是全局效果，取值依赖 Lighting 设置，而本工程无 ProjectSettings → 不可控）；
+  ② 相机从 `spawn-2.5m`（入口房间仅 4m×3m，实际已到墙外）改为**站房间内、朝最近门口看**。
+- **状态**：⚠️ **待 CI #20 复验**。若仍为纯色，按 `#D8CFBB` 反查是哪个 lightZone 的哪一面体。
+
+## G7 gate-physics 的 P1 注入是伪造的（质检第 1 轮）
+- **现象**：`node tools/gate-physics.mjs --inject-hardcode` 自报「注入后仍未判红 —— 该门禁不可信」。
+- **根因**：硬编码检测在 **P0（警告级，不判红）**；P1 只查"配置路径→代码出处"单向，
+  对 8 处真实硬编码（含 `LevelBuilder.cs` 的 `1.3f` = 深处撤离系数）无判定权。
+- **影响**：V9 §19.5「改数值不碰代码」这条实际**没有硬门禁**。
+- **状态**：⚠️ 未修（P2 同类问题已修，见 G8）。
+- **建议**：把 P0 的 8 条硬编码从"警告"升为"判红"，或让 P1 参与判定。
+
+## G8 已修：四处假绿（质检第 1 轮抓出，留痕）
+| # | 问题 | 证据 | 修法 |
+|---|---|---|---|
+| 1 | `WireFormat.cs` 三类型缺 `<summary>` → C7 判红，`set -euo pipefail` 掩盖后 18 步 | 一键链只跑到 `[3/21]` | 补文档注释；此后每轮必须确认**全部步骤都跑了** |
+| 2 | `gate-physics` P2 判据写成 `\bMath\.Random\b` —— **C# 里没有 Math.Random** | 门禁自报"不可信" | 改按 C# 真实写法；现正常绿 + 注入红 |
+| 3 | `verify-apk-on-device.sh` V5/V6 **只打印，不参与退出码** → 黑屏也 exit 0 | 代码审查 + 双向标定 | node 段用退出码表达判定并转 ok()/bad()；pid 改三次采样 |
+| 4 | `StimulusSize` 常量写 10 实际 14（断言只比对常量，常量错也发现不了） | 断言判红 | 改为**量真实编码字节** + 新增 `StateBatchFixedBytes=10` |
+
+## G9 未验证：Unity API 出处台账不访问文档
+- `tools/gate-editor-api.mjs` 只校验台账 URL 的**前缀**是否属官方域名，**从不访问页面**，
+  因此"某个成员是否真的存在于该文档"未被验证（本机访问 `docs.unity3d.com` 无响应）。
+- **状态**：⚠️ 已知边界（工具头注释已写明）。防的是"凭记忆写 API"这一类失效，不是签名正确性。
+
+## G10 装机链路两个实测坑（已写入脚本注释）
+- 直接从 `/storage/emulated/0/` 安装失败：`System server has no access to read file context u:object_r:fuse:s0`。
+- `shz` 桥**不转发 stdin**（`shz "cat > f" < apk` 会挂住）；本进程也写不进 `/data/local/tmp`。
+- **正解**：`shz "cp <共享存储路径> /data/local/tmp/x.apk"` → 再 `pm install -r`。
