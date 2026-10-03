@@ -40,11 +40,18 @@ jobs:
         run: |
           if [ -z "$UL" ] && [ -z "$US" ]; then
             echo "::error title=缺 Unity 许可证::未找到 UNITY_LICENSE（也没有 UNITY_SERIAL）。"
-            echo "免费个人版做法（约 5 分钟）："
-            echo "  1) Actions 页运行 'unity-activation' 工作流，下载 .alf 文件"
-            echo "  2) 打开 https://license.unity3d.com/manual 上传 .alf，选 Personal → 下载 .ulf"
-            echo "  3) Settings → Secrets and variables → Actions 添加 UNITY_LICENSE（.ulf 全文）"
-            echo "     以及 UNITY_EMAIL / UNITY_PASSWORD（你的 Unity 账号）"
+            echo "免费个人版没有纯网页路径 —— Unity 已废弃 .alf 上传流程，"
+            echo "现要求用 **Unity Hub 桌面客户端**本地激活并取出 .ulf（GameCI v3 官方文档）："
+            echo "  1) 在电脑（Win/Mac/Linux 任一）安装 Unity Hub: https://unity.com/download"
+            echo "  2) 登录你的 Unity 账号 → Preferences > Licenses → Add → Get a free personal license"
+            echo "  3) 找到 Unity_lic.ulf："
+            echo "       Windows: C:\\ProgramData\\Unity\\Unity_lic.ulf"
+            echo "       Mac:     /Library/Application Support/Unity/Unity_lic.ulf"
+            echo "       Linux:   ~/.local/share/unity3d/Unity/Unity_lic.ulf"
+            echo "  4) Settings → Secrets and variables → Actions 添加："
+            echo "       UNITY_LICENSE  = .ulf 文件全文"
+            echo "       UNITY_EMAIL    = Unity 账号邮箱"
+            echo "       UNITY_PASSWORD = Unity 账号密码"
             exit 1
           fi
           echo "✓ 已检测到许可证凭据（UNITY_LICENSE 或 UNITY_SERIAL）"
