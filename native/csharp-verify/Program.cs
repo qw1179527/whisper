@@ -1007,6 +1007,58 @@ static class Program
             return ok;
         });
 
+        Console.WriteLine("\n[6] 零信令房间码（跨地区直连 · 实测依据见 RoomCode.cs 头注释）");
+        // 背景：真机实测 IPv4 为对称 NAT（打洞不可行）、IPv6 全局可路由且端口守恒。
+        // 于是"怎么连"已解决，剩下"怎么知道对方地址"——本模块把地址编进房间码，消掉信令服务器。
+        Check("IPv6 端点编解码往返一致", () =>
+        {
+            var code = Whisper.Net.Direct.RoomCode.Encode("2409:8a4c:862d:7d40:a841:2fcd:17b1:67e3", 38000);
+            return Whisper.Net.Direct.RoomCode.TryDecode(code, out var h, out var p)
+                && h == "2409:8a4c:862d:7d40:a841:2fcd:17b1:67e3" && p == 38000;
+        });
+        Check("IPv4 端点编解码往返一致", () =>
+        {
+            var code = Whisper.Net.Direct.RoomCode.Encode("192.168.1.7", 38000);
+            return Whisper.Net.Direct.RoomCode.TryDecode(code, out var h, out var p) && h == "192.168.1.7" && p == 38000;
+        });
+        Check("房间码长度可接受（IPv6 ≤32、IPv4 ≤16 —— 太长就没人愿意转发）", () =>
+        {
+            var v6 = Whisper.Net.Direct.RoomCode.ExpectedLength("2409:8a4c:862d:7d40:a841:2fcd:17b1:67e3", 65535);
+            var v4 = Whisper.Net.Direct.RoomCode.ExpectedLength("192.168.1.7", 65535);
+            Console.WriteLine($"      [码长] IPv6 {v6} 字符 · IPv4 {v4} 字符（base32，只有大写字母与数字2-7）");
+            return v6 <= 32 && v4 <= 16;
+        });
+        Check("房间码只含 base32 字符（不含易混符号，可手抄口述）", () =>
+        {
+            foreach (var (h, p) in new[] { ("2409:8a4c:862d:7d40::1", 1234), ("10.0.0.1", 65535) })
+                foreach (var ch in Whisper.Net.Direct.RoomCode.Encode(h, p))
+                    if (!"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".Contains(ch.ToString())) return false;
+            return true;
+        });
+        Check("IPv6/IPv4 房间码可区分（UI 要提示'对面必须有 IPv6'）", () =>
+            Whisper.Net.Direct.RoomCode.IsIPv6Code(Whisper.Net.Direct.RoomCode.Encode("2409:8a4c:862d:7d40::1", 1))
+            && !Whisper.Net.Direct.RoomCode.IsIPv6Code(Whisper.Net.Direct.RoomCode.Encode("192.168.1.7", 1)));
+        Check("编解码确定性：同输入必得同码（可复现，便于断言与排障）", () =>
+            Whisper.Net.Direct.RoomCode.Encode("2409:8a4c:862d:7d40::1", 1234)
+            == Whisper.Net.Direct.RoomCode.Encode("2409:8a4c:862d:7d40::1", 1234));
+        Check("容忍玩家从聊天软件粘来的空白/零宽字符（实战必然遇到）", () =>
+        {
+            var code = Whisper.Net.Direct.RoomCode.Encode("2409:8a4c:862d:7d40::1", 7777);
+            var dirty = "  \u200b" + code + "\u200b\n";
+            return Whisper.Net.Direct.RoomCode.TryDecode(dirty, out var h, out var p) && h == "2409:8a4c:862d:7d40::1" && p == 7777;
+        });
+        Check("脏输入一律返回 false 而不抛异常（玩家会粘错东西）", () =>
+        {
+            string[] bad = { "", "   ", "X123", "W!!!!", "W", "Wabc", null };
+            foreach (var b in bad)
+                if (Whisper.Net.Direct.RoomCode.TryDecode(b, out _, out _)) return false;
+            return true;
+        });
+        CheckThrows<ArgumentException>("Encode 空主机必须报错（不产出无意义房间码）", () =>
+            Whisper.Net.Direct.RoomCode.Encode("", 1234));
+        CheckThrows<ArgumentOutOfRangeException>("Encode 非法端口必须报错", () =>
+            Whisper.Net.Direct.RoomCode.Encode("2409:8a4c:862d:7d40::1", 70000));
+
         Console.WriteLine($"\n结果：通过 {passed} · 失败 {failed}");
         if (failed > 0)
         {
