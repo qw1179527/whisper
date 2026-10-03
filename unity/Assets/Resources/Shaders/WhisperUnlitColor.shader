@@ -45,13 +45,18 @@ Shader "Whisper/UnlitColor"
             #pragma multi_compile_fog
             #include "UnityCG.cginc"
 
+            // 刻意【不】写 UNITY_VERTEX_INPUT_INSTANCE_ID / UNITY_VERTEX_OUTPUT_STEREO /
+            // UNITY_SETUP_INSTANCE_ID：它们必须与 #pragma multi_compile_instancing、
+            // 单通道立体渲染等 pragma 配对使用，配不上时会在编译期报未定义符号。
+            // 本工程不需要 GPU 实例化与 VR，所以把这些宏整体去掉——**少一个可能编不过的地方**，
+            // 而这个着色器一旦编不过，真机就是洋红屏（也就是又一次"打不开"）。
+
             struct appdata
             {
                 float4 vertex : POSITION;
                 float3 normal : NORMAL;
                 float2 uv     : TEXCOORD0;
                 float4 color  : COLOR;
-                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct v2f
@@ -59,7 +64,6 @@ Shader "Whisper/UnlitColor"
                 float4 pos   : SV_POSITION;
                 float4 color : COLOR;
                 UNITY_FOG_COORDS(0)
-                UNITY_VERTEX_OUTPUT_STEREO
             };
 
             fixed4 _Color;
@@ -67,8 +71,6 @@ Shader "Whisper/UnlitColor"
             v2f vert(appdata v)
             {
                 v2f o;
-                UNITY_SETUP_INSTANCE_ID(v);
-                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.pos = UnityObjectToClipPos(v.vertex);
                 // 顶点色 × 主色：Cube 基元的顶点色是白，所以最终颜色 = 主色；
                 // 将来接真美术网格（带烘焙顶点色）时无需改着色器。
