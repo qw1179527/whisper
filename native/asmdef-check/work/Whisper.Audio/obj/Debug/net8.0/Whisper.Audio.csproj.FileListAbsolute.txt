@@ -1,0 +1,14 @@
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/bin/Debug/net8.0/Whisper.Audio.deps.json
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/bin/Debug/net8.0/Whisper.Audio.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/bin/Debug/net8.0/Whisper.Audio.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/bin/Debug/net8.0/Whisper.Core.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/bin/Debug/net8.0/Whisper.Core.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/Whisper.Audio.csproj.AssemblyReference.cache
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/Whisper.Audio.GeneratedMSBuildEditorConfig.editorconfig
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/Whisper.Audio.csproj.CoreCompileInputs.cache
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/Whisper.Audio.sourcelink.json
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/Whisper.Audio.csproj.CopyComplete
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/Whisper.Audio.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/refint/Whisper.Audio.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/Whisper.Audio.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/obj/Debug/net8.0/ref/Whisper.Audio.dll

@@ -1,0 +1,14 @@
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/bin/Debug/net8.0/Whisper.Backend.deps.json
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/bin/Debug/net8.0/Whisper.Backend.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/bin/Debug/net8.0/Whisper.Backend.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/bin/Debug/net8.0/Whisper.Core.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/bin/Debug/net8.0/Whisper.Core.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/Whisper.Backend.csproj.AssemblyReference.cache
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/Whisper.Backend.GeneratedMSBuildEditorConfig.editorconfig
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/Whisper.Backend.csproj.CoreCompileInputs.cache
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/Whisper.Backend.sourcelink.json
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/Whisper.Backend.csproj.CopyComplete
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/Whisper.Backend.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/refint/Whisper.Backend.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/Whisper.Backend.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/Debug/net8.0/ref/Whisper.Backend.dll

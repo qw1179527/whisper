@@ -1,0 +1,138 @@
+{
+  "format": 1,
+  "restore": {
+    "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/Whisper.Backend.csproj": {}
+  },
+  "projects": {
+    "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/Whisper.Backend.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/Whisper.Backend.csproj",
+        "projectName": "Whisper.Backend",
+        "projectPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/Whisper.Backend.csproj",
+        "packagesPath": "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/",
+        "outputPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Backend/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Core/Whisper.Core.csproj": {
+                "projectPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Core/Whisper.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.31, 8.0.31]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.31, 8.0.31]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/dotnet/root/sdk/8.0.131/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Core/Whisper.Core.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Core/Whisper.Core.csproj",
+        "projectName": "Whisper.Core",
+        "projectPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Core/Whisper.Core.csproj",
+        "packagesPath": "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/",
+        "outputPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Core/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.31, 8.0.31]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.31, 8.0.31]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/dotnet/root/sdk/8.0.131/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

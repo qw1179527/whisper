@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Whisper.Backend</AssemblyName>
+    <RootNamespace>Whisper.Backend</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../unity/Assets/Scripts/Backend/LocalBackendService.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Whisper.Core/Whisper.Core.csproj" />
+  </ItemGroup>
+</Project>

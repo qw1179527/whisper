@@ -1,0 +1,36 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Whisper.Backend/1.0.0": {
+        "dependencies": {
+          "Whisper.Core": "1.0.0"
+        },
+        "runtime": {
+          "Whisper.Backend.dll": {}
+        }
+      },
+      "Whisper.Core/1.0.0": {
+        "runtime": {
+          "Whisper.Core.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Whisper.Backend/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Whisper.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

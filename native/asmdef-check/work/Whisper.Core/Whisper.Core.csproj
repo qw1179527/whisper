@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Whisper.Core</AssemblyName>
+    <RootNamespace>Whisper.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../unity/Assets/Scripts/Core/Contracts/IBackendService.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Core/Contracts/INetService.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Core/Contracts/IVoiceService.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Core/Contracts/MatchState.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Core/Contracts/StimulusEvent.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Core/Contracts/TokenBundle.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Core/DesignTokens.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Core/Services.cs" />
+  </ItemGroup>
+
+</Project>

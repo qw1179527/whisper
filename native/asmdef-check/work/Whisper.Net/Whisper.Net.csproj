@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Whisper.Net</AssemblyName>
+    <RootNamespace>Whisper.Net</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../unity/Assets/Scripts/Net/LocalNetService.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Whisper.Core/Whisper.Core.csproj" />
+    <ProjectReference Include="../Whisper.Gameplay/Whisper.Gameplay.csproj" />
+  </ItemGroup>
+</Project>

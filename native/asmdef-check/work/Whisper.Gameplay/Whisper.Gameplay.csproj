@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Whisper.Gameplay</AssemblyName>
+    <RootNamespace>Whisper.Gameplay</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Config/GameConfig.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Config/GameConfigReader.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Extraction/Settlement.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Hearing/Hearing.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Hearing/Stimulus.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Hud/HudModel.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Items/EvidencePlacer.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Items/ItemSystem.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Level/LevelAssembly.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Level/LevelData.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Level/LevelGeometry.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Level/LevelLoader.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Level/MiniJson.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Match/MatchDirector.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Monsters/MonsterBrain.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Sanity/SanitySystem.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Session/GameSession.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Voice/VoiceBandClassifier.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Voice/VoiceCalibrator.cs" />
+    <Compile Include="../../../../unity/Assets/Scripts/Gameplay/Voice/VoiceMath.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Whisper.Core/Whisper.Core.csproj" />
+  </ItemGroup>
+</Project>

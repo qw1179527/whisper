@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "PJOb+bmWoFnJ9kGLkCpIzkyyh5HVKjXXnwzK1n8xL1IRbeMSAbTidKTj1dY8JUqruiHfxa+eGLPhp6zM0dVqKw==",
+  "success": true,
+  "projectFilePath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Core/Whisper.Core.csproj",
+  "expectedPackageFiles": [
+    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.netcore.app.ref/8.0.31/microsoft.netcore.app.ref.8.0.31.nupkg.sha512",
+    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.31/microsoft.aspnetcore.app.ref.8.0.31.nupkg.sha512"
+  ],
+  "logs": []
+}

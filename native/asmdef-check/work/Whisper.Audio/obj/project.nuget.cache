@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "zlV/7NalVSXdIu3teh5HVGT0syYuyMuA7hw6PacupfEloUk7Be7MVCt9dkGTs1y64Q9pKSud8pa98f0d2W405Q==",
+  "success": true,
+  "projectFilePath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Audio/Whisper.Audio.csproj",
+  "expectedPackageFiles": [
+    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.netcore.app.ref/8.0.31/microsoft.netcore.app.ref.8.0.31.nupkg.sha512",
+    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.31/microsoft.aspnetcore.app.ref.8.0.31.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Whisper.Audio</AssemblyName>
+    <RootNamespace>Whisper.Audio</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../unity/Assets/Scripts/Audio/LocalVoiceService.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Whisper.Core/Whisper.Core.csproj" />
+  </ItemGroup>
+</Project>

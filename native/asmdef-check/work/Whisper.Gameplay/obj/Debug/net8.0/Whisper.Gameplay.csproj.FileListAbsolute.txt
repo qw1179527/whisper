@@ -1,0 +1,14 @@
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/bin/Debug/net8.0/Whisper.Gameplay.deps.json
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/bin/Debug/net8.0/Whisper.Gameplay.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/bin/Debug/net8.0/Whisper.Gameplay.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/bin/Debug/net8.0/Whisper.Core.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/bin/Debug/net8.0/Whisper.Core.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/Whisper.Gameplay.csproj.AssemblyReference.cache
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/Whisper.Gameplay.GeneratedMSBuildEditorConfig.editorconfig
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/Whisper.Gameplay.csproj.CoreCompileInputs.cache
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/Whisper.Gameplay.sourcelink.json
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/Whisper.Gameplay.csproj.CopyComplete
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/Whisper.Gameplay.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/refint/Whisper.Gameplay.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/Whisper.Gameplay.pdb
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/asmdef-check/work/Whisper.Gameplay/obj/Debug/net8.0/ref/Whisper.Gameplay.dll
