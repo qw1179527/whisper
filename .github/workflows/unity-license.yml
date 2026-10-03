@@ -1,22 +1,23 @@
-# Project Whisper · 自动获取 Unity 个人版许可证
+# Project Whisper · 尝试用命令行激活 Unity 许可证（实测个人版是否可行）
 #
-# 背景：Unity 官方要求个人版必须用 Unity Hub 桌面端激活，而本项目在 Android 手机上开发，
-# 没有桌面端。GameCI 提供了官方的命令行激活动作 game-ci/unity-activate，
-# 它支持 personal license 并直接接受账号凭据 —— 不需要本地 Hub。
+# 背景链条（每一步都是实测结论，不是猜测）：
+#  ① Unity 官方要求个人版用 Unity Hub 桌面端激活 —— 本项目在 Android 手机上开发，没有桌面端
+#  ② 官方发布索引里 Linux 编辑器只有 X86_64，本机 aarch64 无法原生运行
+#  ③ download.unity3d.com 对本区域 404；id.unity.com 对本机网络超时
+#  ④ game-ci/unity-license-activate（浏览器自动化）失败：硬编码的登录页选择器已失效
+#  ⑤ game-ci/unity-activate 失败："Invalid version 6000.3.25f1"（其 CLI 解析不了 Unity 6 版本号）
+#  ⑥ Unity 6 文档：命令行激活是给 serial 授权用的，"Personal 请用 Hub 登录"
 #
-# 曾用方案（已废弃）：game-ci/unity-license-activate（浏览器自动化）
-#   实测失败：waiting for selector `#new_conversations_create_session_form ..._password` timeout
-#   —— 该工具硬编码了 Unity 旧登录页的选择器，页面改版后就失效了。
-#
-# 需要 2 个 Secret：UNITY_EMAIL / UNITY_PASSWORD（已配置）
+# 本工作流做的是 ⑥ 的实测：直接用 Unity 6 编辑器带账号凭据激活。
+# 若 Unity 服务器接受，则拿到 .ulf；若明确拒绝，我们就得到确切结论，不再浪费时间。
 name: unity-license
 
 on:
   workflow_dispatch:
 
 jobs:
-  acquire:
-    name: 激活 Unity 个人版许可证
+  try-activate:
+    name: 命令行激活实测
     runs-on: ubuntu-latest
     steps:
       - name: 校验凭据
@@ -24,13 +25,8 @@ jobs:
           UE: ${{ secrets.UNITY_EMAIL }}
           UP: ${{ secrets.UNITY_PASSWORD }}
         run: |
-          if [ -z "$UE" ] || [ -z "$UP" ]; then
-            echo "::error title=缺 Unity 账号::请添加 UNITY_EMAIL 与 UNITY_PASSWORD"
-            exit 1
-          fi
-          echo "✓ 已检测到凭据（邮箱 ${UE:0:3}***）"
-
-      - uses: actions/checkout@v4
+          [ -n "$UE" ] && [ -n "$UP" ] || { echo "::error title=缺凭据::需要 UNITY_EMAIL / UNITY_PASSWORD"; exit 1; }
+          echo "✓ 凭据已配置（邮箱 ${UE:0:3}***）"
 
       - name: 释放 runner 磁盘空间
         uses: jlumbroso/free-disk-space@main
@@ -43,30 +39,43 @@ jobs:
           docker-images: false
           swap-storage: false
 
-      - name: 用账号凭据激活许可证（GameCI 官方动作）
-        uses: game-ci/unity-activate@v2
+      - name: 准备许可证目录
+        run: mkdir -p "$HOME/.local/share/unity3d/Unity" && ls -la "$HOME/.local/share/unity3d/Unity"
+
+      - name: 用凭据激活（Unity 6 编辑器，-username/-password）
         env:
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
-        with:
-          unityVersion: 6000.3.25f1
-
-      - name: 收集 .ulf（若生成）
+          UE: ${{ secrets.UNITY_EMAIL }}
+          UP: ${{ secrets.UNITY_PASSWORD }}
         run: |
-          set -e
-          echo "--- 查找许可证文件 ---"
-          find / -name "*.ulf" -not -path "*/proc/*" 2>/dev/null | head -10 || true
-          ULF=$(find / -name "Unity_lic.ulf" -not -path "*/proc/*" 2>/dev/null | head -1 || true)
-          if [ -n "$ULF" ]; then
-            cp "$ULF" ./Unity_lic.ulf
-            echo "✓ 取到 $ULF"
-          else
-            echo "::warning title=未取到 .ulf::激活可能已写入缓存，见上方日志"
-          fi
+          set +e
+          docker run --rm \
+            -v "$HOME/.local/share/unity3d/Unity:/root/.local/share/unity3d/Unity" \
+            unityci/editor:ubuntu-6000.3.25f1-base-3 \
+            /opt/unity/Editor/Unity -batchmode -nographics -quit \
+            -logFile /dev/stdout \
+            -username "$UE" -password "$UP" 2>&1 | tee activate.log
+          echo "EXIT=${PIPESTATUS[0]}"
+          echo "--- 许可证目录 ---"
+          ls -la "$HOME/.local/share/unity3d/Unity" || true
+          echo "--- 日志关键行 ---"
+          grep -iE "licen|activ|error|fail|invalid|denied|unauthor|personal|serial" activate.log | tail -25 || true
 
-      - name: 上传 .ulf（如有）
-        if: hashFiles('Unity_lic.ulf') != ''
+      - name: 找 .ulf
+        id: find
+        run: |
+          ULF=$(find "$HOME" /root -name "*.ulf" 2>/dev/null | head -1 || true)
+          if [ -n "$ULF" ]; then cp "$ULF" ./Unity_lic.ulf; echo "found=1" >> "$GITHUB_OUTPUT"; echo "✓ $ULF"; else echo "found=0" >> "$GITHUB_OUTPUT"; echo "✗ 未生成 .ulf"; fi
+
+      - name: 上传日志（便于诊断，无论成败）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: activation-log
+          path: activate.log
+          retention-days: 7
+
+      - name: 上传 .ulf（如成功）
+        if: steps.find.outputs.found == '1'
         uses: actions/upload-artifact@v4
         with:
           name: unity-license-ulf
