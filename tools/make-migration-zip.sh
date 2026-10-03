@@ -105,21 +105,26 @@ tar -cf - -C "$HOME_DIR" \
   whisper | tar -xf - -C "$STAGE/core/DSH-MIGRATION"
 log "  项目仓库已拷贝"
 
-log "  [3.5] 加入迁移说明、方案原文、清单"
+log "  [3.5] 加入迁移说明、方案原文、交付物说明、成品"
 cp "$HOME_DIR/tmp/README-MIGRATION.md" "$STAGE/core/DSH-MIGRATION/README-MIGRATION.md"
+# 交付物说明（解释每份 PDF 与每个 APK：是什么、能不能用、怎么自己核验）
+cp "$HOME_DIR/whisper/docs/deliverables.md" "$STAGE/core/DSH-MIGRATION/交付物说明.md"
 mkdir -p "$STAGE/core/DSH-MIGRATION/方案原文"
-for f in /storage/emulated/0/DSH专用/*.pdf; do
+# 全部方案文档：PDF（V5~V9）+ V5 的 docx 原稿
+for f in /storage/emulated/0/DSH专用/*.pdf /storage/emulated/0/DSH专用/*.docx; do
   [ -f "$f" ] && cp "$f" "$STAGE/core/DSH-MIGRATION/方案原文/" || true
 done
 if [ -d "$HOME_DIR/whisper/docs/spec" ]; then
   mkdir -p "$STAGE/core/DSH-MIGRATION/方案原文/已提取文本"
-  cp "$HOME_DIR/whisper/docs/spec/"*.txt "$STAGE/core/DSH-MIGRATION/方案原文/已提取文本/" 2>/dev/null || true
+  cp "$HOME_DIR/whisper/docs/spec/"*.txt "$HOME_DIR/whisper/docs/spec/"*.md \
+     "$STAGE/core/DSH-MIGRATION/方案原文/已提取文本/" 2>/dev/null || true
 fi
-# 把交付目录里的文档与 APK 一并带上（那是最新的成品）
+# 成品：三份交接文档 + 全部 APK（Unity 主线 + 两个灰盒版）
 mkdir -p "$STAGE/core/DSH-MIGRATION/交付物"
 for f in /storage/emulated/0/DSH专用/*.md /storage/emulated/0/DSH专用/*.apk; do
   [ -f "$f" ] && cp "$f" "$STAGE/core/DSH-MIGRATION/交付物/" || true
 done
+log "  方案文档 $(ls "$STAGE/core/DSH-MIGRATION/方案原文" | wc -l | tr -d ' ') 份 · 交付物 $(ls "$STAGE/core/DSH-MIGRATION/交付物" | wc -l | tr -d ' ') 个"
 
 log "=== [4/6] 凭据扫描（core） ==="
 if ! scan_leaks "$STAGE/core" "core"; then
@@ -161,7 +166,14 @@ ENGEOF
   if ! scan_leaks "$STAGE/eng" "engines"; then
     rm -rf "$STAGE"; echo "请先清理后再打包"; exit 1
   fi
-  ( cd "$STAGE/eng" && zip -0 -qr "$ENG_ZIP" . -x '*.DS_Store' )
+  # `-0` 仅存储（内容已是压缩过的二进制，再压收益极低且很慢）。
+  # `-y` **把符号链接存成符号链接** —— 这一条是实测补上的：
+  # 首版只用了 `-0`，结果包做出 **6.6 GB**，而源目录只有 4.7 GB。
+  # 原因是 zip 默认**跟随符号链接并把目标内容复制一份**：
+  # 各扩展的 lib/ 里普遍存在 `libLLVM-21.so -> libLLVM.so`（每个 133 MB），
+  # 在 clang/rust/golang/ffmpeg 四家各存一遍，凭空多出一大截。
+  # 加 `-y` 后符号链接只占几十字节，包体积回到与源目录相当。
+  ( cd "$STAGE/eng" && zip -0 -y -qr "$ENG_ZIP" . -x '*.DS_Store' )
   ls -la "$ENG_ZIP" | awk '{printf "  ✓ engines：%s（%.1f MB）\n", $NF, $5/1048576}'
 else
   log "=== [6/6] 跳过 engines 包（未传 --with-engines） ==="

@@ -494,3 +494,37 @@ bash tools/make-migration-zip.sh         # 生成 DSH-MIGRATION-*.zip 到 /stora
 - **Unity 编辑器可用** → 能真机调试、能拖场景、能用 Profiler，出包不再依赖 CI
 - **Blender 可本地跑** → 不需要再经局域网调 MCP（当前 Blender MCP 跑在你的电脑上，工作目录是
   `/storage/emulated/0/DSH专用/DSH文件`，与仓库是两个位置，需手工拷贝）
+
+---
+
+## 二十一、交付物清单与核验（详见 `docs/deliverables.md`）
+
+### 方案文档（`方案原文/`）
+| 文件 | 权威性 |
+|---|---|
+| **`恐怖整合.pdf`** | ★★★ **V9.0 终稿，唯一权威基线**（冲突以 §3 裁决表为准） |
+| V5.pdf / V5.docx | 归档（追溯要求来源） |
+| V6.0 / V7.0 / V8.0 PDF | 归档（V8 是 V9 §3 裁决表的直接来源） |
+已提取全文：`docs/spec/V5-fulltext.txt` ~ `V9-fulltext.txt` + `LEDGER.md`（399 章 / 318 承重行）
+
+### APK（`交付物/`）—— **别信文件名，信包内版本号**
+| 文件 | 包内包名 / 版本 | 是什么 |
+|---|---|---|
+| `whisper-unity-0.1.20.apk`（25.0 MB） | `com.whisper.projectwhisper` / **`0.1.1`** ⚠️ | Unity 6 真·主线，已验启动+渲染 |
+| `whisper-graybox-0.7.5-dev.apk`（85 KB） | `com.whisper.graybox` / **`0.6.0`** ⚠️ | 灰盒版（逻辑验证台，可玩） |
+| `whisper-graybox-0.6.0.apk`（85 KB） | `com.whisper.graybox` / `0.6.0` | 较早构建，留作对照 |
+
+**已核实的三处不一致**（用 `aapt2 dump badging` 从包内读出，非照文件名抄）：
+1. **文件名 `0.1.20` ↔ 包内 `0.1.1`** —— 根源是 CI 里读不到 `GITHUB_RUN_NUMBER`，
+   版本号每次静默回落（质检 N1，**未修**）。所以**文件名是唯一的版本区分**。
+2. **文件名 `0.7.5-dev` ↔ 包内 `0.6.0`** —— 灰盒构建脚本没更新版本号；
+   但两包确实不同（`game.js` 159,378 → 168,073 字节），关卡数据则完全相同。
+3. **App 名不一致**：灰盒「低语计划」vs Unity「Project Whisper」。
+
+**核验命令**：
+```bash
+bash whisper/native/android-tools/aapt2.sh dump badging whisper-unity-0.1.20.apk | head -3
+```
+
+**该装哪个**：看项目真身 → Unity 包（但**不含**最新的自由视角/暗调修正，那些在 CI `0.1.23`）；
+验机制数值 → 灰盒 `0.7.5-dev`。两包可共存（包名不同），但别同时开（争音频/焦点）。
