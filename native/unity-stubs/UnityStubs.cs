@@ -86,6 +86,7 @@ namespace UnityEngine
         public T GetComponent<T>() => default;
         public void SetActive(bool value) { }
         public bool activeSelf => false;
+        public string tag { get; set; }
         public static GameObject CreatePrimitive(PrimitiveType type) => null;
     }
 
@@ -106,6 +107,35 @@ namespace UnityEngine
     public static class Resources
     {
         public static T Load<T>(string path) where T : Object => default;
+        // 真实签名无 `where T : Object` 约束（内置资源含 Font/Material/Texture 等）
+        public static T GetBuiltinResource<T>(string path) where T : Object => default;
+    }
+
+    /// <summary>内置字体（Resources.GetBuiltinResource&lt;Font&gt;("LegacyRuntime.ttf")）。</summary>
+    public class Font : Object
+    {
+        public static Font CreateDynamicFontFromOSFont(string fontname, int size) => null;
+    }
+
+    public enum CameraClearFlags { Skybox = 1, Color = 2, SolidColor = 2, Depth = 3, Nothing = 4 }
+
+    public class Camera : Behaviour
+    {
+        public CameraClearFlags clearFlags { get; set; }
+        public Color backgroundColor { get; set; }
+        public float fieldOfView { get; set; }
+        public float nearClipPlane { get; set; }
+        public float farClipPlane { get; set; }
+        public static Camera main => null;
+    }
+
+    public enum LightType { Spot, Directional, Point, Area }
+
+    public class Light : Behaviour
+    {
+        public LightType type { get; set; }
+        public float intensity { get; set; }
+        public Color color { get; set; }
     }
 
     public static class Application
@@ -183,9 +213,137 @@ namespace UnityEngine.UI
         public Font font { get; set; }
         public HorizontalWrapMode horizontalOverflow { get; set; }
         public VerticalWrapMode verticalOverflow { get; set; }
+        public bool raycastTarget { get; set; }
     }
 
-    public class Font : Object { }
     public class Image : Graphic { }
     public class Button : Behaviour { }
+}
+
+// ── UnityEditor / SceneManagement 最小桩 ──
+//
+// 为什么补这一块：unity-syntax-check.sh 此前只扫 `unity/Assets/Scripts`，
+// **整个 `unity/Assets/Editor/` 从未被本机检查过**。Editor 代码写错只能等 CI 构建
+// （一次 ~47 分钟）才发现——正是本项目最想避免的"远程才发现"。
+// 现在扫描范围扩到 Assets/Editor，这里补上它用到的 API 面。
+namespace UnityEngine.SceneManagement
+{
+    public struct Scene { public string name => null; public bool IsValid() => true; }
+}
+
+namespace UnityEditor
+{
+    /// <summary>目标平台分组（PlayerSettings 的按平台重载用）。</summary>
+    public enum BuildTargetGroup { Unknown = 0, Standalone = 1, Android = 7, iOS = 4 }
+
+    /// <summary>Unity 6 的按平台目标（取代 BuildTargetGroup 的新式重载）。</summary>
+    public struct NamedBuildTarget
+    {
+        public static NamedBuildTarget Android => default;
+        public static NamedBuildTarget Standalone => default;
+    }
+
+    public enum ScriptingImplementation { Mono2x = 0, IL2CPP = 1, WinRTDotNET = 2, CoreCLR = 3 }
+    public enum ManagedStrippingLevel { Disabled = 0, Low = 1, Medium = 2, High = 3, Minimal = 4 }
+    public enum AndroidArchitecture { None = 0, ARMv7 = 1, ARM64 = 2, X86 = 4, X86_64 = 8, All = unchecked((int)0xFFFFFFFF) }
+    public enum AndroidSdkVersions
+    {
+        AndroidApiLevelAuto = 0, AndroidApiLevel23 = 23, AndroidApiLevel24 = 24, AndroidApiLevel25 = 25,
+        AndroidApiLevel26 = 26, AndroidApiLevel27 = 27, AndroidApiLevel28 = 28, AndroidApiLevel29 = 29,
+        AndroidApiLevel30 = 30, AndroidApiLevel31 = 31, AndroidApiLevel32 = 32, AndroidApiLevel33 = 33,
+        AndroidApiLevel34 = 34, AndroidApiLevel35 = 35, AndroidApiLevel36 = 36,
+    }
+    public enum UIOrientation { Portrait = 0, PortraitUpsideDown = 1, LandscapeRight = 2, LandscapeLeft = 3, AutoRotation = 4 }
+    public enum BuildTarget { NoTarget = -2, StandaloneWindows = 5, Android = 13, iOS = 9 }
+    public enum BuildOptions { None = 0, Development = 1, AutoRunPlayer = 4 }
+    public enum BuildResult { Unknown = 0, Succeeded = 1, Failed = 2, Cancelled = 3 }
+
+    public static class PlayerSettings
+    {
+        public static string companyName { get; set; }
+        public static string productName { get; set; }
+        public static string bundleVersion { get; set; }
+        public static UIOrientation defaultInterfaceOrientation { get; set; }
+        public static bool allowedAutorotateToPortrait { get; set; }
+        public static bool allowedAutorotateToPortraitUpsideDown { get; set; }
+        public static bool allowedAutorotateToLandscapeLeft { get; set; }
+        public static bool allowedAutorotateToLandscapeRight { get; set; }
+        public static bool useAnimatedAutorotation { get; set; }
+
+        public static void SetApplicationIdentifier(NamedBuildTarget target, string identifier) { }
+        public static void SetApplicationIdentifier(BuildTargetGroup targetGroup, string identifier) { }
+        public static string GetApplicationIdentifier(NamedBuildTarget target) => "";
+        public static void SetScriptingBackend(NamedBuildTarget target, ScriptingImplementation impl) { }
+        public static ScriptingImplementation GetScriptingBackend(NamedBuildTarget target) => default;
+        public static void SetManagedStrippingLevel(NamedBuildTarget target, ManagedStrippingLevel level) { }
+        public static ManagedStrippingLevel GetManagedStrippingLevel(NamedBuildTarget target) => default;
+
+        public static class Android
+        {
+            public static AndroidArchitecture targetArchitectures { get; set; }
+            public static int bundleVersionCode { get; set; }
+            public static AndroidSdkVersions minSdkVersion { get; set; }
+            public static AndroidSdkVersions targetSdkVersion { get; set; }
+        }
+    }
+
+    /// <summary>启动画面（Unity 6 仍为 PlayerSettings.SplashScreen）。</summary>
+    public static class SplashScreen
+    {
+        public static bool show { get; set; }
+        public static SplashScreenLogo[] logos { get; set; }
+    }
+
+    public struct SplashScreenLogo { }
+
+    public class MenuItemAttribute : Attribute { public MenuItemAttribute(string itemName) { } }
+
+    public class EditorBuildSettingsScene
+    {
+        public EditorBuildSettingsScene(string path, bool enabled) { }
+    }
+
+    public static class EditorBuildSettings
+    {
+        public static EditorBuildSettingsScene[] scenes { get; set; }
+    }
+}
+
+namespace UnityEditor.SceneManagement
+{
+    public enum NewSceneSetup { EmptyScene = 0, DefaultGameObjects = 1 }
+    public enum NewSceneMode { Single = 0, Additive = 1 }
+
+    public static class EditorSceneManager
+    {
+        public static UnityEngine.SceneManagement.Scene NewScene(NewSceneSetup setup, NewSceneMode mode) => default;
+        public static bool SaveScene(UnityEngine.SceneManagement.Scene scene, string dstScenePath) => true;
+    }
+}
+
+namespace UnityEditor.Build.Reporting
+{
+    public class BuildSummary
+    {
+        public UnityEditor.BuildResult result { get; set; }
+        public int totalErrors { get; set; }
+    }
+
+    public class BuildReport { public BuildSummary summary => null; }
+}
+
+namespace UnityEditor
+{
+    public struct BuildPlayerOptions
+    {
+        public string[] scenes { get; set; }
+        public string locationPathName { get; set; }
+        public BuildTarget target { get; set; }
+        public BuildOptions options { get; set; }
+    }
+
+    public static class BuildPipeline
+    {
+        public static UnityEditor.Build.Reporting.BuildReport BuildPlayer(BuildPlayerOptions opts) => null;
+    }
 }

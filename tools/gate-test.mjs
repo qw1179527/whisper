@@ -169,5 +169,63 @@ if (args.includes('--update-baseline')) {
 // ── T4 失败可复现（上面已打印复现命令即满足；此处确保失败时确有名单）──
 if (failed > 0 && !/失败清单/.test(out)) bad('T4 失败但跑手未输出失败清单（无法复现）');
 
+// ── T6 启动关键契约（真机黑屏事故的直接判据）──
+//
+// 背景（2026-10-03 首次装机验证，稳定 60fps 出帧但全黑）：
+//   `LevelBuilder` 用 `Shader.Find("Standard")` 建材质，而本工程**没有任何 .mat 资产**
+//   引用 Standard（几何全部运行时生成），Unity 打包时把它剥离出包 → Shader.Find 返回 null
+//   → `new Material(null)` 抛 ArgumentNullException("shader") → 关卡一个对象都没建出来 → 黑屏。
+//   同一轮还暴露：场景里没有相机、`Text.font` 为 null（uGUI 不画字）。
+//
+// 这三条都属于"本机门禁全绿，真机上却什么都看不见"——所以必须落成静态判据。
+{
+  const t6 = [];
+
+  // 判据必须只看**代码**，不看注释 —— 否则"在注释里记录这次事故"反而会被判红（实测踩到）。
+  // 这不是可有可无的洁癖：本项目刻意保留事故原委注释（如记录 Shader.Find("Standard") 的教训），
+  // 一个不剥注释的扫描器会把"写清楚为什么不能这么做"判成"又这么做了"。
+  const stripComments = (s) => s
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')   // 块注释
+    .replace(/^\s*\/\/\/.*$/gm, ' ')     // XML 文档注释
+    .replace(/\/\/.*$/gm, ' ');          // 行注释（上面三步已把注释内的 URL 一并去掉）
+
+  // ① 着色器资产必须存在，且路径与代码常量一致（Resources 内容无条件进包，不依赖剥离策略）
+  const shaderPath = 'unity/Assets/Resources/Shaders/WhisperUnlitColor.shader';
+  const lbSrc = stripComments(fs.readFileSync(path.join(ROOT, 'unity/Assets/Scripts/Gameplay/Level/LevelBuilder.cs'), 'utf8'));
+  const lbConst = /UnlitShaderResourcePath\s*=\s*"([^"]+)"/.exec(lbSrc);
+  if (!fs.existsSync(path.join(ROOT, shaderPath))) t6.push(`关卡着色器资产缺失：${shaderPath}`);
+  else if (!lbConst) t6.push('LevelBuilder 未声明 UnlitShaderResourcePath（着色器与本机检查失去契约）');
+  else {
+    const want = `unity/Assets/Resources/${lbConst[1]}.shader`;
+    if (path.normalize(want) !== path.normalize(shaderPath))
+      t6.push(`着色器路径与代码常量不符：常量指向 ${want}，实际资产 ${shaderPath}`);
+    const sh = fs.readFileSync(path.join(ROOT, shaderPath), 'utf8');
+    // 必须暴露 _Color（Material.color 与 MaterialPropertyBlock 都写这个属性名）
+    if (!/^\s*_Color\s*\(/m.test(sh)) t6.push('着色器未声明 _Color 属性（Material.color 将无效）');
+    if (!/Shader\s+"Whisper\/UnlitColor"/.test(sh)) t6.push('着色器名不是 "Whisper/UnlitColor"（与 LevelBuilder.UnlitShaderName 失去契约）');
+  }
+
+  // ② 禁止"按名字查找可能被剥离的内置着色器"——真机事故的原形态
+  if (/Shader\.Find\("Standard"\)/.test(lbSrc)) t6.push('LevelBuilder 仍在使用 Shader.Find("Standard")（该内置着色器会被剥离，真机黑屏根因）');
+  if (/new\s+Material\(\s*Shader\.Find\(/.test(lbSrc)) t6.push('LevelBuilder 仍在用 new Material(Shader.Find(...)) 建材质（可能拿到 null）');
+  if (!/Resources\.Load<Shader>/.test(lbSrc)) t6.push('LevelBuilder 未通过 Resources.Load<Shader> 取几何着色器');
+
+  // ③ 启动前必须建好相机与字体（否则几何建出来也看不见、HUD 不画字）
+  const bootSrc = stripComments(fs.readFileSync(path.join(ROOT, 'unity/Assets/Scripts/Runtime/GameBootstrap.cs'), 'utf8'));
+  if (!/new GameObject\(\s*"MainCamera"\s*,\s*typeof\(Camera\)\s*\)/.test(bootSrc))
+    t6.push('GameBootstrap 未建相机（Boot 场景无相机 → 什么都渲染不出来）');
+  if (!/_status\.font\s*=/.test(bootSrc)) t6.push('GameBootstrap 未给 HUD 设置字体（Text.font 为 null 时 uGUI 不绘制任何文字）');
+  if (!/GetBuiltinResource<Font>/.test(bootSrc)) t6.push('GameBootstrap 未取内置字体');
+
+  // ④ 没有关卡着色器就不许构建（构建期门禁，v4 的 CS 判据见 docs/mechanism-gaps.md）
+  if (!/GeometryShader/.test(bootSrc)) t6.push('GameBootstrap 未自检 GeometryShader（黑屏应能在 HUD 上一眼看出）');
+
+  // ⑤ .shader 的 GUID 必须由生成器管（缺 meta 时 Unity 会在 CI 里当成新资产，GUID 漂移）
+  if (!fs.existsSync(path.join(ROOT, shaderPath + '.meta'))) t6.push('着色器缺 .meta（GUID 不稳定，Unity 资产库会漂移）');
+
+  if (t6.length === 0) ok('T6 启动关键契约：着色器资产+路径+属性 · 无被剥离的 Shader.Find · 相机与字体齐备');
+  else { bad(`T6 启动关键契约 ${t6.length} 项不满足（真机会黑屏）`); for (const t of t6) console.log('     · ' + t); }
+}
+
 console.log(`\n[gate-test] 结果：通过 ${oks.length} · 失败 ${fails.length}${fails.length ? ' ✗' : ' ✓'}`);
 process.exit(fails.length ? 1 : 0);

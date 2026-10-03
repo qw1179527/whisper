@@ -35,26 +35,34 @@ export const MODULES = {
 };
 
 const asmdefText = (name, refs) => {
+  // 注意：references 必须是**字符串数组**（`["Whisper.Core"]`），不是
+  // `{ "name": "Whisper.Core" }` 对象数组。
+  // 真实事故（CI 构建 181 条 CS0234「命名空间 Whisper.Core 不存在」）：对象形式在
+  // Unity 里表示"按 GUID 引用"，而这里只有 name 没有 GUID，Unity 于是**静默忽略**了引用，
+  // 七个程序集互相看不见。对象形式只在同时给出 GUID 时才合法。
+  // 本生成器此前一直输出对象形式 —— 手改文件修好了 Unity，却让生成器与文件漂移，
+  // 导致 unity-check.sh 第 6 步（asmdef 一致性）长期判红、后面 15 步全被掩盖。
+  // 现在生成器与 Unity 实际要求的格式对齐（4 空格缩进 = Unity 自身序列化风格，避免无意义 diff）。
   const lines = [
     '{',
-    `  "name": "Whisper.${name}",`,
-    `  "rootNamespace": "Whisper.${name}",`,
+    `    "name": "Whisper.${name}",`,
+    `    "rootNamespace": "Whisper.${name}",`,
   ];
   if (refs.length) {
-    lines.push('  "references": [');
-    lines.push(refs.map((r) => `    { "name": "Whisper.${r}" }`).join(',\n'));
-    lines.push('  ],');
+    lines.push('    "references": [');
+    lines.push(refs.map((r, i) => `        "Whisper.${r}"${i < refs.length - 1 ? ',' : ''}`).join('\n'));
+    lines.push('    ],');
   }
   lines.push(
-    '  "includePlatforms": [],',
-    '  "excludePlatforms": [],',
-    '  "allowUnsafeCode": false,',
-    '  "overrideReferences": false,',
-    '  "precompiledReferences": [],',
-    '  "autoReferenced": true,',
-    '  "defineConstraints": [],',
-    '  "versionDefines": [],',
-    '  "noEngineReferences": false',
+    '    "includePlatforms": [],',
+    '    "excludePlatforms": [],',
+    '    "allowUnsafeCode": false,',
+    '    "overrideReferences": false,',
+    '    "precompiledReferences": [],',
+    '    "autoReferenced": true,',
+    '    "defineConstraints": [],',
+    '    "versionDefines": [],',
+    '    "noEngineReferences": false',
     '}',
     '',
   );

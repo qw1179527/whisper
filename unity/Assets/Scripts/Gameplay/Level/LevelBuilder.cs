@@ -193,6 +193,36 @@ namespace Whisper.Gameplay.Level
         }
 
         // ── 材质与网格全部代码构建（V9 §19.1 C2：编辑器零参与）──
+
+        /// <summary>
+        /// 关卡几何专用着色器（随包发布，见 Assets/Resources/Shaders/WhisperUnlitColor.shader）。
+        ///
+        /// 真机事故（2026-10-03）：此前这里写 `Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard")`，
+        /// 两个都返回 null —— 本工程没有任何 `.mat` 资产引用它们（几何全部运行时生成），
+        /// Unity 打包时把这两个内置着色器**剥离**掉了。结果 `new Material(null)` 抛
+        /// ArgumentNullException("shader")，整个 Boot 在"关卡装载"这一步失败，真机全黑。
+        ///
+        /// 修法：把着色器作为**资产**放进 Resources/（Resources 内容无条件进包，不依赖
+        /// Graphics Settings 的 Always Included Shaders）。`Shader.Find` 仅作保险，
+        /// 因为同一个着色器一旦作为资产进包，按名字也一定找得到。
+        /// </summary>
+        public const string UnlitShaderName = "Whisper/UnlitColor";
+        const string UnlitShaderResourcePath = "Shaders/WhisperUnlitColor";
+
+        static Shader _shader;
+        public static Shader GeometryShader
+        {
+            get
+            {
+                if (_shader != null) return _shader;
+                // ① Resources 资产（主路径：确定性进包）
+                _shader = Resources.Load<Shader>(UnlitShaderResourcePath);
+                // ② 兜底：按名字查（着色器已进包时必然命中）
+                if (_shader == null) _shader = Shader.Find(UnlitShaderName);
+                return _shader;   // 仍为 null 时由调用方明确报错，不做沉默降级
+            }
+        }
+
         static Mesh _cube;
         static Mesh CubeMesh
         {
@@ -212,7 +242,13 @@ namespace Whisper.Gameplay.Level
         static Material FlatMaterial(Color c)
         {
             if (_matCache.TryGetValue(c, out var m) && m != null) return m;
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var shader = GeometryShader;
+            // 不再允许"悄悄用一个 null 着色器"：宁可抛出可读的错误，
+            // 也不产出"构建成功但满屏粉红/全黑"的包（本项目反复强调的门禁精神）。
+            if (shader == null)
+                throw new InvalidOperationException(
+                    $"关卡着色器缺失：Resources/{UnlitShaderResourcePath}.shader 与 Shader.Find(\"{UnlitShaderName}\") 都没找到。" +
+                    "几何无法上色——请确认该 .shader 资产已进包（Resources 目录无条件进包）。");
             m = new Material(shader) { color = c };
             _matCache[c] = m;
             return m;

@@ -34,6 +34,7 @@ function importerFor(p, isDir) {
     case '.cs': return 'MonoImporter';
     case '.asmdef': return 'AssemblyDefinitionImporter';
     case '.json': case '.txt': case '.md': return 'TextScriptImporter';
+    case '.shader': return 'ShaderImporter';
     case '.glb': case '.gltf': return 'ModelImporter';
     case '.png': case '.jpg': case '.jpeg': return 'TextureImporter';
     case '.mat': return 'NativeFormatImporter';

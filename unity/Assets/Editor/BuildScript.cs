@@ -24,6 +24,10 @@ namespace Whisper.Editor
         [MenuItem("Whisper/Build Android APK")]
         public static void BuildAndroid()
         {
+            // 先应用构建设置（包名/版本/IL2CPP/横屏/SDK 版本）——没有 ProjectSettings.asset，
+            // 这些只能由代码表达；不先做这一步就会产出 "com.DefaultCompany.unity / 竖屏" 的包（真机事故）。
+            BuildConfigurator.Configure();
+
             var outDir = Path.Combine(Directory.GetCurrentDirectory(), "build", "Android");
             Directory.CreateDirectory(outDir);
             var apk = Path.Combine(outDir, "whisper-android.apk");

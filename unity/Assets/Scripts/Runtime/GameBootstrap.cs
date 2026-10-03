@@ -40,19 +40,56 @@ namespace Whisper.Runtime
         public string LastError { get; private set; }
         /// <summary>Play 循环帧计数（用于证明"真的在跑"，而不是只挂了个组件）。</summary>
         public long Ticks { get; private set; }
+        /// <summary>Boot 全流程耗时（毫秒）——真机验收用，证明"启动了"而不是"挂着"。</summary>
+        public double BootMs { get; private set; }
+        /// <summary>Boot 各阶段的人类可读记录（真机日志取证用：logcat -s Unity）。</summary>
+        public string BootLog { get; private set; } = "";
 
         LevelBuilder _levelBuilder;
         Text _status;
         Canvas _canvas;
+        Camera _camera;
         float _nextHudRefresh;
 
         void Awake()
         {
             Application.targetFrameRate = 60;   // V9 §13.4 固定 60 Tick/s 的客户端帧率基线
-            BuildUi();                          // C2：uGUI 全部代码构建
+            // C2：uGUI 全部代码构建。注意顺序——相机与 HUD 必须在 Boot 之前就绪，
+            // 否则 boot 失败时连"为什么失败"都看不见（真机黑屏事故的教训之一）。
+            BuildCamera();
+            BuildUi();
         }
 
         void Start() => Boot();
+
+        /// <summary>
+        /// 相机（V9 §19.1 C1 的隐含前提）。
+        /// 真机事故教训：最初 Boot 场景里只有 GameBootstrap 一个组件，**没有任何相机**——
+        /// 就算几何装配成功，屏幕上也不会有任何东西。相机同样由代码创建。
+        /// </summary>
+        void BuildCamera()
+        {
+            var camGo = new GameObject("MainCamera", typeof(Camera));
+            camGo.transform.SetParent(transform, false);
+            camGo.tag = "MainCamera";
+            _camera = camGo.GetComponent<Camera>();
+            _camera.clearFlags = CameraClearFlags.SolidColor;
+            _camera.backgroundColor = HexToColor(DesignTokens.ColorInk);   // 墨色背景，走廊尽头不至于惨白
+            _camera.fieldOfView = 70f;
+            _camera.nearClipPlane = 0.05f;
+            _camera.farClipPlane = 120f;
+            _camera.transform.position = new Vector3(0f, 1.7f, -6f);        // 眼高 1.7m，朝向 +Z
+            _camera.transform.rotation = Quaternion.identity;
+
+            // 一盏方向光：为将来接 Lit 材质/真美术资产预留（当前是 Unlit，光照不影响观感）
+            var lightGo = new GameObject("KeyLight", typeof(Light));
+            lightGo.transform.SetParent(transform, false);
+            var light = lightGo.GetComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = 0.85f;
+            light.color = HexToColor(DesignTokens.ColorBone);
+            lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+        }
 
         /// <summary>C2：uGUI 全部代码构建，编辑器零参与。</summary>
         void BuildUi()
@@ -69,14 +106,33 @@ namespace Whisper.Runtime
             var textGo = new GameObject("BootStatus", typeof(Text));
             textGo.transform.SetParent(canvasGo.transform, false);
             _status = textGo.GetComponent<Text>();
+            // 字体：Text.font 为空时 uGUI **什么都不画**（真机事故教训之二——屏幕全黑却没有任何报错）。
+            _status.font = LoadDefaultFont();
             _status.alignment = TextAnchor.UpperLeft;
-            _status.fontSize = 24;
+            _status.fontSize = 28;
             _status.color = HexToColor(DesignTokens.ColorPaper);
+            _status.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _status.verticalOverflow = VerticalWrapMode.Overflow;
+            _status.raycastTarget = false;   // HUD 不吞触摸事件
             var rt = _status.rectTransform;
-            rt.anchorMin = new Vector2(0.02f, 0.45f);
-            rt.anchorMax = new Vector2(0.98f, 0.98f);
+            rt.anchorMin = new Vector2(0.03f, 0.03f);
+            rt.anchorMax = new Vector2(0.97f, 0.97f);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>
+        /// 取一个可用的内置字体。Unity 6 的内置 UI 字体是 LegacyRuntime.ttf；
+        /// 更老的版本用 Arial.ttf。两条都试，最后回落到系统字体——**不允许返回 null**，
+        /// 因为 Text.font == null 意味着 HUD 完全不可见。
+        /// </summary>
+        static Font LoadDefaultFont()
+        {
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (font == null) font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            if (font == null) font = Font.CreateDynamicFontFromOSFont("sans-serif", 28);
+            if (font == null) Debug.LogError("[Whisper] 一个可用字体都没找到，HUD 将不可见");
+            return font;
         }
 
         static Color HexToColor(string hex)
@@ -92,9 +148,15 @@ namespace Whisper.Runtime
 
         void Boot()
         {
+            var t0 = System.Diagnostics.Stopwatch.StartNew();
             var lines = new System.Text.StringBuilder();
             lines.AppendLine("Project Whisper · Boot");
             lines.AppendLine($"Unity {Application.unityVersion} · 60 fps 基线");
+            // 着色器自检放在最前：真机上几何上不了色是最容易"看起来像死了"的故障
+            // （全黑 + 无报错）。这里先把结论写进 HUD，一眼可辨。
+            lines.AppendLine(LevelBuilder.GeometryShader != null
+                ? $"几何着色器 ✓ {LevelBuilder.UnlitShaderName}"
+                : $"几何着色器 ✗ 缺失（{LevelBuilder.UnlitShaderName}）");
 
             // ① 配置表（数值唯一真源）
             var cfgAsset = Resources.Load<TextAsset>(ConfigResourcePath);
@@ -146,7 +208,16 @@ namespace Whisper.Runtime
                 // （ward_03 中心就是病床），直接用中心会把角色卡在家具里。
                 var start = Level.Rooms.Count > 0 ? Level.Rooms[0] : null;
                 if (start != null && _levelBuilder.Geometry.TryFindFreeCell(start.CenterX, start.CenterZ, out float sx, out float sz))
+                {
                     lines.AppendLine($"出生点：房间 {start.Id} → 世界 ({sx:0.0}, {sz:0.0})");
+                    // 相机摆到出生点上方（眼高 1.7m），朝向关卡中心——否则镜头停在原点，
+                    // 多半对着墙外或虚空（真机事故教训之三：几何建出来了，但"看不到"）。
+                    if (_camera != null)
+                    {
+                        _camera.transform.position = new Vector3(sx, 1.7f, sz - 2.5f);
+                        _camera.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+                    }
+                }
                 else
                     lines.AppendLine("⚠ 出生点解析失败（该房间没有空可走格）");
             }
@@ -155,8 +226,14 @@ namespace Whisper.Runtime
 
             // ④ 进入 Play 循环
             Booted = true;
+            BootMs = t0.Elapsed.TotalMilliseconds;
+            _status.color = HexToColor(DesignTokens.ColorPaper);
             _status.text = lines.ToString();
-            Debug.Log("[Whisper] Boot 完成，进入 Play 循环");
+            BootLog = lines.ToString();
+            // 单行摘要：真机验收唯一需要 grep 的一条（logcat -s Unity | grep Whisper）
+            Debug.Log($"[Whisper] BOOT OK · {BootMs:0} ms · 房间 {Level.Rooms.Count} · 门 {_levelBuilder.DoorObjects.Count}"
+                + $" · 道具 {_levelBuilder.PropObjects.Count} · 可走格 {_levelBuilder.Geometry.PassableCount()}"
+                + $" · 着色器 {LevelBuilder.UnlitShaderName}");
         }
 
         int CountMonsters()
@@ -201,22 +278,37 @@ namespace Whisper.Runtime
             if (Time.unscaledTime < _nextHudRefresh) return;
             _nextHudRefresh = Time.unscaledTime + 0.5f;
             _status.text = string.Format(
-                "Project Whisper · 运行中\nTick {0} · {1} fps · tickRate={2}\n{3}\n关卡 {4}：房间 {5} · 走廊 {6}",
+                "Project Whisper · 运行中\nTick {0} · {1} fps · tickRate={2}\n{3}\n关卡 {4}：房间 {5} · 走廊 {6}"
+                + "\n几何着色器 {7} · 相机 {8} · Boot {9:0} ms",
                 Ticks, (int)(1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f)),
                 Services.HasNet ? Services.Net.TickRate : 0,
                 DescribeServices(),
                 Level != null ? Level.LevelId : "-",
                 Level != null ? Level.Rooms.Count : 0,
-                Level != null ? Level.Corridors.Count : 0);
+                Level != null ? Level.Corridors.Count : 0,
+                LevelBuilder.GeometryShader != null ? "✓" : "✗",
+                _camera != null ? "✓" : "✗",
+                BootMs);
         }
 
+        /// <summary>
+        /// Boot 失败路径。真机事故教训：此前失败只是"把错误写进一行不起眼的文本"，
+        /// 结果是**全黑屏幕 + 没有任何可读提示**，只能靠连电脑抓 logcat 才知道发生了什么。
+        /// 现在失败一律：① 大号红字铺满屏幕 ② BootLog 落盘 ③ Debug.LogError 带统一前缀。
+        /// </summary>
         void Fail(System.Text.StringBuilder lines, string message)
         {
             LastError = message;
             Booted = false;
-            lines.AppendLine("启动失败：" + message);
-            _status.text = lines.ToString();
-            Debug.LogError("[Whisper] " + message);
+            lines.Insert(0, "⚠ 启动失败 —— 详见下方\n\n");
+            lines.AppendLine();
+            lines.AppendLine("可能原因：① 着色器/资产未进包 ② Resources 路径写错 ③ 关卡 DSL 校验不通过");
+            var body = lines.ToString();
+            BootLog = body;
+            _status.color = new Color(1f, 0.35f, 0.3f, 1f);
+            _status.fontSize = 32;
+            _status.text = body;
+            Debug.LogError($"[Whisper] BOOT FAILED · {message}\n{body}");
         }
     }
 }
