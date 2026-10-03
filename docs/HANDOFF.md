@@ -569,3 +569,38 @@ bash tools/verify-apk-on-device.sh "/storage/emulated/0/DSH专用/whisper-unity-
 3. **零成本联机**（用户指定优先）：`RoomCode` 与 `WireFormat` 已就绪且有断言，
    **缺的是真发包的 UDP 传输层**（`UdpV6NetService`）+ `INetService` 的输入端上行口子
 4. 建模（Blender MCP 已可用，23 工具；工作目录 `/storage/emulated/0/DSH专用/DSH文件`，与仓库是两个位置需拷贝）
+
+---
+
+## 二十三、⚠️ 大陆 Unity 6 可用性（2026-10-03 核实，影响"迁到电脑装编辑器"这条路）
+
+### 事实（有证据）
+中国区 **unity.cn 只提供「团结引擎」，内核是 Unity 2022.3 LTS**。证据：官方发布页的
+`hubDeepLink` 字段直接暴露内核版本 —— `tuanjiehub://2022.3.62t16/…`、`2022.3.61t14`、
+`2022.3.62t15`…，整页**没有一处 `6000.x`**。
+（报道见 [团结引擎承接 Unity6 国内断供](https://picimos.com/news/Ne1207230373218619392)、
+[海外商店停止对中国内地及港澳服务](https://www.stcn.com/article/detail/3660738.html)、
+[团结引擎 2.0 发布](https://m.ithome.com/html/982616.htm)）
+
+### 对本工程的影响：**团结引擎打不开本工程**
+本工程 `ProjectVersion.txt` = **`6000.3.25f1`**；Unity **拒绝用更低版本打开更高版本的工程**。
+硬改 `ProjectVersion.txt` 强开的话，这些都要动：
+`URP 17.0.3→14.x` · `ugui 2.0.0→1.0.0` · `Addressables` · `InputSystem` · `AndroidApiLevel36→35`（很可能），
+**并且会违反 V9 §12 的 16KB 页对齐硬要求**（`dependency-lock.json` 明记
+`"reason": "16KB 页对齐要求 Unity ≥ 6000.0.38f1"`）—— 那是**方案级冲突**，不是配置问题。
+
+### 关键结论：**出包链不受影响**
+CI 跑在 GitHub 的**境外 runner** 上，从 Unity 全球服务器拉 6000.3.25f1。
+实测 **#17/#19/#20/#21/#22 五次构建全部成功**，日志里就是
+`Unity Editor version: 6000.3.25f1` / `Built from '6000.3/staging'`。
+→ **中国区限制不影响本项目的出包**，因为编辑器从不在这台手机或大陆网络上运行。
+
+### 电脑端的现实选项（按可行性）
+1. **继续用 CI 出包**（现状，已验证）——不需要本地编辑器
+2. **境外云主机/网络环境**装 Unity 6（本地迭代才会快）
+3. **问 Unity 中国**团结引擎何时对齐 Unity 6 内核（其 2.0 号称"底层架构全面重构"，但发布页仍是 2022.3 内核）
+4. ❌ 降到团结引擎硬开 —— 需改 5 处依赖 + **违反 V9 §12**，不建议
+
+### 一条 1 分钟的实测（比推断可靠）
+电脑上开 **Unity Hub → Installs → Install Editor**，看有没有 `6000.x`：
+有 → 直接按 §20 装；只有团结引擎 → 走选项 1 或 2。
