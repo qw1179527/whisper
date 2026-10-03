@@ -71,7 +71,8 @@ namespace Whisper.Runtime
         {
             var camGo = new GameObject("MainCamera", typeof(Camera));
             camGo.transform.SetParent(transform, false);
-            camGo.tag = "MainCamera";
+            // 刻意不设 tag="MainCamera"：渲染不需要它，而它依赖 TagManager
+            // （本工程同样没有 ProjectSettings 真源）——启动期不为零收益的东西引入风险。
             _camera = camGo.GetComponent<Camera>();
             _camera.clearFlags = CameraClearFlags.SolidColor;
             _camera.backgroundColor = HexToColor(DesignTokens.ColorInk);   // 墨色背景，走廊尽头不至于惨白
