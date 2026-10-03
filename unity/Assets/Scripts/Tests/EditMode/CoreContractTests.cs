@@ -59,6 +59,32 @@ namespace Whisper.Tests.EditMode
             public void SendVoiceStimulus(in Whisper.Core.Contracts.StimulusEvent stimulus) { }
             public event System.Action<string> OnRoomClosed;
             public event System.Action<bool> OnHostMigration;
+
+            // ── 四类同步对象（V9 §13.4）────────────────────────────────
+            // 接口在加入同步对象后新增了这些成员，而本测试桩最初没跟上 ——
+            // CI 实测报 CS0535（未实现接口成员）。本机断言跑手当时只编译 Core+Level，
+            // 不覆盖 Tests/，所以本地一直没发现。
+            public Whisper.Core.Contracts.MatchPhase Phase { get; private set; } = Whisper.Core.Contracts.MatchPhase.Lobby;
+            public Whisper.Core.Contracts.NetworkSnapshot Snapshot =>
+                new Whisper.Core.Contracts.NetworkSnapshot(Phase,
+                    System.Array.Empty<Whisper.Core.Contracts.PlayerSnapshot>(),
+                    System.Array.Empty<Whisper.Core.Contracts.PropState>(),
+                    0, "test");
+            public event System.Action<Whisper.Core.Contracts.MatchPhase> OnPhaseChanged;
+            public event System.Action<Whisper.Core.Contracts.PropState> OnPropChanged;
+            public event System.Action<Whisper.Core.Contracts.PlayerSnapshot> OnPlayerUpdated;
+
+            public void SetPhase(Whisper.Core.Contracts.MatchPhase phase)
+            {
+                if (Phase == phase) return;      // 二次设置不重复触发（与 LocalNetService 同语义）
+                Phase = phase;
+                OnPhaseChanged?.Invoke(phase);
+            }
+            public void UpsertPlayer(Whisper.Core.Contracts.PlayerSnapshot p) => OnPlayerUpdated?.Invoke(p);
+            public void UpsertProp(Whisper.Core.Contracts.PropState p) => OnPropChanged?.Invoke(p);
+            public void SetEvidence(int count) { }
+            public void SetWorldHash(string hash) { }
+
             void Silence() { OnRoomClosed?.Invoke(null); OnHostMigration?.Invoke(false); }
         }
 

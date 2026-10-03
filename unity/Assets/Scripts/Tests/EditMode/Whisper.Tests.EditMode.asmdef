@@ -6,7 +6,10 @@
         "Whisper.Gameplay",
         "Whisper.Runtime",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "Whisper.Net",
+        "Whisper.Audio",
+        "Whisper.Backend"
     ],
     "includePlatforms": [
         "Editor"

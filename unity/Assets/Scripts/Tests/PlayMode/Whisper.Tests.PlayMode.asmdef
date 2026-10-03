@@ -5,7 +5,10 @@
         "Whisper.Core",
         "Whisper.Gameplay",
         "Whisper.Runtime",
-        "UnityEngine.TestRunner"
+        "UnityEngine.TestRunner",
+        "Whisper.Net",
+        "Whisper.Audio",
+        "Whisper.Backend"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

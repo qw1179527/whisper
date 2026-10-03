@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
 using Whisper.Core;
+using Whisper.Core.Contracts;   // MatchPhase 等同步对象类型（V9 §13.4）
 using Whisper.Gameplay.Config;
 using Whisper.Runtime;
 
