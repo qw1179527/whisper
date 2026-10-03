@@ -1317,16 +1317,54 @@ static class Program
             if (m.DistanceTravelledM < 2.0f) { Console.WriteLine("      [假绿拦停] 累计距离不足，该断言无意义"); return false; }
             return steps >= expect - 1 && steps <= expect + 1;
         });
-        Check("朝向跟随移动方向（北=0° · 东=90°）", () =>
+        Check("★ 视角与移动正交：Look 决定朝向，移动输入按朝向旋转（真机反馈修正）", () =>
+        {
+            // 真机反馈：首版把 Yaw 设成"移动方向"，于是**完全没有转头操作**——
+            // 第一人称恐怖游戏最重要的操作直接缺失。现在两者正交，本断言钉住这个语义。
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            if (!geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float sx, out float sz)) return false;
+            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+
+            // ① 只动视角、不移动：朝向必须变，位置必须不变
+            float x0 = m.X, z0 = m.Z;
+            m.Look(90f, 0f);
+            if (Math.Abs(m.YawDeg - 90f) > 1e-3f || m.X != x0 || m.Z != z0) return false;
+
+            // ② 朝向 90°（面向 +X）时，"前进"（输入 z=+1）应当朝 +X 走，而不是朝世界 +Z
+            var step = m.Step(0f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo);
+            float ddx = m.X - x0, ddz = m.Z - z0;
+            Console.WriteLine($"      [正交] 朝向 90° 时前进 → Δx={ddx:0.0000} Δz={ddz:0.0000}（应主要朝 +X）");
+            if (step.MovedM <= 1e-4f) { Console.WriteLine("      [假绿拦停] 没有真的移动"); return false; }
+            return ddx > Math.Abs(ddz) * 3f;
+        });
+        Check("俯仰夹紧在 ±80° 且偏航归一化到 [0,360)", () =>
+        {
+            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), 0f, 0f);
+            m.Look(0f, 1000f);
+            float hi = m.PitchDeg;
+            m.Look(0f, -5000f);
+            float lo = m.PitchDeg;
+            m.Look(-450f, 0f);   // 反向转 450° → 应归一化到 270
+            float yaw = m.YawDeg;
+            Console.WriteLine($"      [夹紧] 俯仰上限 {hi:0.0}° · 下限 {lo:0.0}° · 偏航(-450°)→{yaw:0.0}°");
+            return Math.Abs(hi - Whisper.Gameplay.Session.PlayerMotion.MaxPitchDeg) < 1e-3f
+                && Math.Abs(lo + Whisper.Gameplay.Session.PlayerMotion.MaxPitchDeg) < 1e-3f
+                && Math.Abs(yaw - 270f) < 1e-3f;
+        });
+        Check("视角不影响位移大小：同一输入在不同朝向下位移长度一致", () =>
         {
             var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
-            var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), 0f, 0f);
-            m.Step(0f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo);
-            float north = m.YawDeg;
-            m.Step(1f, 0f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo);
-            float east = m.YawDeg;
-            Console.WriteLine($"      [朝向] 北 {north:0.0}° · 东 {east:0.0}°");
-            return Math.Abs(north) < 1f && Math.Abs(east - 90f) < 1f;
+            if (!geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float sx, out float sz)) return false;
+            float moved = 0f;
+            foreach (var yaw in new[] { 0f, 45f, 90f, 180f, 270f })
+            {
+                var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+                m.Look(yaw, 0f);
+                moved = m.Step(0f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo).MovedM;
+                if (Math.Abs(moved - 0.175f) > 0.01f) { Console.WriteLine($"      [位移] 朝向 {yaw}° 时位移 {moved:0.0000}"); return false; }
+            }
+            Console.WriteLine($"      [位移] 各朝向位移一致（示例 {moved:0.0000} m = 走速 3.5 × 0.05s）");
+            return true;
         });
         Check("玩家碰撞半径与 EvidencePlacer 的代理半径一致（两套口径会出鬼）", () =>
         {

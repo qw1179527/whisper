@@ -58,8 +58,22 @@ namespace Whisper.Gameplay.Session
 
         public float X { get; private set; }
         public float Z { get; private set; }
-        /// <summary>朝向（度，绕 Y）。第一人称下由移动方向决定。</summary>
+
+        /// <summary>
+        /// 视角偏航（度，绕 Y）。**只由 <see cref="Look"/> 改变**，不再由移动方向决定。
+        ///
+        /// 真机反馈修正（2026-10-03）：首版把 Yaw 设成"移动方向"，结果**玩家完全无法转头**——
+        /// 回头看身后、边走边环顾都做不到，第一人称恐怖游戏最重要的操作直接缺失。
+        /// 正确定义：Yaw/Pitch 属于**视角**，移动输入是**视角相对**的（WASD 语义），
+        /// 两者正交。这也是"能走"与"能看"必须分开的原因。
+        /// </summary>
         public float YawDeg { get; private set; }
+
+        /// <summary>视角俯仰（度）。夹在 ±<see cref="MaxPitchDeg"/>，防止翻过头。</summary>
+        public float PitchDeg { get; private set; }
+
+        /// <summary>俯仰上限（度）。第一人称惯例：略小于 90，避免万向节附近的翻转观感。</summary>
+        public const float MaxPitchDeg = 80f;
 
         public float WalkSpeedMps { get; }
         public float RunSpeedMps { get; }
@@ -100,6 +114,23 @@ namespace Whisper.Gameplay.Session
         public void SetPosition(float x, float z) { X = x; Z = z; }
         public void SetYaw(float deg) => YawDeg = deg;
 
+        /// <summary>
+        /// 转动视角（由触屏右半屏拖拽/鼠标位移驱动）。**与移动解耦**。
+        /// 俯仰夹在 ±<see cref="MaxPitchDeg"/>；偏航归一化到 [0,360)。
+        /// </summary>
+        public void Look(float deltaYawDeg, float deltaPitchDeg)
+        {
+            float y = YawDeg + deltaYawDeg;
+            y %= 360f;
+            if (y < 0f) y += 360f;
+            YawDeg = y;
+
+            float p = PitchDeg + deltaPitchDeg;
+            if (p > MaxPitchDeg) p = MaxPitchDeg;
+            if (p < -MaxPitchDeg) p = -MaxPitchDeg;
+            PitchDeg = p;
+        }
+
         /// <summary>刺激源 key（V9 §7：移动形态 → 脚步刺激）。</summary>
         public static string StimulusKeyFor(MoveMode mode) =>
             mode == MoveMode.Run ? "run_footstep" : mode == MoveMode.Crouch ? "crouch_footstep" : "walk_footstep";
@@ -129,8 +160,19 @@ namespace Whisper.Gameplay.Session
                 LastStepBlocked = false;
                 return new MoveStep(0f, false, null);
             }
-            float nx = inputX / len, nz = inputZ / len;
-            YawDeg = (float)(Math.Atan2(nx, nz) * 180.0 / Math.PI);   // 朝向移动方向
+            // 输入是**视角相对**的（WASD 语义）：摇杆向上 = 朝"面朝方向"走，而不是朝世界 +Z 走。
+            // 真机反馈修正（2026-10-03）：首版把输入当世界方向、并把 Yaw 设成移动方向，
+            // 于是"转头"这个操作根本不存在——视角被移动绑死。现在两者正交：
+            // 朝向由 Look() 决定，移动方向 = 输入按 Yaw 旋转。
+            float inX = inputX / len, inZ = inputZ / len;
+            double yawRad = YawDeg * Math.PI / 180.0;
+            float cos = (float)Math.Cos(yawRad), sin = (float)Math.Sin(yawRad);
+            // 绕 Y 轴旋转（Unity 的左手系：yaw=0 面向 +Z，yaw=90° 面向 +X）
+            float nx = inX * cos + inZ * sin;
+            float nz = -inX * sin + inZ * cos;
+            // 归一化保护：cos/sin 的组合在浮点下可能略偏，避免"斜走比直走快"重现
+            float nlen = (float)Math.Sqrt(nx * nx + nz * nz);
+            if (nlen > 1e-6f) { nx /= nlen; nz /= nlen; }
 
             float speed = SpeedFor(mode);
             var r = geo.Resolve(X, Z, nx * speed * dt, nz * speed * dt, AgentRadiusM);

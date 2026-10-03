@@ -67,7 +67,14 @@ if echo "$INST" | grep -qi "Success"; then ok "安装成功（$INST）"; else ba
 # 装在设备上的、含 whisper 或 DefaultCompany 的包，取最新安装的那个。
 PKG="$(shz "pm list packages | grep -iE 'whisper|DefaultCompany'" 2>/dev/null | sed 's/package://' | tr -d '\r' | head -1)"
 if [ -n "$PKG" ]; then
-  ok "包名 = $PKG$([ "$PKG" = "$PKG_EXPECT" ] && echo '（与 PlayerSettings 期望一致）' || echo "（⚠ 与期望 $PKG_EXPECT 不一致）")"
+  # 【质检第 2 轮抓出】原先包名不符只 ok + ⚠ 文本、不计 $fail —— 于是"包名 = com.DefaultCompany.unity"
+  # 这类 PlayerSettings 没生效的情况判不出错（换 com.defaultcompany.whisperx 也会通过）。
+  # 包名是 PlayerSettings 真生效的唯一硬证据，必须能判红。
+  if [ "$PKG" = "$PKG_EXPECT" ]; then
+    ok "包名 = $PKG（与 PlayerSettings 期望一致）"
+  else
+    bad "包名 = $PKG ≠ 期望 $PKG_EXPECT —— PlayerSettings 未生效（BuildConfigurator 没跑到？）"
+  fi
 else
   bad "装了但查不到包名"; echo "[verify] 中止"; exit 1
 fi
@@ -138,7 +145,10 @@ while (off < b.length) {
   else if (type === 'IEND') break;
   off += 12 + len;
 }
-if (bd !== 8 || (ct !== 2 && ct !== 6)) { console.log(`  · PNG 格式 bd=${bd} ct=${ct} 暂不支持精细分析，跳过像素判据`); process.exit(0); }
+// 【质检第 2 轮抓出】原先"PNG 格式不支持"时 process.exit(0) —— 于是 V5/V6 什么都没分析，
+// 却被上层判为 ok「屏幕有场景内容」。**"无法判定"绝不能被当成"通过"**，这是本项目最提防的假绿。
+// 现在：格式不支持 → exit 2（未知），上层按失败处理并明确说明原因。
+if (bd !== 8 || (ct !== 2 && ct !== 6)) { console.log(`  ✗ PNG 格式 bd=${bd} ct=${ct} 无法分析 —— 判为"未通过"而不是"通过"`); process.exit(2); }
 const zlib = require('node:zlib');
 const raw = zlib.inflateSync(Buffer.concat(idat));
 const bpp = ct === 6 ? 4 : 3, stride = w * bpp;
@@ -197,6 +207,8 @@ NODE
   PIX="$?"
   if [ "$PIX" -eq 0 ]; then
     ok "V5/V6 截屏像素判据：屏幕有场景内容（非纯色/非洋红）"
+  elif [ "$PIX" -eq 2 ]; then
+    bad "V5/V6 **无法判定**（PNG 格式不支持）—— 按未通过处理，不当作通过"
   else
     bad "V5/V6 截屏像素判据未通过（node exit=$PIX）—— 见上方 [VERDICT] 行"
   fi

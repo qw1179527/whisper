@@ -40,6 +40,9 @@ namespace Whisper.Runtime
         int _moveTouchId = -1;
         Vector2 _touchOrigin;
         Vector2 _touchCurrent;
+        /// <summary>右半屏拖拽 = 转视角（真机反馈：首版完全没有转头操作）。</summary>
+        int _lookTouchId = -1;
+        Vector2 _lookLast;
         bool _crouch;
 
         public bool IsCrouching => _crouch;
@@ -124,7 +127,8 @@ namespace Whisper.Runtime
         }
 
         /// <summary>
-        /// 动态摇杆：第一根落在左侧区域的触摸成为移动摇杆；右侧留白区（按钮区）不接管。
+        /// 动态摇杆 + 视角拖拽：左半屏任意处按下即移动摇杆；右半屏拖拽转动视角。
+        /// 两侧互不干扰（各自记住 fingerId），因为手机上"边跑边看"是常态。
         /// </summary>
         Vector2 ReadTouchInput(out float magnitude)
         {
@@ -135,16 +139,38 @@ namespace Whisper.Runtime
             for (int i = 0; i < count; i++)
             {
                 var t = Input.GetTouch(i);
-                if (t.phase == TouchPhase.Began && _moveTouchId < 0 && t.position.x < buttonZoneX)
+                if (t.phase == TouchPhase.Began)
                 {
-                    _moveTouchId = t.fingerId;
-                    _touchOrigin = t.position;
-                    _touchCurrent = t.position;
+                    if (_moveTouchId < 0 && t.position.x < buttonZoneX)
+                    {
+                        _moveTouchId = t.fingerId;
+                        _touchOrigin = t.position;
+                        _touchCurrent = t.position;
+                    }
+                    else if (_lookTouchId < 0)
+                    {
+                        _lookTouchId = t.fingerId;
+                        _lookLast = t.position;
+                    }
+                    continue;
                 }
-                else if (t.fingerId == _moveTouchId)
+
+                if (t.fingerId == _moveTouchId)
                 {
                     if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled) _moveTouchId = -1;
                     else _touchCurrent = t.position;
+                }
+                else if (t.fingerId == _lookTouchId)
+                {
+                    if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled) _lookTouchId = -1;
+                    else
+                    {
+                        // 灵敏度取自设计 Token（touch.lookSensitivityDefault = 0.0032），不硬编码手感数值
+                        var d = t.position - _lookLast;
+                        _lookLast = t.position;
+                        _motion.Look(d.x * DesignTokens.TouchLookSensitivityDefault * 120f,
+                                     -d.y * DesignTokens.TouchLookSensitivityDefault * 120f);
+                    }
                 }
             }
 
@@ -154,18 +180,19 @@ namespace Whisper.Runtime
             float len = delta.magnitude;
             if (len < 1e-3f) return Vector2.zero;
             magnitude = Mathf.Min(1f, len / JoystickRadiusPx);
-            // 屏幕坐标是 (右+, 上+)；映射到世界 XZ：右→+X、上→+Z
+            // 屏幕坐标是 (右+, 上+)；这里返回**视角相对**输入（上 = 朝前），
+            // 由 PlayerMotion 按当前 Yaw 旋转到世界方向（WASD 语义）。
             return new Vector2(delta.x / len, delta.y / len) * magnitude;
         }
 
-        /// <summary>把逻辑位置/朝向写进相机（第一人称）。</summary>
+        /// <summary>把逻辑位置/视角写进相机（第一人称：位置=眼高，旋转=偏航+俯仰）。</summary>
         void ApplyToTransform()
         {
             if (_camera == null) return;
             var t = _camera.transform;
             t.position = new Vector3(_motion.X, EyeHeightM, _motion.Z);
-            // 位置由逻辑决定、朝向由 YawDeg 决定；本阶段不做俯仰（触摸摇杆只管移动）
-            t.rotation = Quaternion.Euler(0f, _motion.YawDeg, 0f);
+            // 俯仰取负：Unity 相机绕 X 轴正方向是"低头"
+            t.rotation = Quaternion.Euler(-_motion.PitchDeg, _motion.YawDeg, 0f);
         }
 
         /// <summary>诊断用：把玩家状态拼进 HUD（证明"真的在动"，而不是挂了组件）。</summary>

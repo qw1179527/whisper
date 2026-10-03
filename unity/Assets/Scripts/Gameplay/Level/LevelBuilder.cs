@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Whisper.Core;   // DesignTokens（V9 §11 光分区配色）——漏了这行时 DesignTokens 解析不到，几何配色会全部落到兜底色
+// 注：DesignTokens 的直接引用已移到 LevelPalette（同命名空间）——配色决策搬去纯逻辑层后，
+// 本文件不再需要 Whisper.Core。（历史上这里漏过 using Whisper.Core，导致 DesignTokens 解析不到、
+// 几何配色全部落到兜底色；现在这条依赖由 LevelPalette.cs 持有，那边的 using 同样不能少。）
 
 namespace Whisper.Gameplay.Level
 {
@@ -67,18 +69,25 @@ namespace Whisper.Gameplay.Level
             roomGo.transform.position = new Vector3(r.CenterX, r.Floor * 3.5f, r.CenterZ);
             RoomObjects.Add(roomGo);
 
-            var tint = LightZoneColor(r.LightZone);
+            // 配色决策全部搬到 LevelPalette（纯逻辑 · 可本机断言"不溢出""风险越高越暗"）。
+            // 真机事故：门框曾写 `LightZoneColor * 1.3f`，bone 216×1.3 = 280.8 被截顶成 255,255,243，
+            // 门框变惨白、色相被削平（整屏平均亮度 213/255，恐怖游戏看着像曝光过度）。
+            // 乘法在浅色上必然截顶 —— 所以门框改用向墨色**混合**。
+            var zone = r.LightZone;
             // 地板
             AddBox(roomGo, "Floor", new Vector3(0f, -0.05f, 0f),
-                new Vector3(r.SizeX, 0.1f, r.SizeZ), tint * 0.6f);
+                new Vector3(r.SizeX, 0.1f, r.SizeZ), ToColor(LevelPalette.Floor(zone)));
             // 天花板
             AddBox(roomGo, "Ceiling", new Vector3(0f, r.SizeY, 0f),
-                new Vector3(r.SizeX, 0.1f, r.SizeZ), tint * 0.35f);
+                new Vector3(r.SizeX, 0.1f, r.SizeZ), ToColor(LevelPalette.Ceiling(zone)));
             // 四面墙：按门洞切段（门洞处留缺口，几何上由 LevelGeometry 保证可走）
-            BuildWallsWithDoorGaps(roomGo, r, tint);
+            BuildWallsWithDoorGaps(roomGo, r, zone);
         }
 
-        void BuildWallsWithDoorGaps(GameObject parent, Room r, Color tint)
+        /// <summary>纯逻辑 Rgb → UnityEngine.Color。</summary>
+        static Color ToColor(in Rgb c) => new Color(c.R, c.G, c.B, 1f);
+
+        void BuildWallsWithDoorGaps(GameObject parent, Room r, string zone)
         {
             const float thickness = 0.22f;
             float h = r.SizeY;
@@ -100,15 +109,15 @@ namespace Whisper.Gameplay.Level
                 }
             }
 
-            AddWallRun(parent, "N", north, r.SizeX, h, thickness, tint, true, true, r.SizeX, r.SizeZ);
-            AddWallRun(parent, "S", south, r.SizeX, h, thickness, tint, true, false, r.SizeX, r.SizeZ);
-            AddWallRun(parent, "W", west, r.SizeZ, h, thickness, tint, false, false, r.SizeX, r.SizeZ);
-            AddWallRun(parent, "E", east, r.SizeZ, h, thickness, tint, false, true, r.SizeX, r.SizeZ);
+            AddWallRun(parent, "N", north, r.SizeX, h, thickness, zone, true, true, r.SizeX, r.SizeZ);
+            AddWallRun(parent, "S", south, r.SizeX, h, thickness, zone, true, false, r.SizeX, r.SizeZ);
+            AddWallRun(parent, "W", west, r.SizeZ, h, thickness, zone, false, false, r.SizeX, r.SizeZ);
+            AddWallRun(parent, "E", east, r.SizeZ, h, thickness, zone, false, true, r.SizeX, r.SizeZ);
         }
 
         /// <summary>把一面墙按门洞切成若干段（门洞位置来自 DSL 的 offsetM/widthM）。</summary>
         void AddWallRun(GameObject parent, string tag, List<(float a, float b)> gaps,
-            float wallLen, float h, float thickness, Color tint, bool horizontal, bool atPositive,
+            float wallLen, float h, float thickness, string zone, bool horizontal, bool atPositive,
             float roomSizeX, float roomSizeZ)
         {
             gaps.Sort((x, y) => x.a.CompareTo(y.a));
@@ -116,14 +125,14 @@ namespace Whisper.Gameplay.Level
             int seg = 0;
             foreach (var (a, b) in gaps)
             {
-                if (a > cursor) AddWallSegment(parent, tag, seg++, cursor, a, wallLen, h, thickness, tint, horizontal, atPositive, roomSizeX, roomSizeZ);
+                if (a > cursor) AddWallSegment(parent, tag, seg++, cursor, a, wallLen, h, thickness, zone, horizontal, atPositive, roomSizeX, roomSizeZ);
                 cursor = Mathf.Max(cursor, b);
             }
-            if (cursor < wallLen) AddWallSegment(parent, tag, seg, cursor, wallLen, wallLen, h, thickness, tint, horizontal, atPositive, roomSizeX, roomSizeZ);
+            if (cursor < wallLen) AddWallSegment(parent, tag, seg, cursor, wallLen, wallLen, h, thickness, zone, horizontal, atPositive, roomSizeX, roomSizeZ);
         }
 
         void AddWallSegment(GameObject parent, string tag, int idx, float from, float to,
-            float wallLen, float h, float thickness, Color tint, bool horizontal, bool atPositive,
+            float wallLen, float h, float thickness, string zone, bool horizontal, bool atPositive,
             float roomSizeX, float roomSizeZ)
         {
             float len = to - from;
@@ -138,7 +147,7 @@ namespace Whisper.Gameplay.Level
             Vector3 size = horizontal
                 ? new Vector3(len, h, thickness)
                 : new Vector3(thickness, h, len);
-            AddBox(parent, $"Wall_{tag}{idx}", local, size, tint);
+            AddBox(parent, $"Wall_{tag}{idx}", local, size, ToColor(LevelPalette.Wall(zone)));
         }
 
         void BuildDoors(Room r)
@@ -154,7 +163,7 @@ namespace Whisper.Gameplay.Level
                     d.Wall == "north" || d.Wall == "south"
                         ? new Vector3(d.WidthM, r.SizeY, 0.08f)
                         : new Vector3(0.08f, r.SizeY, d.WidthM),
-                    LightZoneColor(r.LightZone) * 1.3f);
+                    ToColor(LevelPalette.DoorFrame(r.LightZone)));
                 DoorObjects.Add(go);
             }
         }
@@ -175,7 +184,7 @@ namespace Whisper.Gameplay.Level
                 float sx = part.Kit != null ? part.SizeX : 0.8f;
                 float sz = part.Kit != null ? part.SizeZ : 0.8f;
                 AddBox(go, "Body", new Vector3(0f, 0.4f, 0f), new Vector3(sx, 0.8f, sz),
-                    LightZoneColor(r.LightZone) * 0.8f);
+                    ToColor(LevelPalette.Prop(r.LightZone)));
                 PropObjects.Add(go);
             }
         }
@@ -254,26 +263,5 @@ namespace Whisper.Gameplay.Level
             return m;
         }
 
-        /// <summary>按 V9 §11 动态光分区给几何上色（数值来自 DesignTokens）。</summary>
-        static Color LightZoneColor(string zone)
-        {
-            switch (zone)
-            {
-                case "safe": return Hex(DesignTokens.ColorBone);        // 安全区：暖白
-                case "high-risk": return Hex(DesignTokens.ColorRust);    // 高风险：锈褐
-                default: return Hex(DesignTokens.ColorMold);             // 压力区：霉绿灰
-            }
-        }
-
-        static Color Hex(string hex)
-        {
-            if (string.IsNullOrEmpty(hex)) return Color.gray;
-            if (hex[0] == '#') hex = hex.Substring(1);
-            if (hex.Length < 6) return Color.gray;
-            return new Color32(
-                System.Convert.ToByte(hex.Substring(0, 2), 16),
-                System.Convert.ToByte(hex.Substring(2, 2), 16),
-                System.Convert.ToByte(hex.Substring(4, 2), 16), 255);
-        }
     }
 }
