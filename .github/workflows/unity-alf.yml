@@ -1,0 +1,44 @@
+# Project Whisper · 生成 Unity 激活请求文件（.alf）
+#
+# 为什么需要：换许可证要用 .alf 作为输入，而生成 .alf 需要 Unity 编辑器。
+# 本机（Android/Termux）没有 Unity，所以这一步交给 GitHub 服务器：
+# 用 game-ci 官方镜像跑 `-createManualActivationFile`，只生成请求文件，**不需要任何许可证**。
+#
+# 产出：Artifacts 里的 Unity_v*.alf —— 上传到 https://license.unity3d.com/manual
+#       即可换取 .ulf 许可证（该页面在你的网络下实测可达）。
+name: unity-alf
+
+on:
+  workflow_dispatch:
+
+jobs:
+  alf:
+    name: 生成激活请求文件
+    runs-on: ubuntu-latest
+    steps:
+      - name: 生成 .alf（不需要许可证）
+        run: |
+          set -e
+          mkdir -p out
+          # 镜像标签来自 GameCI 的 editor 镜像仓库；base 版体积最小且足以生成 .alf
+          docker run --rm -v "$PWD/out:/out" -w /out \
+            unityci/editor:ubuntu-6000.3.25f1-base-3 \
+            /opt/unity/Editor/Unity -batchmode -nographics -quit \
+            -logFile /dev/stdout \
+            -createManualActivationFile || true
+          ls -la out/ || true
+          ALF=$(ls out/*.alf 2>/dev/null | head -1 || true)
+          if [ -z "$ALF" ]; then
+            echo "::error title=.alf 生成失败::镜像标签可能不对，见上方 docker 日志"
+            exit 1
+          fi
+          cp "$ALF" ./Unity.alf
+          echo "✓ 生成 $ALF"
+
+      - name: 上传 .alf
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-activation-file
+          path: Unity.alf
+          if-no-files-found: error
+          retention-days: 7
