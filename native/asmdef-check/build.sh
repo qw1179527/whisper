@@ -47,6 +47,9 @@ for proj in "$WORK"/*/*.csproj; do
     echo "  ✓ $name"
   fi
 done
+echo "  [附加检查] 接口实现一致性（本机不编 Tests/，用静态比对补盲区）"
+node "$ROOT/native/asmdef-check/iface-check.mjs" "$ROOT" || FAIL=$((FAIL+1))
+
 echo
 if [ "$FAIL" -gt 0 ]; then echo "  ✗ 有 $FAIL 个程序集编译失败（Unity 侧同样会失败）"; exit 1; fi
 echo "  ✓ 全部程序集按 ASMDEF 粒度编译通过"
