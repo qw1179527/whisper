@@ -38,20 +38,20 @@ jobs:
       - name: 释放 runner 磁盘空间
         uses: jlumbroso/free-disk-space@main
         with:
-          # ── 参数取舍（2026-10-05 优化，实测清盘占 3.2 分）────────────────
-          # 目标是"腾够空间"而不是"腾得最干净"—— 每多删一类就多花时间，而 runner 只需要
-          # 装得下 Unity 镜像（解压后 8.7GB）+ Library，不需要把机器清空。
-          #
-          # android/dotnet **保留 true**：这两类是最大头（Android SDK/NDK ~10GB + .NET ~2GB），
-          #   是"腾空间"的主力，关掉会真的报 `failed to register layer: no space left on device`。
-          # tool-cache/haskell/large-packages **改为 false**：收益小、耗时长，
-          #   而且 `tool-cache: true` 删的是 **runner 的托管工具缓存**（含 actions 自己用的东西），
-          #   属于"顺手破坏缓存"的操作，与"构建要缓存 Library"的思路相悖。
-          tool-cache: false
+          # ── 这五个参数**全是承重的**，别再"优化"掉（2026-10-05 实测教训）──────
+          # 我曾把 tool-cache/haskell/large-packages 改成 false，理由是"收益小、耗时长"。
+          # 结果 **#25 构建直接失败**：
+          #   `docker: failed to register layer: write /opt/unity/Editor/.../BurstCache/…:
+          #    no space left on device`
+          # 清盘那一步确实从 3.2 分降到 1.8 分，但构建挂了 —— **得不偿失**。
+          # 真相：这三个不是"顺手的开销"，而是**腾出空间的主要来源**。
+          # Unity 镜像解压后 8.7GB，writer 层还要再翻一倍，20~30GB 是硬需求。
+          # ⇒ **要动这组参数，必须先看下一步"诊断磁盘"打印的 GB 数**，别凭"看起来耗时"就删。
+          tool-cache: true
           android: true
           dotnet: true
-          haskell: false
-          large-packages: false
+          haskell: true
+          large-packages: true
           docker-images: false
           swap-storage: false
 

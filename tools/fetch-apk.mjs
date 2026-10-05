@@ -30,8 +30,19 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = process.env.GH_REPO || 'qw1179527/whisper';
 const TOKEN = process.env.GH_TOKEN || process.env.GH_NEW;
-const CHUNK_MB = Number(process.env.FETCH_CHUNK_MB ?? 16);   // artifact 小，块也小
-const CHUNK_SEC = Number(process.env.FETCH_CHUNK_SEC ?? 60);
+// ── 分块参数：**按文件大小自适应**（第一版参数错了，实测卡死）────────────────
+// 分块重连是为**大文件**设计的：它对付的是"长连接速率单调衰减、约 12 分钟一个周期"
+// （4.2GB 的 Unity 安装包上实测：单连接均速 0.55 MB/s → 分块重连 2.4 MB/s，4.5 倍）。
+//
+// 但 artifact 只有 30MB 量级 —— 用 `16MB/60秒` 切块时，慢节点上**每块还没下完就被超时掐断**，
+// 结果永远在原地重连、零进展（实测连续 6 次重连无进展）。衰减周期是分钟级，
+// 而 30MB 根本跑不到那么久 —— 小文件**根本不该分块**。
+//
+// 所以：小于 `SMALL_MB` 的一律**单条长连接**（块=整个文件，超时给足）。
+const SMALL_MB = 64;
+const CHUNK_MB = Number(process.env.FETCH_CHUNK_MB ?? 16);   // 仅大文件用
+const CHUNK_SEC = Number(process.env.FETCH_CHUNK_SEC ?? 60); // 仅大文件用
+const BIG_TIMEOUT_SEC = Number(process.env.FETCH_BIG_TIMEOUT_SEC ?? 1800); // 小文件：单连接总预算
 
 if (!TOKEN) { console.error('缺 GH_TOKEN（或 GH_NEW）环境变量'); process.exit(2); }
 const H = { Authorization: `Bearer ${TOKEN}`, Accept: 'application/vnd.github+json' };
@@ -72,11 +83,17 @@ while (true) {
   const have = fs.existsSync(tmp) ? fs.statSync(tmp).size : 0;
   if (have === TOTAL) break;
   if (have > TOTAL) { log(`✗ 超出官方大小（${have} > ${TOTAL}）→ 删除重下`); fs.rmSync(tmp, { force: true }); continue; }
-  const want = Math.min(CHUNK, TOTAL - have);
+  // 小文件：一次要完剩下的全部 + 长超时；大文件：按块切 + 每块主动断开
+  const small = TOTAL < SMALL_MB * 1048576;
+  const want = small ? (TOTAL - have) : Math.min(CHUNK, TOTAL - have);
+  const budgetSec = small ? BIG_TIMEOUT_SEC : CHUNK_SEC;
+  if (have === 0) log(small
+    ? `  文件 ${(TOTAL / 1048576).toFixed(1)} MB < ${SMALL_MB} MB → **单条长连接**（不分块，超时 ${budgetSec}s）`
+    : `  文件 ${(TOTAL / 1048576).toFixed(1)} MB ≥ ${SMALL_MB} MB → 分块重连（${CHUNK_MB}MB/${CHUNK_SEC}s）`);
   const t1 = Date.now();
   try {
     const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), CHUNK_SEC * 1000);
+    const timer = setTimeout(() => ac.abort(), budgetSec * 1000);
     const r = await fetch(zipUrl, { headers: { ...H, Range: `bytes=${have}-${have + want - 1}` }, redirect: 'follow', signal: ac.signal });
     if (!r.ok && r.status !== 206) { clearTimeout(timer); throw new Error('HTTP ' + r.status); }
     const fh = fs.openSync(tmp, 'a');
@@ -87,7 +104,7 @@ while (true) {
         if (room <= 0) break;
         const slice = c.length > room ? c.subarray(0, room) : c;
         fs.writeSync(fh, slice); got += slice.length;
-        if (got >= want || Date.now() - t1 > CHUNK_SEC * 1000) break;   // 主动断开，避开衰减区
+        if (got >= want || (!small && Date.now() - t1 > CHUNK_SEC * 1000)) break;   // 大文件才主动断开避衰减
       }
     } finally { fs.closeSync(fh); clearTimeout(timer); }
     bad = 0;
