@@ -41,6 +41,7 @@ if (inject('sign')) { injected = 'P3 符号一致'; cfg.sanity.drain.darknessPer
 else if (inject('monotonic')) { injected = 'P4 单调性'; cfg.stimulusSources.voice_shout.intensity = 5; }
 else if (inject('hardcode')) { injected = 'P1 数值真源'; }
 else if (inject('random')) { injected = 'P2 确定性'; }
+else if (inject('comment')) { injected = 'P2 剥注释（反向：预期【不】判红）'; }
 if (injected) console.log(`[gate-physics] 注入模式：${injected}（预期判红）`);
 
 /** 收集 C# 源码（排除 Tests 与 Unity 依赖的薄层时按需） */
@@ -54,6 +55,79 @@ function collectCs(dir, out = []) {
 }
 const csFiles = SRC_DIRS.flatMap((d) => (fs.existsSync(d) ? collectCs(d) : []));
 const csText = csFiles.map((f) => ({ f: path.relative(ROOT, f), t: fs.readFileSync(f, 'utf8') }));
+
+/**
+ * 剥掉 C# 注释，**只留代码**（P2 确定性判据用它匹配）。
+ *
+ * ## 为什么必须有它（2026-10-05 实测的误报）
+ * 本仓库的纪律是"注释里写明为什么不用某个 API"。实测有 4 个文件在注释里**提到**
+ * `UnityEngine.Random` / `DateTime.Now` 来解释它们**刻意不用**：
+ * ```
+ * InteractionSystem.cs:48   「……这样 gate-physics 的"禁 UnityEngine.Random / DateTime"纪律不会被绕过」
+ * TaskSystem.cs:59-61       「gate-physics 禁止 DateTime.Now/UtcNow……所以这里把 dayIndex 作为参数传进来」
+ * ProceduralTextures.cs:28  「全部用整数哈希 + xorshift，不用 UnityEngine.Random（本工程门禁禁止）」
+ * GameBootstrap.cs:533      「确定性随机源（xorshift32）—— 禁 UnityEngine.Random」
+ * ```
+ * 旧实现直接对**原文**做正则 → 这 4 个文件全部误报。
+ * **误报比漏报更坏**：它会训练人不敢在注释里记录纪律（而纪律正是靠注释传承的）。
+ *
+ * ## 为什么不能简单地"砍掉 // 之后的内容"
+ * `"http://x"`、`@"C:\a\b"`、`'/'` 里都有斜杠；粗暴处理会把**真代码**当注释吞掉，
+ * 那会从"误报"变成"漏报"——更危险。所以用状态机，逐字符走。
+ *
+ * ## 做法
+ * 注释内容用**等长空格**顶替（保留换行）→ 匹配用的文本与原文**行号列宽一一对应**，
+ * 报错位置不用换算。字符串字面量**原样保留**（它里面的 `//` 不是注释）。
+ */
+function stripCsComments(src) {
+  let out = '';
+  let i = 0;
+  const n = src.length;
+  let st = 'code'; // code | line | block | str | vstr | chr
+  while (i < n) {
+    const c = src[i], c2 = src[i + 1];
+    if (st === 'code') {
+      if (c === '/' && c2 === '/') { st = 'line'; out += '  '; i += 2; continue; }
+      if (c === '/' && c2 === '*') { st = 'block'; out += '  '; i += 2; continue; }
+      // 逐字字符串 @"…" / 插值逐字 $@"…" / @$"…"
+      if ((c === '@' && c2 === '"') || (c === '$' && c2 === '@' && src[i + 2] === '"')
+          || (c === '@' && c2 === '$' && src[i + 2] === '"')) {
+        const len = (c === '@' && c2 === '"') ? 2 : 3;
+        st = 'vstr'; out += src.substr(i, len); i += len; continue;
+      }
+      if (c === '"') { st = 'str'; }
+      else if (c === "'") { st = 'chr'; }
+      out += c; i++; continue;
+    }
+    if (st === 'line') {
+      if (c === '\n') { st = 'code'; out += '\n'; i++; continue; }
+      out += ' '; i++; continue;
+    }
+    if (st === 'block') {
+      if (c === '*' && c2 === '/') { st = 'code'; out += '  '; i += 2; continue; }
+      out += (c === '\n') ? '\n' : ' '; i++; continue;
+    }
+    if (st === 'str') {
+      if (c === '\\') { out += src.substr(i, 2); i += 2; continue; }
+      if (c === '"') st = 'code';
+      out += c; i++; continue;
+    }
+    if (st === 'vstr') {
+      if (c === '"' && c2 === '"') { out += '""'; i += 2; continue; } // "" 是转义的双引号
+      if (c === '"') st = 'code';
+      out += c; i++; continue;
+    }
+    // chr
+    if (c === '\\') { out += src.substr(i, 2); i += 2; continue; }
+    if (c === "'") st = 'code';
+    out += c; i++; continue;
+  }
+  return out;
+}
+
+/** 只含代码的版本（P2 用）。**注意：必须在下面的注入块之后计算**，
+ *  否则 `--inject-random` 推入的假文件不会进这份集合 → P2 看不到它 → 注入静默失效（削弱门禁）。 */
+const buildCsCode = () => csText.map((x) => ({ f: x.f, t: stripCsComments(x.t) }));
 let allCs = csText.map((x) => x.t).join('\n');
 let allCs2 = allCs;   // 注入后的重算版本（P1 用它）
 // （真实注入见 P1 检查处：向 csText 追加一条含硬编码数值的假源码，由判据自己去发现）
@@ -72,6 +146,23 @@ if (inject('hardcode')) {
   allCs2 = allCs + '\n' + csText[csText.length - 1].t;
 }
 if (inject('random')) csText.push({ f: '(注入).cs', t: 'public class InjRnd { System.Random r = new System.Random(); }' });
+
+/**
+ * **反向注入**（`--inject-comment`）：把禁用 API 放进【注释】里。
+ * 门禁**不该**判红 —— 这是"剥注释生效"的反向证明。
+ * 为什么不靠"没报错"自证：那可能是别的原因导致的。P2 末尾会**显式核对此文件未被列入违规**。
+ */
+let commentOnlyFile = null;
+if (inject('comment')) {
+  commentOnlyFile = '(注入-仅注释).cs';
+  csText.push({ f: commentOnlyFile, t:
+    '// 本文件只在【注释】里提到 UnityEngine.Random 与 DateTime.Now\n'
+    + '/* 块注释也提一次 Random.Range 与 DateTime.UtcNow */\n'
+    + 'public static class InjCommentOnly { public const int X = 1; }\n' });
+}
+
+// ⚠ 必须在**所有注入之后**构建（否则注入的文件不进这份集合，P2 看不到 → 门禁被静默削弱）
+const csCode = buildCsCode();
 
 console.log('[gate-physics] 物理规则门禁');
 
@@ -216,10 +307,33 @@ console.log('[gate-physics] 物理规则门禁');
     { re: /\bGuid\.NewGuid\b/, why: '随机器不可复现（应使用确定性 id）' },
   ];
   const bads = [];
-  for (const { f, t } of csText) {
+  // 用 csCode（已剥注释）而不是 csText（原文）—— 注释里"提到"这些 API 不算使用。
+  for (const { f, t } of csCode) {
     for (const b of banned) if (b.re.test(t)) bads.push(`${f} 使用了 ${b.re.source} —— ${b.why}`);
   }
-  bads.length === 0 ? ok(`P2 确定性：${csText.length} 个 C# 文件中无不可复现随机/时间源`) : bads.slice(0, 4).forEach(bad);
+  // ── 注释剥离器自检（每次运行都跑）──────────────────────────────
+  // 为什么要有：剥离器一旦"砍多了"，就会把**真代码**当注释吞掉 →
+  // P2 从"误报"变成**漏报**（更危险）。所以用 4 个正反例钉住它的行为：
+  const st = [
+    ['var x = Random.Range(0, 1);',        true,  '代码里的调用必须留下'],
+    ['// Random.Range 禁用（注释）',        false, '行注释里的必须剥掉'],
+    ['/* DateTime.Now 不可复现 */ var y=1;', false, '块注释里的必须剥掉'],
+    ['var s = "http://a//b"; var z = Random.Range(0,1);', true, '字符串里的 // 不能吞掉后面的真代码'],
+  ];
+  let stFail = 0;
+  for (const [src, shouldKeep, why] of st) {
+    const got = /Random\s*\.\s*(?:Range|value)|DateTime\s*\.\s*(?:Now|UtcNow)/.test(stripCsComments(src));
+    const ok2 = got === shouldKeep;
+    if (!ok2) { bad(`P2 注释剥离器自检失败（${why}）：输入 ${JSON.stringify(src)} → 期望${shouldKeep ? '保留' : '剥掉'}却相反`); stFail++; }
+  }
+  if (stFail === 0) ok(`P2 注释剥离器自检：${st.length} 个正反例全中（代码保留 / 注释剥掉 / 字符串里的 // 不误吞）`);
+  // 反向注入的显式核对：仅注释的文件**不得**出现在违规清单里
+  if (commentOnlyFile) {
+    const hit = bads.some((b) => b.includes(commentOnlyFile));
+    hit ? bad(`P2 剥注释失效：${commentOnlyFile} 只在注释里提到禁用 API，却被判为违规（误报未修好）`)
+        : ok(`P2 反向注入核对：${commentOnlyFile} 仅在注释中提到禁用 API → 正确地【未】判违规`);
+  }
+  bads.length === 0 ? ok(`P2 确定性：${csCode.length} 个 C# 文件（已剥注释）中无不可复现随机/时间源`) : bads.slice(0, 4).forEach(bad);
 }
 
 // ── P3 符号与量纲一致 ──
@@ -305,8 +419,17 @@ console.log('[gate-physics] 物理规则门禁');
 
 if (warns.length) console.log(`\n[gate-physics] 警告 ${warns.length} 条（不判红；判红判据为 P1~P4）`);
 console.log(`\n[gate-physics] 结果：通过 ${oks.length} · 失败 ${fails.length}${fails.length ? ' ✗' : ' ✓'}`);
-if (injected && fails.length === 0) {
+// 注入自检的通用规则：注入一个**真缺陷**，门禁必须判红，否则说明判据没参与（自证有效）。
+// 例外：**反向注入**（`--inject-comment`）注入的是"不该判红的输入"——
+// 它验证的是"误报已修好"，期望恰好相反。这类注入的核对在 P2 内部显式做（比对违规清单），
+// 所以这里必须排除它，否则会把"正确放行"误报成"门禁不可信"。
+const REVERSE_INJECTIONS = ['comment'];
+const isReverse = REVERSE_INJECTIONS.some((n) => args.includes(`--inject-${n}`));
+if (injected && fails.length === 0 && !isReverse) {
   console.log(`[gate-physics] ✗ 注入 ${injected} 后仍未判红 —— 该门禁不可信`);
   process.exit(1);
+}
+if (injected && isReverse) {
+  console.log(`[gate-physics] ✓ 反向注入 ${injected}：正确处理了"不该判红的输入"（核对见 P2 内的显式比对）`);
 }
 process.exit(fails.length ? 1 : 0);
