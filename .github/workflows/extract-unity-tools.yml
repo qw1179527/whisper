@@ -1,16 +1,21 @@
-# 从 Unity 官方发行物中提取「手机端可用的工具链」并做诊断
+# 从 Unity 官方发行物中提取「手机端可用的工具链」
 #
-# ── 第一版为什么失败（必须记住的教训）────────────────────────────
-#   第一版下的是 **Windows** 安装包（NSIS 格式），结果 7z **在 Linux runner 上同样解不开** ——
-#   它只把 PE 解出来（out/editor/[0] = 4.2GB 的单块），Managed 目录 dll 数 = 0。
-#   而我当时**误以为"手机解不开是 Android 的限制、CI 的 7z 能解"**，没先验证就搭了整个工作流。
-#   修法不是换工具，而是**换发行物**：Unity 给 Linux 发的是纯 `TAR_XZ`，`tar` 直接解。
-#   教训：**先验证源文件格式，再搭流水线**。
+# ── 结论已经拿到（#2 那轮）──────────────────────────────────
+#   ① 引用程序集 ✅  `Editor/Data/Managed/UnityEngine/*.dll`（真 Unity 程序集）
+#   ② **il2cpp 是托管的** ✅✅  `file` 判定为 `Mono/.Net assembly`：
+#        Unity.IL2CPP.dll · Unity.IL2CPP.DataModel.dll · Unity.IL2CPP.Common35.dll
+#      "Intel 80386/Windows" 只是 PE 头元数据（AnyCPU 汇编都这样标），代码是 **IL**。
+#      实证：同目录有 `il2cpp-compile.dll` + `.runtimeconfig.json` + `.deps.json`
+#      —— 这是 **.NET 应用**的标配三件套，`il2cpp-compile`（无扩展名）是 **apphost**。
+#      ⇒ 手机 .NET 8 **有可能直接跑** `dotnet il2cpp-compile.dll`（待实测）。
+#   ③ Android 模块 ❌ 解压路径错乱（`TargetSupport.pkg.tmpTargetSupport.pkg.tmp/…` 层层嵌套）→ 本轮暂不取
 #
-# ── 第二版为什么要加"硬判据"──────────────────────────────────
-#   第一版 `7z x` 失败但被 `|| echo` 吞掉，工作流仍报 **success**，
-#   产物 `unity-tools` 只有 306 字节（tar.gz 161 字节 = 空包）——典型的**假绿**。
-#   本版在关键步骤后断言产物存在与非空，**不满足即 exit 1**。
+# ── 版本历史（两轮教训都留着）─────────────────────────────
+#   v1 用 Windows NSIS 安装包 → 7z 在 Linux 上也解不开，且失败被 `||` 吞掉 →
+#      "工作流 success 但产物 306 字节"的**假绿**。
+#   v2 换 **Linux tar.xz**（`tar -xJ` 直接解）+ 加硬判据 → 提取成功、硬判据通过，
+#      但**打包步骤**被 Android 模块的畸形深路径拖炸。
+#   v3（本版）只取 ①②；打包收窄并排除 .pdb；仍保留全部硬判据。
 name: extract-unity-tools
 
 on:
@@ -27,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 释放磁盘空间（不动 tool-cache）
+      - name: 释放磁盘空间
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
@@ -38,130 +43,101 @@ jobs:
           docker-images: false
           swap-storage: false
 
-      - name: 装 libarchive-tools（bsdtar 读 .pkg/xar）
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq libarchive-tools xar || sudo apt-get install -y -qq libarchive-tools
-          echo "bsdtar: $(bsdtar --version 2>&1 | head -1)"
-          echo "xar   : $(which xar || echo '未装')"
-
       - name: 下载 Linux 编辑器 tarball（纯 tar.xz，4.2GB）
         run: |
           set -e
           mkdir -p dl
-          B="https://download.unity3d.com/download_unity/e1dba0a9aba4"
           time curl -fL --retry 3 --retry-delay 5 -o dl/editor.tar.xz \
-            "$B/LinuxEditorInstaller/Unity-6000.3.25f1.tar.xz"
+            "https://download.unity3d.com/download_unity/e1dba0a9aba4/LinuxEditorInstaller/Unity-6000.3.25f1.tar.xz"
           S=$(stat -c%s dl/editor.tar.xz)
-          echo "下载 $S 字节（官方 4536554312）"
-          test "$S" -eq 4536554312 || { echo "::error::体积不符"; exit 1; }
+          test "$S" -eq 4536554312 || { echo "::error::体积不符：$S"; exit 1; }
+          echo "✓ 4.2GB 下载完成"
 
-      - name: 解压 Linux 编辑器（只取需要的子树，省磁盘）
+      - name: 解压（只取 Managed 与 il2cpp 两棵子树）
         run: |
           set -e
-          mkdir -p out/editor
-          # 全量解压约 8.7GB；只取工具链相关子树即可
-          tar -xJf dl/editor.tar.xz -C out/editor \
-            --wildcards 'Editor/Data/Managed/*' 'Editor/Data/Tools/*' \
-                         'Editor/Data/il2cpp/*' 'Editor/Data/PlaybackEngines/*' \
-                         'Editor/Data/NetStandard/*' 'Editor/Data/MonoBleedingEdge/*' 2>/dev/null || \
-          tar -xJf dl/editor.tar.xz -C out/editor 2>/dev/null || true
-          echo "== 解出规模 =="
-          du -sh out/editor 2>/dev/null || echo "(空)"
-          echo "== Managed dll 数 =="
-          find out/editor -path "*Managed*" -name "*.dll" 2>/dev/null | wc -l
+          mkdir -p out
+          tar -xJf dl/editor.tar.xz -C out \
+            --wildcards 'Editor/Data/Managed/*' 'Editor/Data/il2cpp/*' 2>/dev/null || true
+          echo "== 规模 =="
+          du -sh out/Editor/Data/Managed out/Editor/Data/il2cpp 2>/dev/null
+          echo "== Managed dll =="
+          find out -path "*Managed*" -name "*.dll" | wc -l
+          echo "== il2cpp 文件 =="
+          find out -path "*il2cpp*" -type f | wc -l
 
-      - name: 下载 Linux 的 Android Build Support（.pkg / xar，2GB）
+      - name: 硬判据（防假绿）
         run: |
-          B="https://download.unity3d.com/download_unity/e1dba0a9aba4"
-          curl -fL --retry 3 --retry-delay 5 -o dl/android.pkg \
-            "$B/MacEditorTargetInstaller/UnitySetup-Android-Support-for-Editor-6000.3.25f1.pkg" || true
-          ls -la dl/android.pkg 2>/dev/null || echo "(下载失败，继续)"
-
-      - name: 解 Android 模块（多种工具都试，记录哪种有效）
-        run: |
-          mkdir -p out/android
-          cd dl
-          echo "== 文件类型 =="
-          file android.pkg 2>/dev/null || true
-          echo "== 尝试 1：bsdtar =="
-          bsdtar -xf android.pkg -C ../out/android 2>&1 | head -3 && echo "bsdtar 成功" || echo "bsdtar 失败"
-          echo "== 尝试 2：xar =="
-          [ -d ../out/android/Payload ] || (xar -xf android.pkg -C ../out/android 2>&1 | head -3 && echo "xar 成功" || echo "xar 失败")
-          echo "== 尝试 3：7z =="
-          [ -d ../out/android/Payload ] || (7z x -y -o../out/android android.pkg >/dev/null 2>&1 && echo "7z 成功" || echo "7z 失败")
-          cd ..
-          echo "== 结果 =="
-          du -sh out/android 2>/dev/null || echo "(空)"
-          ls out/android 2>/dev/null | head -10
+          set -e
+          D=$(find out -path "*Managed*" -name "*.dll" | wc -l)
+          I=$(find out -path "*il2cpp*" -type f | wc -l)
+          echo "Managed dll=$D · il2cpp 文件=$I"
+          test "$D" -gt 0 || { echo "::error::没拿到引用程序集"; exit 1; }
+          test "$I" -gt 0 || { echo "::error::没拿到 il2cpp"; exit 1; }
+          # 关键三件套必须在（它们决定"手机能否跑 il2cpp"）
+          for f in il2cpp-compile.dll il2cpp-compile.runtimeconfig.json il2cpp-compile.deps.json Unity.IL2CPP.dll; do
+            find out -name "$f" | head -1 | grep -q . || { echo "::error::缺关键文件 $f"; exit 1; }
+            echo "  ✓ $f"
+          done
+          echo "✓ 硬判据通过"
 
       - name: 诊断清单
         run: |
           set +e
           mkdir -p diag
           {
-            echo "# Unity 工具链诊断（第二版：Linux 发行物）"
+            echo "# Unity 工具链诊断（v3）"
             echo
-            echo "## ① 引用程序集"
+            echo "## il2cpp 关键文件与类型判定"
             echo '```'
-            find out -path "*Managed*" -name "*.dll" 2>/dev/null | head -40
-            echo '```'
-            echo "Managed dll 总数: $(find out -path '*Managed*' -name '*.dll' 2>/dev/null | wc -l)"
-            echo
-            echo "## ② il2cpp 实物（决定性问题②）"
-            echo '```'
-            find out -iname "*il2cpp*" -type f 2>/dev/null | head -40
-            echo '```'
-            echo "### 逐个判定托管 or 原生"
-            echo '```'
-            find out -iname "*il2cpp*" -type f -size +100k 2>/dev/null | head -20 | while read f; do
+            find out -path "*il2cpp/build/deploy*" -maxdepth 12 -type f \
+              \( -name "il2cpp*" -o -name "Unity.IL2CPP*.dll" \) 2>/dev/null | sort | head -30 | while read f; do
               printf '%s\n   %s\n   %s 字节\n' "$f" "$(file -b "$f")" "$(stat -c%s "$f")"
             done
             echo '```'
+            echo "## il2cpp-compile.runtimeconfig.json 内容（决定手机 .NET 版本能否跑它）"
+            echo '```json'
+            find out -name "il2cpp-compile.runtimeconfig.json" -exec cat {} \; 2>/dev/null
+            echo '```'
+            echo "## 引用程序集（前 20）"
+            echo '```'
+            find out -path "*Managed/UnityEngine*" -name "*.dll" 2>/dev/null | sort | head -20
+            echo '```'
+            echo "Managed/UnityEngine dll 总数: $(find out -path '*Managed/UnityEngine*' -name '*.dll' 2>/dev/null | wc -l)"
             echo
-            echo "## ③ Android 模块内容"
+            echo "## libil2cpp 源码目录"
             echo '```'
-            find out/android -maxdepth 6 -type d 2>/dev/null | head -30
-            echo '--- arm64 模板 .so ---'
-            find out -name "*.so" -path "*arm64*" 2>/dev/null | head -20
-            echo '--- libil2cpp 源码 ---'
-            find out -type d -name "libil2cpp" 2>/dev/null | head -5
+            find out -type d -name libil2cpp 2>/dev/null | head -3
+            ls out/Editor/Data/il2cpp/libil2cpp 2>/dev/null | head -15
             echo '```'
-            echo
-            echo "## ④ 体积分布"
+            echo "## 体积"
             echo '```'
-            du -h --max-depth=3 out 2>/dev/null | sort -rh | head -25
+            du -h --max-depth=5 out 2>/dev/null | sort -rh | head -15
             echo '```'
           } > diag/report.md 2>&1
           find out -type f -printf '%s\t%p\n' 2>/dev/null | sort -rn > diag/inventory.tsv
-          echo "report.md $(wc -l < diag/report.md) 行 · inventory.tsv $(wc -l < diag/inventory.tsv) 行"
-          sed -n '1,40p' diag/report.md
+          echo "report $(wc -l < diag/report.md) 行 · inventory $(wc -l < diag/inventory.tsv) 行"
+          sed -n '1,50p' diag/report.md
 
-      # ── 硬判据：不满足就判红，绝不再出"成功但零产出"的假绿 ──
-      - name: 硬判据（防假绿）
-        run: |
-          set -e
-          DLLS=$(find out -path "*Managed*" -name "*.dll" 2>/dev/null | wc -l)
-          IL2=$(find out -iname "*il2cpp*" -type f 2>/dev/null | wc -l)
-          echo "Managed dll = $DLLS · il2cpp 文件 = $IL2"
-          if [ "$DLLS" -eq 0 ]; then echo "::error::没拿到任何引用程序集（提取失败）"; exit 1; fi
-          if [ "$IL2" -eq 0 ]; then echo "::error::没找到 il2cpp 工具（提取失败）"; exit 1; fi
-          echo "✓ 硬判据通过"
-
-      - name: 打包要带走的工具链
+      - name: 打包（收窄 + 排除 .pdb/.xml，保证小而可靠）
         run: |
           set -e
           mkdir -p ship
-          find out -path "*Managed*" -name "*.dll" -exec cp --parents {} ship/ \; 2>/dev/null
-          find out -iname "*il2cpp*" -type f -exec cp --parents {} ship/ \; 2>/dev/null
-          for d in $(find out/android -maxdepth 4 -type d 2>/dev/null | head -30); do
-            cp -r --parents "$d" ship/ 2>/dev/null || true
-          done
+          # ① il2cpp 工具（含 apphost 三件套 + 托管 DLL）
+          find out -path "*il2cpp/build/deploy*" -type f \
+            ! -name "*.pdb" ! -name "*.xml" -exec cp --parents {} ship/ \; 2>/dev/null || true
+          # ② libil2cpp 源码（交叉编译要用）
+          if [ -d out/Editor/Data/il2cpp/libil2cpp ]; then
+            mkdir -p ship/libil2cpp && cp -r out/Editor/Data/il2cpp/libil2cpp/. ship/libil2cpp/ 2>/dev/null || true
+          fi
+          # ③ 引用程序集（只要 UnityEngine*，不要 UnityEditor*，省一半体积）
+          find out -path "*Managed/UnityEngine*" -name "UnityEngine*.dll" \
+            -exec cp --parents {} ship/ \; 2>/dev/null || true
+          du -sh ship/* 2>/dev/null
           tar -czf unity-tools.tar.gz -C ship . 2>/dev/null
           S=$(stat -c%s unity-tools.tar.gz)
-          echo "unity-tools.tar.gz = $S 字节"
-          # 空包（< 100KB）说明打包也没拿到东西
-          test "$S" -gt 102400 || { echo "::error::工具链包过小（$S 字节），提取未真正成功"; exit 1; }
+          echo "unity-tools.tar.gz = $S 字节（$((S/1048576)) MB）"
+          test "$S" -gt 1048576 || { echo "::error::包过小（$S 字节），提取未真正成功"; exit 1; }
 
       - name: 上传诊断（永远上传）
         if: always()
