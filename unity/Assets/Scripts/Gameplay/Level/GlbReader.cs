@@ -294,7 +294,7 @@ namespace Whisper.Gameplay.Level
         /// （gate-code C5 上限 120）。材质解析与读块/校验/拼几何本就是三件事 ——
         /// 单独抽出来既让 TryRead 回到可评审的长度，也让材质规则只有一处可改。
         /// </summary>
-        static void ParseMaterials(object root, Model m)
+        static void ParseMaterials(Dictionary<string, object> root, Model m)
         {
             // ── 材质解析（glTF `materials[]`）────────────────────────────────
             // 为什么在这里做：装配端要按 `primitive.material` 索引取参数；
