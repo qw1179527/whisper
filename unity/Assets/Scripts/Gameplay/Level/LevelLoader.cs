@@ -105,7 +105,6 @@ namespace Whisper.Gameplay.Level
                         room.SizeY = MiniJson.AsFloat(size[1]);
                         room.SizeZ = MiniJson.AsFloat(size[2]);
                     }
-                    // 布局字段（D1：没有它们 LevelBuilder 无法实例化几何）
                     if (MiniJson.Get(rm, "pos") is { } posv)
                     {
                         var pv2 = MiniJson.AsList(posv);
@@ -127,6 +126,10 @@ namespace Whisper.Gameplay.Level
                                 OffsetM = MiniJson.Get(dm, "offsetM") is { } om ? MiniJson.AsFloat(om) : 0f,
                                 WidthM = MiniJson.Get(dm, "widthM") is { } wm ? MiniJson.AsFloat(wm) : 1.2f,
                                 Locked = MiniJson.Get(dm, "locked") is bool lk && lk,
+                                // 门型与钥匙（6 类门的数据驱动来源，见蓝图第七节）。
+                                // 缺省 null → 由消费方按 `swing` 处理 / 回退到推断。
+                                Type = MiniJson.Get(dm, "type") is string dt ? dt : null,
+                                Key = MiniJson.Get(dm, "key") is string dk ? dk : null,
                             });
                         }
                     if (MiniJson.Get(rm, "props") is { } pv)
@@ -178,20 +181,27 @@ namespace Whisper.Gameplay.Level
                     });
                 }
 
+            // shafts（可选，缺省=单层；判据见 ParseShafts/ValidateShaft）
+            ParseShafts(map, level, problems);
+
             // extraction（可选，但给了就必须合法）
-            if (MiniJson.Get(map, "extraction") is { } xv)
-            {
-                var xm = MiniJson.AsMap(xv);
-                level.Extraction = new ExtractionPoints
-                {
-                    Standard = MiniJson.AsString(MiniJson.Get(xm, "standard")),
-                    Deep = MiniJson.AsString(MiniJson.Get(xm, "deep")),
-                };
-            }
+            ParseExtraction(map, level);
 
             problems.AddRange(Validate(level, knownKits, knownKinds));
             if (problems.Count > 0) throw new LevelValidationException(problems);
             return level;
+        }
+
+        /// <summary>解析撤离双点（从 LoadCore 拆出：加上竖井解析后 LoadCore 触到 C5 的 120 行上限）。</summary>
+        static void ParseExtraction(Dictionary<string, object> map, LevelData level)
+        {
+            if (MiniJson.Get(map, "extraction") is not { } xv) return;
+            var xm = MiniJson.AsMap(xv);
+            level.Extraction = new ExtractionPoints
+            {
+                Standard = MiniJson.AsString(MiniJson.Get(xm, "standard")),
+                Deep = MiniJson.AsString(MiniJson.Get(xm, "deep")),
+            };
         }
 
         /// <summary>由房间盒与门的 wall/offset 推导门贴墙几何：轴、墙面固定坐标、沿墙位置、外法向。</summary>
@@ -207,12 +217,64 @@ namespace Whisper.Gameplay.Level
             }
         }
 
+        /// <summary>
+        /// 解析并校验竖井（从 LoadCore 拆出来：加上这段后 LoadCore 超了 C5 的 120 行上限）。
+        /// 判据见 <see cref="ValidateShaft"/> —— 缺省（无 `shafts` 字段）就是单层关卡，行为不变。
+        /// </summary>
+        static void ParseShafts(Dictionary<string, object> map, LevelData level, List<string> problems)
+        {
+            if (MiniJson.Get(map, "shafts") is not { } sv) return;
+            foreach (var s in MiniJson.AsList(sv))
+            {
+                var sm = MiniJson.AsMap(s);
+                var sh = new Shaft
+                {
+                    Id = MiniJson.AsString(MiniJson.Get(sm, "id")),
+                    Kind = MiniJson.Get(sm, "kind") is string kd ? kd : "stair",
+                    MinX = MiniJson.AsFloat(MiniJson.Get(sm, "minX")),
+                    MinZ = MiniJson.AsFloat(MiniJson.Get(sm, "minZ")),
+                    MaxX = MiniJson.AsFloat(MiniJson.Get(sm, "maxX")),
+                    MaxZ = MiniJson.AsFloat(MiniJson.Get(sm, "maxZ")),
+                    FromFloor = (int)MiniJson.AsFloat(MiniJson.Get(sm, "fromFloor")),
+                    ToFloor = (int)MiniJson.AsFloat(MiniJson.Get(sm, "toFloor")),
+                };
+                problems.AddRange(ValidateShaft(sh, level));
+                level.Shafts.Add(sh);
+            }
+        }
+
+        /// <summary>
+        /// 竖井合法性（跨层地图最容易出错的地方，所以判据写全）：
+        /// ① 矩形非退化（宽/深 &gt; 0.5m —— 比玩家直径略大，否则"能通"是纸面上的）；
+        /// ② id 非空且不重复；
+        /// ③ 层区间升序且**至少跨 1 层**（等于同层就没意义）。
+        /// 注：与 tools/validate-levels.mjs 同一套规则，任一方新增规则须同步。
+        /// </summary>
+        static List<string> ValidateShaft(Shaft sh, LevelData level)
+        {
+            var bad = new List<string>();
+            if (string.IsNullOrEmpty(sh.Id)) bad.Add("[shafts] 竖井 id 为空");
+            for (int i = 0; i < level.Shafts.Count; i++)
+            {
+                // ⚠ 必须跳过**自己**：`Validate()` 会对已在清单里的竖井再校验一遍，
+                // 不排除自身的话每条竖井都会报"id 重复"（第一版就是这么炸的）。
+                if (ReferenceEquals(level.Shafts[i], sh)) continue;
+                if (level.Shafts[i].Id == sh.Id) bad.Add($"[shafts] 竖井 id 重复：{sh.Id}");
+            }
+            float w = sh.MaxX - sh.MinX, d = sh.MaxZ - sh.MinZ;
+            if (w <= 0.5f || d <= 0.5f) bad.Add($"[shafts] 竖井 {sh.Id} 太小（{w:0.00}×{d:0.00}m，需 >0.5m）");
+            if (sh.FromFloor > sh.ToFloor) bad.Add($"[shafts] 竖井 {sh.Id} 层区间反了（from {sh.FromFloor} > to {sh.ToFloor}）");
+            if (sh.FromFloor == sh.ToFloor) bad.Add($"[shafts] 竖井 {sh.Id} 只覆盖 {sh.FromFloor} 一层 —— 竖井必须跨层");
+            return bad;
+        }
+
         /// <summary>结构性校验（与 tools/validate-levels.mjs 同一套规则；任一方新增规则须同步）。</summary>
         public static List<string> Validate(LevelData level, ISet<string> knownKits = null, IDictionary<string, string> knownKinds = null)
         {
             var problems = new List<string>();
             if (string.IsNullOrWhiteSpace(level.LevelId)) problems.Add("levelId 为空");
             if (level.Rooms.Count == 0) problems.Add("rooms 为空");
+            foreach (var sh in level.Shafts) problems.AddRange(ValidateShaft(sh, level));
 
             var ids = new HashSet<string>(StringComparer.Ordinal);
             foreach (var r in level.Rooms)

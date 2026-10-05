@@ -1,0 +1,53 @@
+{
+  "note": "男女双性别 × 4 体型 = 8 个模型。**模型与鬼类型完全解耦**（用户规则）：配置里只写这个池，运行时随机取。",
+  "models": [
+    {
+      "file": "GEO-GhostBody_female_lanky.glb",
+      "sex": "female",
+      "verts": 8192,
+      "height": 1.836
+    },
+    {
+      "file": "GEO-GhostBody_female_gaunt.glb",
+      "sex": "female",
+      "verts": 8229,
+      "height": 1.749
+    },
+    {
+      "file": "GEO-GhostBody_female_normal.glb",
+      "sex": "female",
+      "verts": 8217,
+      "height": 1.749
+    },
+    {
+      "file": "GEO-GhostBody_female_stocky.glb",
+      "sex": "female",
+      "verts": 8173,
+      "height": 1.643
+    },
+    {
+      "file": "GEO-GhostBody_male_lanky.glb",
+      "sex": "male",
+      "verts": 8059,
+      "height": 1.993
+    },
+    {
+      "file": "GEO-GhostBody_male_gaunt.glb",
+      "sex": "male",
+      "verts": 8228,
+      "height": 1.898
+    },
+    {
+      "file": "GEO-GhostBody_male_normal.glb",
+      "sex": "male",
+      "verts": 8093,
+      "height": 1.897
+    },
+    {
+      "file": "GEO-GhostBody_male_stocky.glb",
+      "sex": "male",
+      "verts": 8105,
+      "height": 1.784
+    }
+  ]
+}

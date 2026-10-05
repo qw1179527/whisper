@@ -96,8 +96,9 @@ const ref = JSON.parse(fs.readFileSync(REF, 'utf8')).cases;
 
 let csOut;
 try {
-  const res = execFileSync(path.join(ROOT, 'native/dotnet.sh'),
-    ['run', '--project', path.join(ROOT, 'native/csharp-verify'), '--nologo', '-c', 'Release', '--', '--emit-monster-vectors'],
+  // 经 bash 调用：Windows 无 shebang 支持，直接 execFileSync 一个 .sh 会静默失败
+  const res = execFileSync('bash', [path.join(ROOT, 'native/dotnet.sh'),
+    'run', '--project', path.join(ROOT, 'native/csharp-verify'), '--nologo', '-c', 'Release', '--', '--emit-monster-vectors'],
     { encoding: 'utf8', cwd: ROOT, stdio: 'pipe' });
   csOut = JSON.parse(res.slice(res.indexOf('{'))).cases;
 } catch (e) {

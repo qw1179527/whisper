@@ -50,6 +50,8 @@ namespace Whisper.Gameplay.Session
         public readonly ItemSystem Items;
         public readonly MatchDirector Director;
         public readonly HudModel Hud;
+        /// <summary>局内任务（合同日志里的可选目标）——每局按种子抽，进度由局内事件累加。</summary>
+        public readonly Objectives.ObjectiveSystem Objectives;
         public readonly Hearing.Hearing HearingSystem;
         public readonly VoiceBandClassifier Voice;
         public readonly List<MonsterBrain> Monsters = new List<MonsterBrain>();
@@ -57,6 +59,45 @@ namespace Whisper.Gameplay.Session
 
         public float PlayerX { get; set; }
         public float PlayerZ { get; set; }
+
+        /// <summary>
+        /// 货车安全区（世界 AABB），由 Runtime 每帧写入（见 HallScene.TruckSafeZone）。
+        /// 为什么是纯数据而不是引用 TruckScene：Gameplay 层不反向依赖 Runtime 的几何 ——
+        /// 保持"玩法不依赖具体车辆实现"，将来换多辆车或多个安全区也不用改玩法层。
+        /// 默认值放在地底且尺寸为零：**任何点都不在内**（fail-safe：宁可不保护，也不误保护）。
+        /// </summary>
+        /// ⚠ 这里的类型是**裸浮点而不是 Vector3**：`Whisper.Gameplay` 程序集**不引用 UnityEngine**
+        /// （实测 CS0246：'Vector3' could not be found）。这是本项目的分层约定 ——
+        /// **玩法层零 Unity 依赖**：几何判断留在 Runtime（有 Unity）侧，玩法层只收数值与 bool。
+        /// 也因此 `SanitySystem.Tick(..., inSafeZone: bool, ...)` 收的是 bool 而不是坐标。
+        public float TruckSafeCenterX { get; set; }
+        public float TruckSafeCenterZ { get; set; } = -1000f;   // 默认远在地底 → 任何点都不在内（fail-safe）
+        public float TruckSafeSizeX { get; set; }
+        public float TruckSafeSizeZ { get; set; }
+
+        /// <summary>玩家当前是否在货车安全区内（§8：鬼无法进入，在车内不掉理智）。</summary>
+        public bool PlayerInSafeZone
+        {
+            get
+            {
+                if (TruckSafeSizeX <= 0f || TruckSafeSizeZ <= 0f) return false;
+                float dx = Math.Abs(PlayerX - TruckSafeCenterX);
+                float dz = Math.Abs(PlayerZ - TruckSafeCenterZ);
+                return dx <= TruckSafeSizeX * 0.5f && dz <= TruckSafeSizeZ * 0.5f;
+            }
+        }
+
+        /// <summary>
+        /// 怪物是否**允许**进入某点。§8：安全区内鬼无法进入 —— 故安全区内一律返回 false。
+        /// 供怪物寻路在选下一个路径点时过滤（而不是让怪物撞墙后自己放弃，那会产生抖动）。
+        /// </summary>
+        public bool MonsterMayEnter(float x, float z)
+        {
+            if (TruckSafeSizeX <= 0f || TruckSafeSizeZ <= 0f) return true;
+            float dx = Math.Abs(x - TruckSafeCenterX);
+            float dz = Math.Abs(z - TruckSafeCenterZ);
+            return !(dx <= TruckSafeSizeX * 0.5f && dz <= TruckSafeSizeZ * 0.5f);
+        }
         public bool SeenByPlayer { get; set; }
         public int SurvivingAllies { get; set; }
         public SessionOutcome Outcome { get; private set; }
@@ -87,9 +128,20 @@ namespace Whisper.Gameplay.Session
             Items = new ItemSystem(cfg, evidenceTotal);
             Director = new MatchDirector(cfg, matchSeed);
             Hud = new HudModel(cfg, evidenceTotal);
+            // 局内任务（合同日志里的可选目标）：按本局种子抽，与天气/风向同一来源 → 联机可复现。
+            Objectives = new Objectives.ObjectiveSystem(cfg);
+            Objectives.BeginContract((uint)matchSeed ^ 0x5F3759DFu);
             HearingSystem = new Hearing.Hearing(cfg);
             Voice = VoiceBandClassifier.FromConfig(cfg, voiceAnchors ?? new VoiceAnchors(-46f, -30f, -14f, -62f));
             Items.OnLog += (msg) => EventLog.Add(msg);
+            // 证据每收一条就喂给局内任务（"找齐 N 条证据"那条要进度）。
+            // 为什么挂在 OnLog 而不是另开回调：ItemSystem 已经在事件里广播了收集事实，
+            // 再开一条并行回调等于两份真相源，容易只更新一处。
+            Items.OnLog += (msg) =>
+            {
+                if (msg != null && msg.StartsWith("拾取证据", StringComparison.Ordinal))
+                    Objectives.ReportEvidence(Items.EvidenceCount, Items.EvidenceTotal);
+            };
 
             // 出生点：第一间房（入口区）中心
             // 出生点：入口房间的**空可走格**（房间中心可能被家具占用；灰盒端同口径）
@@ -173,7 +225,9 @@ namespace Whisper.Gameplay.Session
             // ② 手电 → 理智
             Items.TickFlashlight(dt);
             var args = Items.SanityArgs;
-            Sanity.Tick(dt, args.TorchOn, inSafeZone: false, lightsOut: args.LightsOut);
+            // 【§8 安全区】inSafeZone 原先是硬编码 false —— 而 SanitySystem.Tick 早就支持它
+            // （有 inSafeZone 恢复分支），只是从来没接线。这正是"能力已存在但没接上"的又一例。
+            Sanity.Tick(dt, args.TorchOn, inSafeZone: PlayerInSafeZone, lightsOut: args.LightsOut);
             if (Sanity.TriggerCollapse)
             {
                 // 崩溃尖叫：产生声纹刺激并把怪物引过来（V9 附录 A-2 的代价）

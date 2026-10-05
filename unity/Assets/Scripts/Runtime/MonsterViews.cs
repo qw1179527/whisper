@@ -24,7 +24,7 @@ namespace Whisper.Runtime
     /// 体块与配色是**占位**：真美术资产接入后只换 Mesh，逻辑接线不动。
     /// 三怪各自配色便于肉眼区分（缝匠锈褐 / 低语者霉绿 / 收殓人血色）。
     /// </summary>
-    public sealed class MonsterViews : MonoBehaviour
+    public sealed partial class MonsterViews : MonoBehaviour
     {
         /// <summary>三怪占位体块尺寸（米）与配色 token。</summary>
         static readonly (string id, float w, float h, string color)[] Placeholders =
@@ -84,6 +84,28 @@ namespace Whisper.Runtime
         {
             var (_, w, h, colorHex) = Placeholders[index];
 
+            // ── 优先用**真模型**：从鬼怪模型池里按匹配种子**确定性随机**取一个 ──
+            // 用户规则（2026-10-05）：模型与鬼类型**完全解耦**，所有鬼都是完整人形，
+            // 分男女建模、开局随机取一个；类型差异**只体现在机制上**。
+            // 所以这里**不看 id（类型）**，只看 `_modelSeed + index` —— 这一点是刻意写成这样的。
+            string model = GhostModelPool.Pick(_modelSeed, index);
+            if (!string.IsNullOrEmpty(model))
+            {
+                GameObject body = null;
+                try { body = ModelLibrary.InstantiateWhole(model, transform); }
+                catch (System.Exception e) { Debug.LogWarning("[Whisper] 鬼模型降级：" + e.Message); }
+                if (body != null)
+                {
+                    body.name = "Monster_" + id;
+                    _bodies[id] = body.transform;
+                    var firstMr = body.GetComponentInChildren<MeshRenderer>();
+                    _mats[id] = firstMr != null ? firstMr.sharedMaterial : null;
+                    _modelIds[id] = model;
+                    return;
+                }
+            }
+
+            // 降级：立方体占位（**明确可见**，不假装成功；HUD 会显示实际用的模型名）
             var go = new GameObject("Monster_" + id, typeof(MeshFilter), typeof(MeshRenderer));
             go.transform.SetParent(transform, false);
             var mf = go.GetComponent<MeshFilter>();
@@ -93,6 +115,22 @@ namespace Whisper.Runtime
             go.transform.localScale = new Vector3(w, h, w);
             _bodies[id] = go.transform;
             _mats[id] = mr.sharedMaterial;
+            _modelIds[id] = "(占位立方体)";
+        }
+
+        /// <summary>每只怪实际用的模型 id（自检/HUD 可核："模型与类型解耦"是否真的成立）。</summary>
+        readonly System.Collections.Generic.Dictionary<string, string> _modelIds =
+            new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal);
+        /// <summary>本局的模型选择种子（来自匹配种子；确定性）。</summary>
+        uint _modelSeed = 0x5EED_1234u;
+        /// <summary>设置模型选择种子（组合根在开局时调用）。</summary>
+        public void SetModelSeed(uint seed) { _modelSeed = seed; }
+        /// <summary>HUD/自检用：每只怪用的模型。</summary>
+        public string DescribeModels()
+        {
+            var sb = new System.Text.StringBuilder("模型池：");
+            foreach (var kv in _modelIds) sb.Append(kv.Key).Append('=').Append(kv.Value).Append(' ');
+            return sb.ToString().TrimEnd();
         }
 
         static Mesh _cube;
@@ -146,6 +184,7 @@ namespace Whisper.Runtime
             EmitPlayerNoise(playerPos);
             _lastViews = _director.Tick(_tick, playerPos);
             ApplyViews(_lastViews);
+            TickDoors();   // 鬼开关门（按 canOpenDoors 区分；见 MonsterViews.Doors.cs）
         }
 
         /// <summary>

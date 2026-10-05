@@ -167,8 +167,14 @@ console.log('[gate-code] 代码质量门禁');
   const sdkRe = /^\s*using\s+(Photon|Firebase|Unity\.Services|Vivox|Google|Unity\.Netcode|System\.Net\.Sockets)\b/m;
   const bads = [];
   for (const { rel, t } of files) {
-    if (rel.includes('/Tests/')) continue;
-    const isImplSlot = /\/(Net|Audio|Backend)\//.test(rel);      // §13.2：这三个是 SDK 的唯一槽位
+    // 【跨平台坑，实测】path.relative 在 Windows 上给的是反斜杠，而下面两条判断都按正斜杠写：
+    //   rel.includes('/Tests/') 与 /\/(Net|Audio|Backend)\// 都会**静默失效** ——
+    //   前者让测试文件被误扫，后者让 Net/Audio/Backend 的 §13.2 槽位豁免失效
+    //   （表现为：把合法的 UDP 实现 UdpV6NetService.cs 判成"引用第三方 SDK"→ 链在第 3 步断掉）。
+    //   归一化成正斜杠后再判断，两个平台行为一致。
+    const relPosix = rel.replace(/\\/g, '/');
+    if (relPosix.includes('/Tests/')) continue;
+    const isImplSlot = /\/(Net|Audio|Backend)\//.test(relPosix);   // §13.2：这三个是 SDK 的唯一槽位
     if (isImplSlot) continue;
     if (sdkRe.test(t)) bads.push(`${rel} 引用了第三方 SDK 命名空间（只允许在 Net/Audio/Backend 槽位内）`);
   }

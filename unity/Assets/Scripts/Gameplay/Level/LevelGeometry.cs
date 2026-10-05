@@ -15,12 +15,14 @@ namespace Whisper.Gameplay.Level
     ///   · 房间 pos = 最小角点；格 (gx,gz) 覆盖世界 [gx,gx+1) × [gz,gz+1)
     ///   · 世界 → 格：Math.Floor；格可走 = 不在任何"墙格"里
     /// </summary>
-    public sealed class LevelGeometry
+    public sealed partial class LevelGeometry
     {
         public readonly int Width;      // 格数（x 方向）
         public readonly int Height;     // 格数（z 方向）
         public readonly int MinGX, MinGZ;
         readonly bool[] _blocked;       // [gz * Width + gx]
+
+
         public readonly List<Box> PropBoxes = new List<Box>();
         /// <summary>
         /// 墙碰撞盒（薄墙，厚 <see cref="WallThickness"/>）。用于子步进移动解析时判断"是否撞墙"。
@@ -48,9 +50,16 @@ namespace Whisper.Gameplay.Level
 
         public bool PassableCell(int gx, int gz)
         {
-            if (gx < MinGX || gz < MinGZ || gx >= MinGX + Width || gz >= MinGZ + Height) return false;
-            return !_blocked[(gz - MinGZ) * Width + (gx - MinGX)];
+            if (OutOfGrid(gx, gz)) return false;
+            if (_blocked[(gz - MinGZ) * Width + (gx - MinGX)]) return false;
+            // 关着的门：结构上是洞，动态上挡住（开门 = 从这里移除）
+            return !_closedDoorCells.Contains(Key(gx, gz));
         }
+
+        bool OutOfGrid(int gx, int gz) => gx < MinGX || gz < MinGZ || gx >= MinGX + Width || gz >= MinGZ + Height;
+
+        /// <summary>结构上是不是墙（不看门的开关态）—— 凿门洞时用它判断"墙带还有多厚"。</summary>
+        bool IsWallCell(int gx, int gz) => !OutOfGrid(gx, gz) && _blocked[(gz - MinGZ) * Width + (gx - MinGX)];
 
         void MarkBlocked(int gx, int gz)
         {
@@ -80,6 +89,33 @@ namespace Whisper.Gameplay.Level
         ///    走廊与病房之间的整段墙。
         /// 3. **外墙不能漏**。内缩同时天然保住了关卡外圈。
         /// </summary>
+        /// <summary>
+        /// **按楼层**编译（三层地图的关键这一步：不记楼层的单张格网会让上下层互相干扰 ——
+        /// 1 层的天花板会当成 2 层的地板/墙，`Passable` 直接串层）。
+        ///
+        /// 做法刻意最省风险：给 `Compile` 喂一个"只含该层房间"的浅副本。
+        /// 房间对象是**共享引用**（只读使用），`Compile` 也只读 `Rooms`，
+        /// 所以既有单层行为逐位不变（今天的数据全是 floor=0）。
+        /// 竖井不参与格网编译 —— 它是**跨层寻路的边**，由 <see cref="LevelWorld"/> 使用。
+        /// </summary>
+        public static LevelGeometry CompileFloor(LevelData level, int floor, float cellSize = DefaultCellSize)
+        {
+            var slice = new LevelData { LevelId = level.LevelId, Extraction = level.Extraction };
+            foreach (var r in level.Rooms)
+                if (r.Floor == floor) slice.Rooms.Add(r);
+            // 该层没有房间也要能编出（空层）：给一张 2×2 的**全墙**格网，
+            // 避免调用方拿到 null；"空层"在判据里表现为"可走 0 格"而不是"整层可走"。
+            if (slice.Rooms.Count == 0)
+            {
+                var blank = new LevelGeometry(0, 0, 2, 2, cellSize);
+                for (int gz = 0; gz < 2; gz++)
+                    for (int gx = 0; gx < 2; gx++)
+                        blank.MarkBlocked(gx, gz);
+                return blank;
+            }
+            return Compile(slice, cellSize);
+        }
+
         public static LevelGeometry Compile(LevelData level, float cellSize = DefaultCellSize)
         {
             float minX = float.MaxValue, minZ = float.MaxValue, maxX = float.MinValue, maxZ = float.MinValue;
@@ -134,60 +170,20 @@ namespace Whisper.Gameplay.Level
                         geo.Unmark(gx, gz);
             }
 
-            // ④ 门洞：在所属房间编号范围内打通「门格 + 内侧一格」
-            foreach (var r in level.Rooms)
-            {
-                int rgx0 = CellOf(r.MinX, cellSize), rgx1 = CellOf(r.MaxX - 1e-4f, cellSize);
-                int rgz0 = CellOf(r.MinZ, cellSize), rgz1 = CellOf(r.MaxZ - 1e-4f, cellSize);
-                foreach (var d in r.Doors)
-                {
-                    d.ToWorld(r, out float dx, out float dz);
-                    int gx = CellOf(dx, cellSize), gz = CellOf(dz, cellSize);
-                    bool northSouth = d.Wall == "north" || d.Wall == "south";
-                    // 门洞打通：从门格沿法向**两侧各凿到"进入本房间内部"为止**（上限 6 格）。
-                    //
-                    // 为什么必须"凿到进入内部为止"而不是固定凿 N 格：房间内部按 INSET 内缩后，
-                    // 门格与内部之间隔着缝带（有时 1 格、有时 2~3 格，取决于缝与格边界的对齐），
-                    // 固定凿 2 格或 5 格都会有一部分门洞恰好差一格接不上 ——
-                    // 实测 ward_02..05 与 corridor_ward 形成 28 格孤岛。
-                    void Open(int ax, int az)
-                    {
-                        if (northSouth) { if (ax < rgx0 || ax > rgx1) return; }   // 夹沿墙坐标（防顺墙凿穿）
-                        else { if (az < rgz0 || az > rgz1) return; }
-                        geo.Unmark(ax, az);
-                    }
-                    Open(gx, gz);
-                    for (int dir = -1; dir <= 1; dir += 2)
-                    {
-                        bool reached = false;
-                        for (int k = 1; k <= 6; k++)
-                        {
-                            int ax = northSouth ? gx : gx + dir * k;
-                            int az = northSouth ? gz + dir * k : gz;
-                            Open(ax, az);
-                            // "进入本房间内部"= 该格已在房间的内缩矩形之内
-                            float ins = Math.Min(0.6f, Math.Min(r.MaxX - r.MinX, r.MaxZ - r.MinZ) * 0.35f);
-                            if (ax >= CellOf(r.MinX + ins, cellSize) && ax <= CellOf(r.MaxX - ins - 1e-4f, cellSize)
-                                && az >= CellOf(r.MinZ + ins, cellSize) && az <= CellOf(r.MaxZ - ins - 1e-4f, cellSize))
-                            { reached = true; break; }
-                        }
-                        _ = reached;
-                    }
-                }
-            }
-
+            // ④ 门洞：**统一由 BuildDoors 处理**（见下方 ④ 的真实调用点）。
+            //
+            // 【为什么删掉了这里原有的"门格 + 内侧一格"凿洞循环】它是门系统收口前留下的旧实现，
+            // 与新实现**重复凿洞**且凿的量不一致：它只凿门的**中心那一列**（沿墙坐标被夹在房间范围内），
+            // 且凿完**不登记门格**。后果是 BuildDoors 再去收集"墙带格"时，那些格已经被它凿成可走，
+            // `IsWallCell` 判为假 → **一扇门登记到 0 个格** → 关门时无从挡起
+            // （实测症状：`[关门] 门 ward_01/d_south：开=565 格 → 关=565 格`、
+            //   `关着挡路=False`，两条断言同时红）。凿洞与登记必须是**同一个函数**的事。
+            geo.BuildDoors(level);
             geo.BuildWallBoxes(level);
             geo.BuildPropBoxes(level);
+            // 收尾：门出厂是关着的 —— 把所有门格写进动态阻挡集合
+            geo.SyncClosedDoorCells();
             return geo;
-        }
-
-        void CarveRect(float x0, float z0, float x1, float z1)
-        {
-            int gx0 = CellOf(x0), gz0 = CellOf(z0);
-            int gx1 = CellOf(x1 - 1e-4f), gz1 = CellOf(z1 - 1e-4f);
-            for (int gz = gz0; gz <= gz1; gz++)
-                for (int gx = gx0; gx <= gx1; gx++)
-                    Unmark(gx, gz);
         }
 
         void Unmark(int gx, int gz)
@@ -268,6 +264,36 @@ namespace Whisper.Gameplay.Level
         public struct MoveResult { public float X, Z; public bool Blocked; }
 
         /// <summary>
+        /// 出生点建议（给 Runtime 用，纯计算）：**房间几何中心**（不可走时朝中心收拢）+ 朝向**最长视线方向**。
+        ///
+        /// 为什么需要它：真机实测出生画面"朝向 98°、右侧 2/3 被 1m 外的墙占满"——
+        /// 出生点贴着墙角、朝向又没取房间长边，玩家一睁眼就是一堵墙。
+        /// 判据取"长边"而不是"朝门"：门可能在窄边（`entrance_safe` 的门就在 3m 窄边上），
+        /// 朝门等于朝墙。长边方向至少有 `max(SizeX, SizeZ)` 米纵深可看。
+        /// yaw 口径与 Unity 一致：forward = (sin yaw, 0, cos yaw) → 朝 +X 是 90°、朝 +Z 是 0°。
+        /// </summary>
+        public bool SuggestSpawn(Room room, out float x, out float z, out float yawDeg)
+        {
+            x = room.CenterX; z = room.CenterZ; yawDeg = room.SizeX >= room.SizeZ ? 90f : 0f;
+            if (Passable(x, z)) return true;
+            // 中心落在墙带里（窄房间常见）→ 沿"最短轴"朝中心收拢，最多 1.5m，步长 0.1m
+            for (float d = 0.1f; d <= 1.5f; d += 0.1f)
+            {
+                if (room.SizeX <= room.SizeZ)
+                {
+                    if (Passable(room.CenterX - d, z)) { x = room.CenterX - d; return true; }
+                    if (Passable(room.CenterX + d, z)) { x = room.CenterX + d; return true; }
+                }
+                else
+                {
+                    if (Passable(x, room.CenterZ - d)) { z = room.CenterZ - d; return true; }
+                    if (Passable(x, room.CenterZ + d)) { z = room.CenterZ + d; return true; }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 分离轴滑动 + **子步进**。
         ///
         /// 子步进不是可选优化：单帧位移若一次判定，5 米的位移会被判成"终点合法"从而穿过整面墙
@@ -293,6 +319,8 @@ namespace Whisper.Gameplay.Level
 
         bool BlockedAt(float px, float pz, float radius)
         {
+            // 墙与（关着的）门都由 `PassableCell` 一层判定 —— 门的状态已经在格这一层表达，
+            // 这里不再额外查世界矩形（两套判据并存正是过去"开着门过不去"的根因）。
             if (!Passable(px, pz)) return true;
             for (int i = 0; i < PropBoxes.Count; i++)
             {
@@ -302,7 +330,6 @@ namespace Whisper.Gameplay.Level
             return false;
         }
 
-        /// <summary>可走格数（诊断用：编译出 0 格说明几何生成失败）。</summary>
         /// <summary>
         /// 找出离给定点**最近的可走且无道具**的格中心。
         /// 为什么需要：房间中心格常常被家具占用（本项目 ward_03 中心就放着病床），
@@ -329,11 +356,11 @@ namespace Whisper.Gameplay.Level
                             if (px + R > b.X0 && px - R < b.X1 && pz + R > b.Z0 && pz - R < b.Z1) { hitProp = true; break; }
                         if (hitProp) continue;
                         fx = px; fz = pz; return true;
-                    next:;
                     }
             fx = x; fz = z; return false;
         }
 
+        /// <summary>可走格数（诊断用：编译出 0 格说明几何生成失败）。</summary>
         public int PassableCount()
         {
             int n = 0;

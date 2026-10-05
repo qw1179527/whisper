@@ -57,6 +57,11 @@ namespace Whisper.Tests.EditMode
             public void Connect(string roomCode, string authToken) { }
             public void Disconnect() { }
             public void SendVoiceStimulus(in Whisper.Core.Contracts.StimulusEvent stimulus) { }
+            // 【第二次复发，2026-10-04】契约新增"本地玩家上行口"（SendLocalPlayer）后本桩又没跟上 →
+            // Unity 侧该程序集 CS0535，而**一键链 21 步无一步编译 Tests/**（csharp-verify 的 csproj
+            // 不含 Tests/、unity-syntax-check 显式排除 /Tests/），所以本机全绿也照样看不见。
+            // 上面 63-66 行记的第一次事故就是这么来的，这次原样复发 —— 修复见下方说明。
+            public void SendLocalPlayer(in Whisper.Core.Contracts.PlayerSnapshot local) { }
             public event System.Action<string> OnRoomClosed;
             public event System.Action<bool> OnHostMigration;
 

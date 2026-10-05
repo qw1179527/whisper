@@ -24,7 +24,7 @@ namespace Whisper.Gameplay.Level
     /// （几何编译/校验）已由 LevelGeometry 与 LevelLoader 在本机被断言覆盖；
     /// 本类自身由 PlayMode 测试与真机验收覆盖。
     /// </summary>
-    public sealed class LevelBuilder : MonoBehaviour
+    public sealed partial class LevelBuilder : MonoBehaviour
     {
         public LevelData Level { get; private set; }
         public LevelGeometry Geometry { get; private set; }
@@ -43,14 +43,29 @@ namespace Whisper.Gameplay.Level
             if (problems.Count > 0)
                 throw new LevelLoader.LevelValidationException(problems);
 
-            Geometry = LevelGeometry.Compile(level);
+            // ⚠ **必须逐层编译，不能把三层压成一张 2D 格网**。实测（`_evidence/build-a/overlap-probe`）：
+            //   合编三层 → 门键 26 · 物理洞口 11 · `entrance_safe/d_east` **门格 0** · 门前 0.5m 判**可走**
+            //   只编 F0 → 门键 20 · 物理洞口 10 · 同门 **门格 8** · 门前 0.5m 判不可走 ✓
+            // 原因：上层走廊与一层走廊**同 (x,z) 上下对齐**（竖井要落在每层可走区里），它的内缩凿空
+            // 覆盖了一层门带格 → 门格清成 0：渲染层门扇照动，结构层"门洞没凿开"（第 26 步真红）。
+            // 所以 `Geometry` 只代表玩家所在的 0 层（既有运行时行为不变），上层各编各的，
+            // 跨层由 `LevelWorld`（竖井）负责 —— 那才是"层间只能走竖井"的正确模型。
+            Geometry = LevelGeometry.CompileFloor(level, 0);
+            Floors.Clear();
+            int maxFloor = 0;
+            foreach (var r in level.Rooms) if (r.Floor > maxFloor) maxFloor = r.Floor;
+            for (int f = 0; f <= maxFloor; f++) Floors.Add(LevelGeometry.CompileFloor(level, f));
+            World = LevelWorld.Build(level);
             // 装配计划由 LevelAssembly（纯 C#）计算 —— 本类只负责"把计划变成 GameObject"。
             // 为什么这样拆：装配计算必须能**在本机无引擎环境断言**（V9 §19 代码优先），
             // 而 GameObject 创建只能靠引擎。独立复核 F2b 指出几何层此前根本没接进产品，
             // 拆分后计算部分有 5 条本机断言覆盖（墙段数/贴边界/占地/越界/确定性）。
             Plan = LevelAssembly.Build(level);
             foreach (var room in level.Rooms) BuildRoom(room);
-            foreach (var room in level.Rooms) BuildDoors(room);
+            FlushWalls();   // 墙段收集完毕 → 按同板矩形并集合并后统一建（见 AddWallSegment 注释）
+            // 门**不按 DSL 条目建**：DSL 里同一门洞在走廊侧与房间侧各登记一次，按条目建会得到
+            // 10 对完全同位共面的门板（z-fighting）。几何层已按几何重合合并，这里按它的洞口清单建。
+            BuildDoorLeaves();
             foreach (var room in level.Rooms) BuildProps(room);
         }
 
@@ -74,15 +89,60 @@ namespace Whisper.Gameplay.Level
             // 门框变惨白、色相被削平（整屏平均亮度 213/255，恐怖游戏看着像曝光过度）。
             // 乘法在浅色上必然截顶 —— 所以门框改用向墨色**混合**。
             var zone = r.LightZone;
-            // 地板
-            AddBox(roomGo, "Floor", new Vector3(0f, -0.05f, 0f),
-                new Vector3(r.SizeX, 0.1f, r.SizeZ), ToColor(LevelPalette.Floor(zone)));
-            // 天花板
-            AddBox(roomGo, "Ceiling", new Vector3(0f, r.SizeY, 0f),
-                new Vector3(r.SizeX, 0.1f, r.SizeZ), ToColor(LevelPalette.Ceiling(zone)));
+            // 套件网格（包内 Kits/<kit>.glb，落点在 Assets/StreamingAssets）——**"套件真的在产品里"的落点**。
+            // 为什么按部件接、并分别上色：套件的部件语义不同（楼板 / 天花板灯槽 / 立柱），
+            // 合并成一个网格整块白色（GLB 顶点色是白的，实测过）；分部件才能按分区着色。
+            // 墙体仍走程序化的"按门洞切段"路径（套件墙体是实心壳，会挡门洞的视觉）。
+            // ⚠️ 已知不足（独立复核者实测，待后续修）：套件按房间中心整块摆、不做裁剪 →
+            //    6/11 房间楼板与房间不符（悬挑/缺口）、11/11 房间因此没有天花板、9 对共面重叠 z-fighting。
+            bool kitPlaced = false;
+            var kitParts = KitMeshLibrary.GetParts(r.Kit);
+            if (kitParts != null && kitParts.Length > 0)
+            {
+                for (int i = 0; i < kitParts.Length; i++)
+                {
+                    var part = kitParts[i];
+                    if (part == null) continue;
+                    var b = part.bounds;
+                    // 部件语义按尺寸判定（确定性、可复核）：
+                    //   水平铺满整房 → 楼板/天花板；高瘦 → 立柱；其余 → 门框等小件
+                    bool spansRoom = b.size.x >= r.SizeX - 0.05f && b.size.z >= r.SizeZ - 0.05f;
+                    bool isTall = b.size.y > 1.5f && b.size.x < 0.6f && b.size.z < 0.6f;
+                    Color color;
+                    if (spansRoom) color = ToColor(LevelPalette.Floor(zone));
+                    else if (isTall) color = ToColor(LevelPalette.Wall(zone));
+                    else color = ToColor(LevelPalette.Ceiling(zone));
+                    var go = new GameObject($"Kit_{r.Kit}_{i}");
+                    go.transform.SetParent(roomGo.transform, false);
+                    go.transform.localPosition = Vector3.zero;
+                    var mf = go.AddComponent<MeshFilter>();
+                    mf.sharedMesh = part;
+                    var mr = go.AddComponent<MeshRenderer>();
+                    mr.sharedMaterial = FlatMaterial(color);
+                }
+                kitPlaced = true;
+                KitRooms.Add(r.Id);
+            }
+
+            // 程序化楼板/天花板只在**套件缺失**时补：套件楼板是整块矩形、与房型同尺寸，
+            // 两者同时存在会 z-fighting（同一平面上两张面）。套件缺失时宁可观感差一点，
+            // 也不能让房间没地板（真机表现是"掉进虚空"）。
+            if (!kitPlaced)
+            {
+                AddBox(roomGo, "Floor", new Vector3(0f, -0.05f, 0f),
+                    new Vector3(r.SizeX, 0.1f, r.SizeZ), ToColor(LevelPalette.Floor(zone)));
+                AddBox(roomGo, "Ceiling", new Vector3(0f, r.SizeY, 0f),
+                    new Vector3(r.SizeX, 0.1f, r.SizeZ), ToColor(LevelPalette.Ceiling(zone)));
+            }
             // 四面墙：按门洞切段（门洞处留缺口，几何上由 LevelGeometry 保证可走）
             BuildWallsWithDoorGaps(roomGo, r, zone);
         }
+
+        /// <summary>已用套件网格的房型 id（诊断与断言用：非空才说明"套件真的在产品里"）。</summary>
+        public readonly List<string> KitRooms = new List<string>();
+
+        /// <summary>套件网格库最近一次失败原因（null = 全部命中）。</summary>
+        public static string KitProblem => KitMeshLibrary.LastProblem;
 
         /// <summary>纯逻辑 Rgb → UnityEngine.Color。</summary>
         static Color ToColor(in Rgb c) => new Color(c.R, c.G, c.B, 1f);
@@ -147,26 +207,100 @@ namespace Whisper.Gameplay.Level
             Vector3 size = horizontal
                 ? new Vector3(len, h, thickness)
                 : new Vector3(thickness, h, len);
-            AddBox(parent, $"Wall_{tag}{idx}", local, size, ToColor(LevelPalette.Wall(zone)));
+
+            // ── 共享墙去重 + **墙段合并**（2026-10-04 修·独立复核 B2 量化 → 构建A 复审加合并）──
+            // 墙盒**正中摆在房间边界线上**（上面 `half` 就是房间半尺寸），于是相邻两房各建一份。
+            // 独立审计（纯 C# `GeometryOverlapAudit` + `_evidence/build-a/overlap-probe`）实测装配计划：
+            //   · 完全同位 10 对（如 ward_01 east ↔ ward_02 west，0.880 m² × 全高）
+            //   · **体积穿模 28 对**：例如 corridor_link 的北墙（4m）整段落在 corridor_ward 的南墙（15m）
+            //     同一块 0.22m 厚的板里 → 两段墙叠着建，顶/底面共面、端头露内部面 = 用户看到的"重复建模"
+            // 只靠"同位置同尺寸"去重**吃不掉**后者（尺寸/中心都不同）。所以这里不再直接建盒：
+            // 先把墙段**收集**起来，`Build()` 末尾由 `FlushWalls()` 按 `WallRunMerger`（同板内
+            // 矩形并集分解）合并后统一建 —— 于是"两段墙叠在同一块板里"在生成期就**不可能发生**。
+            // 探针实测：57 → 30 段；完全同位 10→0、体积穿模 28→12（剩 12 是正交拐角搭接）。
+            Vector3 world = parent.transform.position + local;
+            _pendingWalls.Add(horizontal
+                ? new WallRunMerger.Run
+                {
+                    AlongX = true,
+                    From = world.x - len / 2f, To = world.x + len / 2f,
+                    Plane = world.z, BaseY = 0f, Height = h, Thickness = thickness,
+                }
+                : new WallRunMerger.Run
+                {
+                    AlongX = false,
+                    From = world.z - len / 2f, To = world.z + len / 2f,
+                    Plane = world.x, BaseY = 0f, Height = h, Thickness = thickness,
+                });
+            _pendingWallColors.Add(ToColor(LevelPalette.Wall(zone)));
         }
 
-        void BuildDoors(Room r)
+        /// <summary>合并并建墙（`Build()` 末尾调用一次）。合并后每段墙只建一次，见 AddWallSegment 注释。</summary>
+        void FlushWalls()
         {
-            foreach (var d in r.Doors)
+            if (_pendingWalls.Count == 0) return;
+            var merged = WallRunMerger.Merge(_pendingWalls, out var mr);
+            WallMergeResult = mr;
+            if (_wallRoot != null) DestroyImmediate(_wallRoot);
+            _wallRoot = new GameObject("Walls");
+            _wallRoot.transform.SetParent(transform, false);
+            _wallRoot.transform.localPosition = Vector3.zero;   // 下面按**世界坐标**当局部坐标用
+            WallObjects.Clear();
+            foreach (var r in merged)
             {
-                d.ToWorld(r, out float x, out float z);
-                var go = new GameObject($"Door_{r.Id}_{d.Id}");
-                go.transform.SetParent(transform, false);
-                go.transform.position = new Vector3(x, r.Floor * 3.5f, z);
-                // 门框（门槛）：视觉标记 + 玩法层的开合锚点
-                AddBox(go, "Frame", new Vector3(0f, r.SizeY / 2f, 0f),
-                    d.Wall == "north" || d.Wall == "south"
-                        ? new Vector3(d.WidthM, r.SizeY, 0.08f)
-                        : new Vector3(0.08f, r.SizeY, d.WidthM),
-                    ToColor(LevelPalette.DoorFrame(r.LightZone)));
-                DoorObjects.Add(go);
+                float len = r.To - r.From;
+                if (len <= 0.001f) continue;
+                Color color = ColorOfMerged(r);
+                Vector3 local = r.AlongX
+                    ? new Vector3((r.From + r.To) * 0.5f - transform.position.x, r.BaseY + r.Height * 0.5f - transform.position.y, r.Plane - transform.position.z)
+                    : new Vector3(r.Plane - transform.position.x, r.BaseY + r.Height * 0.5f - transform.position.y, (r.From + r.To) * 0.5f - transform.position.z);
+                Vector3 size = r.AlongX
+                    ? new Vector3(len, r.Height, r.Thickness)
+                    : new Vector3(r.Thickness, r.Height, len);
+                WallObjects.Add(AddBox(_wallRoot, $"Wall_{WallObjects.Count}", local, size, color));
             }
+            Debug.Log($"[几何] {mr} · 墙对象 {WallObjects.Count}");
         }
+
+        /// <summary>合并段的颜色取"覆盖它中点的原墙段"的颜色（同一块板上不同分区相撞时，取先出现的那段）。</summary>
+        Color ColorOfMerged(in WallRunMerger.Run r)
+        {
+            float mid = (r.From + r.To) * 0.5f;
+            for (int i = 0; i < _pendingWalls.Count; i++)
+            {
+                var p = _pendingWalls[i];
+                if (p.AlongX != r.AlongX || Math.Abs(p.Plane - r.Plane) > 0.002f) continue;
+                if (mid < p.From - 0.002f || mid > p.To + 0.002f) continue;
+                return _pendingWallColors[i];
+            }
+            return _pendingWallColors[0];
+        }
+
+
+        /// <summary>量化到 1mm，用作"同一面墙"的键（浮点相等不可靠，量化才稳）。</summary>
+        static long Q(float v) => (long)System.Math.Round(v * 1000.0);
+
+        /// <summary>已建墙的键集合（跨房间共享，用于消除同位重复墙）。</summary>
+        readonly System.Collections.Generic.HashSet<string> _wallKeys = new System.Collections.Generic.HashSet<string>();
+
+        /// <summary>
+        /// 每层一张格网（索引 = 楼层号）。`Geometry` 是 `Floors[0]` 的别名（玩家所在层，兼容既有调用）。
+        /// **不要**用 `LevelGeometry.Compile(level)` 合成一张 —— 会串层并清掉门格（见 `Build` 里的实测）。
+        /// </summary>
+        public readonly System.Collections.Generic.List<LevelGeometry> Floors = new System.Collections.Generic.List<LevelGeometry>();
+
+        /// <summary>多层世界（竖井连通 + 跨层可达判据）；单层关卡时 `FloorCount == 1`。</summary>
+        public LevelWorld World;
+
+        /// <summary>待合并的墙段与它们的颜色（`FlushWalls()` 统一处理，见 AddWallSegment 注释）。</summary>
+        readonly System.Collections.Generic.List<WallRunMerger.Run> _pendingWalls = new System.Collections.Generic.List<WallRunMerger.Run>();
+        readonly System.Collections.Generic.List<Color> _pendingWallColors = new System.Collections.Generic.List<Color>();
+        GameObject _wallRoot;
+        /// <summary>已建的墙对象（诊断/取证用：不含套件与道具）。</summary>
+        public readonly System.Collections.Generic.List<GameObject> WallObjects = new System.Collections.Generic.List<GameObject>();
+        /// <summary>墙段合并的统计（`InCount → OutCount`；日志与取证都读它）。</summary>
+        public WallRunMerger.Result WallMergeResult;
+
 
         void BuildProps(Room r)
         {
@@ -183,13 +317,39 @@ namespace Whisper.Gameplay.Level
                     : default;
                 float sx = part.Kit != null ? part.SizeX : 0.8f;
                 float sz = part.Kit != null ? part.SizeZ : 0.8f;
-                AddBox(go, "Body", new Vector3(0f, 0.4f, 0f), new Vector3(sx, 0.8f, sz),
-                    ToColor(LevelPalette.Prop(r.LightZone)));
+                // 道具套件（cabinet_a / bed_b）真身：优先用 GLB 部件，缺则退回程序化方块。
+                // 为什么按"部件 y 偏移"整体下移到贴地：套件的部件各自带 nodeTranslation
+                // （机柜 ±0.6、病床床脚 -0.28 等），直接摆会把部件埋进地板或悬空。
+                var propParts = KitMeshLibrary.GetParts(p.Kit);
+                if (propParts != null && propParts.Length > 0)
+                {
+                    // 整体包围盒的最低点 → 抬到地面（与 LevelGeometry 的 PropBoxes 同口径：
+                    // 碰撞盒只管水平占地，竖直方向靠这一步对齐，避免"看得见的悬空/嵌地"）
+                    float minY = float.MaxValue;
+                    foreach (var m in propParts) if (m != null && m.bounds.min.y < minY) minY = m.bounds.min.y;
+                    if (minY == float.MaxValue) minY = 0f;
+                    for (int i = 0; i < propParts.Length; i++)
+                    {
+                        if (propParts[i] == null) continue;
+                        var mgo = new GameObject($"Kit_{p.Kit}_{i}");
+                        mgo.transform.SetParent(go.transform, false);
+                        mgo.transform.localPosition = new Vector3(0f, -minY, 0f);
+                        var mf2 = mgo.AddComponent<MeshFilter>();
+                        mf2.sharedMesh = propParts[i];
+                        var mr2 = mgo.AddComponent<MeshRenderer>();
+                        mr2.sharedMaterial = FlatMaterial(ToColor(LevelPalette.Prop(r.LightZone)));
+                    }
+                }
+                else
+                {
+                    AddBox(go, "Body", new Vector3(0f, 0.4f, 0f), new Vector3(sx, 0.8f, sz),
+                        ToColor(LevelPalette.Prop(r.LightZone)));
+                }
                 PropObjects.Add(go);
             }
         }
 
-        static void AddBox(GameObject parent, string name, Vector3 localPos, Vector3 size, Color color)
+        static GameObject AddBox(GameObject parent, string name, Vector3 localPos, Vector3 size, Color color)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent.transform, false);
@@ -199,6 +359,7 @@ namespace Whisper.Gameplay.Level
             var mr = go.AddComponent<MeshRenderer>();
             mf.sharedMesh = CubeMesh;
             mr.sharedMaterial = FlatMaterial(color);
+            return go;
         }
 
         // ── 材质与网格全部代码构建（V9 §19.1 C2：编辑器零参与）──

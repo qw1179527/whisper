@@ -7,11 +7,15 @@ namespace Whisper.Net.Direct
     /// 联机线格式（V9 §13.4 四类同步对象的**字节级**实现）。
     ///
     /// ## 为什么必须自己定线格式，而不是让 SDK 自己序列化
-    /// V9 §13.4 给了硬带宽预算：**下行 ≤12KB/s · 上行 ≤6KB/s · 每 3 Tick（50ms）一批**。
-    ///   上行折算：6000 ÷ 20 = **每批 100 字节**（含 4 名玩家 + 道具/门变更 + 阶段 + 校验）。
+    /// V9 §13.4 给了硬带宽预算：**下行 ≤12KB/s · 上行 ≤6KB/s · 每 3 Tick（50ms）一批**（= 20 批/秒）。
+    ///   · 下行折算：12000 ÷ 20 = **600 字节/批** → `DownBatchBudgetBytes = 600`（与预算一致）
+    ///   · 上行折算：6000 ÷ 20 = **300 字节/批**
+    ///     ⚠️ `UpBatchBudgetBytes` 取 **100**，比折算值**更保守 3 倍**（不是"6000÷20=100"——
+    ///     独立复核指出原注释这个算式是错的；100 是刻意留的余量，不是预算本身）。取更严的上限
+    ///     使"每批 ≤100 字节"这条断言同时满足两种口径，代价是有时需要丢低优先级变更。
     /// 这个预算下，{ 字符串 ID + float 坐标 × 4 } 的朴素序列化**必然超**——
     /// 而且超了不会报错，只会表现为"移动端流量爆掉/延迟飙升"这种上线才发现的症状。
-    /// 所以线格式要显式设计、显式度量，并用断言把它钉住（见 native/csharp-verify [7]）。
+    /// 所以线格式要显式设计、显式度量，并用断言把它钉住（见 native/csharp-verify [10]）。
     ///
     /// ## 定长纪律
     /// 每条记录都是定长（位置用 16 位量化、朝向用 8 位），因此：
@@ -282,6 +286,41 @@ namespace Whisper.Net.Direct
             int fixedPart = StateBatchSize(playerCount, sanityCount, 0);
             int room = budgetBytes - fixedPart;
             return room <= 0 ? 0 : room / PropRecordSize;
+        }
+
+        /// <summary>
+        /// 解析声纹事件（瞬时 RPC，V9 §13.4）。
+        /// 与状态批同样的纪律：**空包/短包/版本不符一律返回 false，不抛异常**（UDP 收到空数据报是正常情况）。
+        /// </summary>
+        public static bool TryReadStimulus(byte[] data, out StimulusLite stimulus)
+        {
+            stimulus = default;
+            if (data == null || data.Length < StimulusSize) return false;
+            var r = new Reader(data);
+            if (!r.U8(out var ver) || ver != ProtocolVersion) return false;
+            if (!r.U8(out var kind) || kind != (byte)Kind.Stimulus) return false;
+            if (!r.U16(out var _seq)) return false;      // 瞬时 RPC 的 seq 未用，但仍在头里
+            if (!r.U8(out var _flags)) return false;
+            if (!r.U16(out var srcHash)) return false;
+            if (!r.U8(out var intensity01)) return false;
+            if (!r.U16(out var x)) return false;
+            if (!r.U16(out var z)) return false;
+            if (!r.U8(out var radius8)) return false;
+            if (!r.U8(out var _reserved)) return false;
+            if (r.Remaining != 0) return false;          // 定长协议：多余字节=版本不匹配
+            stimulus = new StimulusLite(srcHash, Dequantize01(intensity01), DequantizePos(x), DequantizePos(z), radius8);
+            return true;
+        }
+
+        /// <summary>解析后的声纹事件（源用 16 位哈希表示，避免在热路径上分配字符串）。</summary>
+        public readonly struct StimulusLite
+        {
+            public readonly ushort SourceHash;
+            public readonly float Intensity01;
+            public readonly float X, Z;
+            public readonly int RadiusM;
+            public StimulusLite(ushort sourceHash, float intensity01, float x, float z, int radiusM)
+            { SourceHash = sourceHash; Intensity01 = intensity01; X = x; Z = z; RadiusM = radiusM; }
         }
 
         /// <summary>

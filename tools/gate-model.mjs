@@ -240,12 +240,60 @@ console.log('[gate-model] 建模门禁（几何 + 资产）');
   bads.length === 0 ? ok('M7 每面墙按门洞切段后：无重叠、段长合计 + 门洞 = 墙长（闭合）') : bads.slice(0, 4).forEach(bad);
 }
 
-// ── M8 连通可达（房间图洪水填充） ──
+// ── M8 连通可达（房间图洪水填充，**分层 + 竖井**） ──
+//
+// 【2026-10-04 修 · 三层之后这个判据必然假红】
+// 旧实现只读 `level.corridors` 建图。加了楼层与竖井之后，二三层房间**只能通过竖井到达**，
+// 而竖井不是 corridor → 四个新房间被判"不可达"（实测：corridor_main_f1/f2、lobby、boiler）。
+// 这不是关卡错，是**判据跟不上数据模型**。
+//
+// 修法：与 `LevelWorld.Reachable`（C# 侧、build-render 写的）**同原理** ——
+// 竖井矩形落在哪几层的哪些房间里，就把那些房间连成一条边（竖井 = 跨层边）。
+// 这样"竖井画在不可走的地方"会真判不通（C# 探针用假竖井验证过有牙），本门禁也一致。
 {
   const adj = new Map(level.rooms.map((r) => [r.id, []]));
   for (const c of level.corridors ?? []) {
     if (adj.has(c.from) && adj.has(c.to)) { adj.get(c.from).push(c.to); adj.get(c.to).push(c.from); }
   }
+
+  // 竖井 → 它在每一层"罩住"的房间，连成一条边
+  //
+  // ⚠ DSL 用的是**平铺字段** `minX/minZ/maxX/maxZ`（不是 `rect` 数组）——
+  // 我第一版按 `rect` 兼容写，解析不出任何竖井，M8 依然假红。**判据必须按真数据字段写**。
+  const shafts = level.shafts ?? [];
+  const shaftEdges = [];
+  const shaftProblems = [];
+  for (const s of shafts) {
+    const sr = s.rect ?? s;
+    const x0 = sr.minX ?? sr.x0 ?? sr[0], z0 = sr.minZ ?? sr.z0 ?? sr[1];
+    const x1 = sr.maxX ?? sr.x1 ?? sr[2], z1 = sr.maxZ ?? sr.z1 ?? sr[3];
+    if ([x0, z0, x1, z1].some((v) => typeof v !== 'number')) { shaftProblems.push(`${s.id ?? '?'} 矩形字段不是数字`); continue; }
+    const from = s.fromFloor ?? 0, to = s.toFloor ?? from;
+    const hit = [];                                           // 每层至多取一个"被竖井罩住"的房间
+    for (let f = from; f <= to; f++) {
+      const r = (level.rooms ?? []).find((room) => {
+        if ((room.floor ?? 0) !== f) return false;
+        const b = box(room);
+        return x0 >= b.x0 - 1e-6 && z0 >= b.z0 - 1e-6 && x1 <= b.x1 + 1e-6 && z1 <= b.z1 + 1e-6;
+      });
+      if (r) hit.push(r.id);
+    }
+    // 【变异验证暴露的假绿，必须显式判红】
+    // 我第一版在这里 `continue`（罩住不足两层就跳过）—— 结果是：把竖井挪到**无人区**（如 x=100）
+    // 只会让它连不通任何东西，**却不会让任何房间变成不可达** → M8 照样判绿，门禁被绕过。
+    // 实测：注入假竖井后 M8 仍报"可达全部 15 个房间"。所以"竖井罩不住 ≥2 层"本身就是缺陷，
+    // 必须直接判红 —— 它意味着"画了个竖井但没人站得上去"（与 C# 探针的假竖井判据同一条原则）。
+    if (hit.length < 2)
+    {
+      shaftProblems.push(`${s.id ?? '?'} 只罩住 ${hit.length} 层（${hit.join('/') || '无'}）—— 竖井必须跨层且每层都要落在可走房间里`);
+      continue;
+    }
+    for (let i = 1; i < hit.length; i++) {
+      adj.get(hit[0]).push(hit[i]); adj.get(hit[i]).push(hit[0]);
+      shaftEdges.push(`${hit[0]}↔${hit[i]}`);
+    }
+  }
+
   const start = level.extraction?.standard ?? level.rooms[0].id;
   const seen = new Set([start]);
   const stack = [start];
@@ -255,9 +303,13 @@ console.log('[gate-model] 建模门禁（几何 + 资产）');
   }
   const unreachable = level.rooms.map((r) => r.id).filter((id) => !seen.has(id));
   const extractionOk = [level.extraction?.standard, level.extraction?.deep].every((id) => !id || seen.has(id));
-  (unreachable.length === 0 && extractionOk)
-    ? ok(`M8 连通性：从 ${start} 可达全部 ${level.rooms.length} 个房间（含两个撤离点）`)
-    : bad(`M8 不可达房间 ${unreachable.length} 个：${unreachable.slice(0, 6).join(', ')}${extractionOk ? '' : ' · 撤离点不可达'}`);
+  const floorCount = new Set((level.rooms ?? []).map((r) => r.floor ?? 0)).size;
+  const via = shaftEdges.length ? `（含 ${shafts.length} 个竖井的 ${shaftEdges.length} 条跨层边）` : '';
+  (unreachable.length === 0 && extractionOk && shaftProblems.length === 0)
+    ? ok(`M8 连通性：从 ${start} 可达全部 ${level.rooms.length} 个房间 · ${floorCount} 层${via}（含两个撤离点）`)
+    : bad(`M8 不可达房间 ${unreachable.length} 个：${unreachable.slice(0, 6).join(', ')}`
+        + `${extractionOk ? '' : ' · 撤离点不可达'}`
+        + `${shaftProblems.length ? ` · 竖井问题：${shaftProblems.slice(0, 3).join('；')}` : ''}`);
 }
 
 // ── M9 GLB 结构有效 ──

@@ -54,8 +54,15 @@ namespace Whisper.Net
 
         public void SendVoiceStimulus(in StimulusEvent stimulus)
         {
-            // 本机桩：声纹事件不跨进程广播（无网络）。真实实现走 Fusion 瞬时 RPC。
+            // 本机桩：声纹事件不跨进程广播（无网络）。真实实现走 UDP（见 UdpV6NetService）。
         }
+
+        /// <summary>
+        /// 契约要求的"本地玩家位姿上行口"。本机桩没有网络，因此语义等价于**本地回显**：
+        /// 把自己写进快照并触发 <see cref="OnPlayerUpdated"/>，使玩法层在单机下也能走同一条状态路径
+        /// （这样"接上真网络"时不需要改玩法代码，只需把实现换成 <see cref="UdpV6NetService"/>）。
+        /// </summary>
+        public void SendLocalPlayer(in PlayerSnapshot local) => UpsertPlayer(local);
 
         // ── 以下为**驱动接口**（调试面板 / 测试 / 将来的网络回调用），不属于 INetService 契约 ──
 

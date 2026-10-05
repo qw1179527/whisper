@@ -23,6 +23,32 @@ namespace Whisper.Gameplay.Level
         public readonly List<EventDef> Events = new List<EventDef>();
         /// <summary>撤离双点制（V9 §7：标准点安全 / 深处点 +30%）。</summary>
         public ExtractionPoints Extraction;
+        /// <summary>
+        /// 竖井（楼梯间 / 电梯 / 管道井）：**跨层的可走区域**。
+        ///
+        /// 为什么必须是独立概念、而不是"每层各一个房间"：`LevelGeometry` 的格网是 2D 的，
+        /// 若把竖井按层各建一个房间，层与层之间**没有任何可走连接** —— 寻路会在层间断开
+        /// （"从入口可达"只在一层内成立），而玩家站在竖井里上下楼时碰撞体也会互相打架。
+        /// 竖井在此显式声明"同一块 (x,z) 在 [FromFloor, ToFloor] 各层都可走且互通"，
+        /// 由 `LevelWorld` 在跨层寻路时把它当边用。
+        /// </summary>
+        public readonly List<Shaft> Shafts = new List<Shaft>();
+    }
+
+    /// <summary>
+    /// 竖井：一块**贯穿若干楼层**的 (x,z) 矩形。单位米，与房间同一坐标系。
+    /// `FromFloor`/`ToFloor` 含两端（例如 0→2 表示一层到三层都通）。
+    /// </summary>
+    public sealed class Shaft
+    {
+        public string Id;
+        public string Kind;          // stair / lift / duct（蓝图第七节：楼梯间 / 电梯 / 管道井）
+        public float MinX, MinZ, MaxX, MaxZ;
+        public int FromFloor, ToFloor;
+        public float CenterX => (MinX + MaxX) * 0.5f;
+        public float CenterZ => (MinZ + MaxZ) * 0.5f;
+        public bool Covers(int floor) => floor >= FromFloor && floor <= ToFloor;
+        public bool Contains(float x, float z) => x >= MinX && x <= MaxX && z >= MinZ && z <= MaxZ;
     }
 
     /// <summary>
@@ -95,6 +121,20 @@ namespace Whisper.Gameplay.Level
         /// <summary>门洞宽度（米）——灰盒 `widthM`。</summary>
         public float WidthM;
         public bool Locked;
+
+        /// <summary>
+        /// 门的类型（6 类，蓝图 `hospital-plan-3floors.md` 第七节）：
+        /// `swing`（病房平开，默认）· `double`（走廊双开）· `sliding`（太平间推拉）·
+        /// `card`（禁区磁卡，需 <see cref="Key"/>）· `fire`（楼梯间防火门，常闭自闭）· `elevator`（电梯门，需供电）。
+        ///
+        /// 【为什么要有这个字段】此前门型是**推断**出来的（按宽度/朝向/房间 id 猜），
+        /// 那意味着"门长什么样"这件事没有真源 —— 布局一改，同一扇门可能从平开变成双开。
+        /// 现在 DSL 可以直接声明；缺省 `swing`，推断只作为兜底。
+        /// </summary>
+        public string Type;
+
+        /// <summary>磁卡/钥匙 id（仅 `card` 类用）。缺省 null = 不需要钥匙，锁着就真的打不开。</summary>
+        public string Key;
 
         /// <summary>门洞中心在 XZ 平面上的绝对位置。</summary>
         public void ToWorld(Room room, out float x, out float z)

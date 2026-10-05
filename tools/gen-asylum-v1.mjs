@@ -20,7 +20,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  */
 const BOXES = [
   // ── ① 入口区（安全教学）：贴主干西墙，门对开于 x=4 ──
-  { id: 'entrance_safe', x0: 0, x1: 4, z0: 0, z1: 3, h: 3.5, floor: 0, kit: 'hall_main', zone: 'safe', evidence: false,
+  { id: 'entrance_safe', x0: 0, x1: 4, z0: 0, z1: 3, h: 3.5, floor: 0, kit: 'hall_main_entrance_safe', zone: 'safe', evidence: false,
     props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 180, pref: 'nw' }],
     doors: [{ id: 'd_east', wall: 'east', at: 1.5 }] },
 
@@ -40,11 +40,11 @@ const BOXES = [
     doors: [{ id: 'd_south', wall: 'south', at: 21 }] },
 
   // ── ④ 竖向连接廊（x=4..8，门位 x=4.5；刻意与住院部走廊在 x 上错开）──
-  { id: 'corridor_link', x0: 4, x1: 8, z0: 3, z1: 5, h: 3.0, floor: 0, kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_link', x0: 4, x1: 8, z0: 3, z1: 5, h: 3.0, floor: 0, kit: 'hall_main_corridor_link', zone: 'pressure', evidence: false, props: [],
     doors: [{ id: 'd_south', wall: 'south', at: 4.5 }, { id: 'd_north', wall: 'north', at: 4.5 }] },
 
   // ── ⑤ 住院部东西走廊（x=4..18，z=5..6；东段伸出连接廊之外 → 与其北门对齐于 x=4.5）──
-  { id: 'corridor_ward', x0: 4, x1: 19, z0: 5, z1: 6, h: 3.0, floor: 0, kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_ward', x0: 4, x1: 19, z0: 5, z1: 6, h: 3.0, floor: 0, kit: 'hall_main_corridor_ward', zone: 'pressure', evidence: false, props: [],
     doors: [
       { id: 'd_south', wall: 'south', at: 4.5 },
       { id: 'd_n1', wall: 'north', at: 5.5 }, { id: 'd_n2', wall: 'north', at: 8.5 },
@@ -62,6 +62,30 @@ const BOXES = [
     props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 270, pref: 'ne' }], doors: [{ id: 'd_south', wall: 'south', at: 14.5 }] },
   { id: 'ward_05', x0: 16, x1: 19, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
     props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 17.5 }] },
+
+  // ══ ⑦⑧ 三层垂直结构 ══
+  // 【为什么这样摆】`corridor_ward` 占 z 5..6 且横跨 x 4..19 —— 所以二三层的新房间**只能放 x ≥ 19**，
+  // 否则与它同层重叠（生成器自检会判红）。而竖井要落在**每层都可走**的位置，最稳的是放进
+  // `corridor_main`（x4..22, z0..3）：一层数据一个字节不改，二三层在同样 (x,z) 各放一条走廊 →
+  // 竖井在每层都真的能站人（`LevelWorld.ShaftUsableOn` 会在任一层站不住时把这条边判不通）。
+  { id: 'corridor_main_f1', x0: 0, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 1, kit: 'hall_main_corridor_main_f1', zone: 'pressure', evidence: false, props: [],
+    doors: [{ id: 'd_east', wall: 'east', at: 1.5, type: 'elevator' }, { id: 'd_n_lobby', wall: 'north', at: 20, type: 'double' }] },
+  { id: 'corridor_main_f2', x0: 0, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 2, kit: 'hall_main_corridor_main_f1', zone: 'pressure', evidence: false, props: [],
+    doors: [{ id: 'd_east', wall: 'east', at: 1.5, type: 'elevator' }, { id: 'd_n_boiler', wall: 'north', at: 20, type: 'double' }] },
+  { id: 'lobby', x0: 19, x1: 22, z0: 3, z1: 11, h: 3.5, floor: 1, kit: 'hall_main_lobby', zone: 'safe', evidence: true, props: [],
+    doors: [{ id: 'd_south', wall: 'south', at: 20, type: 'double' }] },
+  { id: 'boiler', x0: 19, x1: 22, z0: 3, z1: 11, h: 3.5, floor: 2, kit: 'morgue_boiler', zone: 'high-risk', evidence: true, props: [],
+    doors: [{ id: 'd_south', wall: 'south', at: 20, type: 'fire' }] },
+];
+
+/**
+ * 竖井表：跨层连通。`minX..maxX / minZ..maxZ` 是**世界矩形**，`fromFloor..toFloor` 是层区间。
+ * ⚠ 竖井矩形必须落在**每一层**的可走房间里 —— 否则 `LevelWorld` 判不通，
+ * 而 `tools/gate-model.mjs` 的 M8 判据会对"只罩住 <2 层"的竖井**直接判红**（防"画了竖井但玩家过不去"）。
+ */
+const SHAFTS = [
+  { id: 'lift_core',  kind: 'lift',  minX: 17, minZ: 0, maxX: 19, maxZ: 3, fromFloor: 0, toFloor: 2 },
+  { id: 'stair_core', kind: 'stair', minX: 19, minZ: 0, maxX: 22, maxZ: 3, fromFloor: 0, toFloor: 2 },
 ];
 
 /** 走廊连接表：两端门必须贴同一条共享墙且开口对齐（几何由 BOXES 的 at 保证） */
@@ -76,6 +100,8 @@ const LINKS = [
   ['corridor_ward/d_n3', 'ward_03/d_south', 1.6],
   ['corridor_ward/d_n4', 'ward_04/d_south', 1.6],
   ['corridor_ward/d_n5', 'ward_05/d_south', 1.6],
+  ['corridor_main_f1/d_n_lobby', 'lobby/d_south', 2.0],
+  ['corridor_main_f2/d_n_boiler', 'boiler/d_south', 2.0],
 ];
 
 // 门宽由连接表给出（走廊宽度即门宽），避免两处各写一遍导致不一致
@@ -216,7 +242,15 @@ const rooms = BOXES.map((b) => ({
   rotY: 0,
   floor: b.floor,
   kit: b.kit,
-  doors: b.doors.map((d) => ({ id: d.id, wall: d.wall, offsetM: offsetMOf(b, d), widthM: d.widthM ?? 1.2, locked: false })),
+  doors: b.doors.map((d) => {
+    // 门型：**数据驱动**（LevelData.Door.Type → LevelGeometry 直接采用；缺省 swing）。
+    // ⚠ 这一行是"声明了 type 却没进 JSON"的根因：BOXES 里写了 `type: 'fire'`，
+    //   但如果这里不把它 emit 出去，产物里 26 扇门全是缺省 swing（实测过一次：
+    //   `带 type 的门数 0/26`，而源里明明写着 elevator/fire/double）。
+    const row = { id: d.id, wall: d.wall, offsetM: offsetMOf(b, d), widthM: d.widthM ?? 1.2, type: d.type ?? 'swing', locked: d.locked ?? false };
+    if (d.key) row.key = d.key;   // 磁卡/钥匙 id：只在真有时写，避免满屏 null
+    return row;
+  }),
   props: b.props,
   evidencePoint: b.evidence,
   lightZone: b.zone,
@@ -280,17 +314,27 @@ if (problems.length) {
   process.exit(1);
 }
 
-const level = {
+// ── 多地图入口：--layout <id> 交给 tools/gen-map.mjs（同一套几何，不同布局表）──
+// 为什么不让本文件直接吃全部布局：本文件的编码/门对齐/道具寻位是**经过门禁验证**的一套，
+// 新布局应复用同一套规则，而不是复制一份出来慢慢漂移。
+if (process.argv.includes('--layout')) {
+  console.error('[gen-asylum] 带 --layout 请改用：node tools/gen-map.mjs --layout <id> --out <file>');
+  process.exit(2);
+}
+
+export const level = {
   levelId: 'asylum_v1',
-  _note: 'V9 §19.2 疗养院（单层 + 地下太平间；入口区安全教学 / 住院区 5 证据点主压力区 / 地下太平间深处撤离点）。',
+  _note: 'V9 §19.2 疗养院（三层：一层 + 地下太平间 + 二/三层；入口区安全教学 / 住院区 5 证据点主压力区 / 二层门诊大厅 / 三层锅炉房 / 地下太平间深处撤离点）。',
   _layout: '坐标单位米，XZ 平面；房间 pos=[最小角点x,最小角点z] + size=[宽,高,深]（x1=pos[0]+宽，z1=pos[1]+深，与 LevelData/LevelGeometry 契约一致），rotY 全 0（轴对齐）。走廊以 doorA/doorB 引用具体门（房间id/门id），两端门必须贴同一条共享墙且开口对齐——由 tools/validate-levels.mjs 强制校验。**本文件由 tools/gen-asylum-v1.mjs 从布局表生成，手改会被覆盖。**',
   _zones: {
     entrance: ['entrance_safe'],
-    pressure: ['corridor_main', 'corridor_link', 'corridor_ward', 'ward_01', 'ward_02', 'ward_03', 'ward_04', 'ward_05'],
-    deep: ['morgue_deep', 'morgue_ante'],
+    pressure: ['corridor_main', 'corridor_link', 'corridor_ward', 'ward_01', 'ward_02', 'ward_03', 'ward_04', 'ward_05',
+               'corridor_main_f1', 'corridor_main_f2'],
+    deep: ['morgue_deep', 'morgue_ante', 'lobby', 'boiler'],
   },
   rooms,
   corridors,
+  shafts: SHAFTS,
   events: [
     { type: 'blackout', minute: 6, durationSec: 10, params: { scope: 'ward_zone' }, sanityEffect: -3,
       counterplay: '手电筒照走廊地面确认出口；黑暗持续掉理智，回到安全区（+2/s）可恢复' },
@@ -306,7 +350,17 @@ const level = {
   },
 };
 
-const OUT = path.join(ROOT, 'unity/Assets/Levels/asylum_v1.json');
+// ── 产出路径：**默认与历史行为逐字节一致**；带 --out 时写到指定文件 ──
+// 为什么要参数化：多地图（用户要求）需要在同一套几何规则下产出多张关卡；
+// 但 asylum_v1.json 已被 validate-levels / data-mirror / gate-model 三门禁引用，
+// 任何"顺手改一下产物"都可能动到下游真源，故默认路径与写法保持原样。
+const argv = process.argv.slice(2);
+const argOf = (name, def) => {
+  const i = argv.indexOf(name);
+  return i >= 0 && i + 1 < argv.length ? argv[i + 1] : def;
+};
+const OUT = argOf('--out', path.join(ROOT, 'unity/Assets/Levels/asylum_v1.json'));
 fs.writeFileSync(OUT, JSON.stringify(level, null, 2) + '\n', 'utf8');
+console.log('[gen-asylum] 已写出 ' + path.relative(ROOT, OUT) + ' · 房间 ' + level.rooms.length);
 console.log(`[gen-asylum] 生成 ${path.relative(ROOT, OUT)}：房间 ${rooms.length} · 走廊 ${corridors.length} · 事件 ${level.events.length}`);
 console.log(`[gen-asylum] 布局表自检通过（共享墙/对开法向/开口对齐/无重叠 全部满足）`);

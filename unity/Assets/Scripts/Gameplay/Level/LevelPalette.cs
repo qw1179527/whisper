@@ -37,21 +37,41 @@ namespace Whisper.Gameplay.Level
     public static class LevelPalette
     {
         /// <summary>
-        /// 墙 / 地板 / 天花板 / 道具 的 unlit 校正乘数。
+        /// 墙 / 地板 / 天花板 / 道具 的校正乘数。
         ///
         /// 【真机实测调暗 · 2026-10-03】首版取 0.72/0.45/0.28/0.55，装机后用户反馈"好亮、氛围不如灰盒"。
         /// 实测数据：安全区墙亮度 207/255、整屏平均 213/255 —— 确实像曝光过度。
         /// 对照灰盒（WebView 版）的背景是 **#0b0b0c（近黑）**，靠小面积亮部制造压迫感；
         /// 而 Unity 版把整面墙按基色满铺，等于把"环境光"拉满。
-        /// 现按灰盒的暗基调重定：安全区墙降到 ~93、压力区 ~55、高风险 ~37、背景 ~14，
-        /// 这样**风险越高越暗**的梯度仍然成立（是亮度对比而不是色彩对比在传达危险）。
+        /// 于是按灰盒的暗基调重定为 0.45/0.32/0.20/0.40，**风险越高越暗**的梯度成立。
+        ///
+        /// 【2026-10-04 光照接入后重校准 · 用户反馈"建模颜色有问题"】上面那组是**为 Unlit 定的死色**：
+        /// 它把"屏显 = 基色 × 常数"直接当作最终颜色。但渲染已从 `return i.color` 换成
+        /// **自研 Lit**（`albedo × (环境项 0.22 + 主方向光 Lambert)`），同一个乘数会再被光照压一次 ——
+        /// 实测画面比旧版**暗 35~45%**（corridor_main 32.7 vs 75.3、entrance_safe 47.8 vs 67.2），
+        /// 于是"暗调"变成了"糊成一片分不清材质"，这才是颜色的真正问题。
+        ///
+        /// 现按光照模型反解（构建智能体 A 的实测标定表，模型 `屏显 ≈ 255 × albedo × (0.22 + NdotL·0.85)`）：
+        ///   · 墙：典型可见面是 −Z（NdotL≈0.56 → k≈0.61）→ 0.45/0.61 ≈ **0.73**（安全区墙回到 96，旧版 93）
+        ///   · 地板：恒为 +Y（k≈0.75）→ 0.32/0.75 ≈ **0.43**（迎光面 66，与旧版一致）
+        ///   · 天花板：恒为 −Y（NdotL=0，只吃环境项 k=0.22）→ 0.20/0.22 ≈ **0.78**（屏显 37，旧版 41）
+        ///   · 道具：以侧面为主（k≈0.61）→ 0.40/0.61 ≈ **0.66**
+        /// 关键点：**这些不是"调亮"，而是把"被光照二次衰减"的那部分补回来**，让屏显回到设计值；
+        /// 对比度（迎光 96 / 侧面 71 / 背光 35）反而比 Unlit 版更真实。
         /// </summary>
-        public const float WallScale = 0.45f;
-        public const float FloorScale = 0.32f;
-        public const float CeilingScale = 0.20f;
-        public const float PropScale = 0.40f;
-        /// <summary>门框向墨色混合的比例（**不用乘法**：乘法会在浅色上截顶，混合不会）。</summary>
-        public const float DoorFrameInkMix = 0.42f;
+        public const float WallScale = 0.73f;
+        public const float FloorScale = 0.43f;
+        public const float CeilingScale = 0.78f;
+        public const float PropScale = 0.66f;
+        /// <summary>
+        /// 门框向墨色混合的比例（**不用乘法**：乘法会在浅色上截顶，混合不会）。
+        ///
+        /// 【2026-10-04 必须归零】此前 0.42 是为了在 Unlit 下把门框压暗成"深色框"。
+        /// 接入光照后语义反了：墙的 albedo 被 `WallScale` 放大，而门框没有对应的放大，
+        /// 继续混墨会让门框**比墙还暗**（实测 83 vs 96）——与"门框是亮框"的原意相反。
+        /// 归零后：门框 131 vs 墙 96（旧版 131 vs 93），层次恢复。
+        /// </summary>
+        public const float DoorFrameInkMix = 0.0f;
 
         /// <summary>光分区基色（V9 §11 色板）。</summary>
         public static Rgb ZoneBase(string zone)

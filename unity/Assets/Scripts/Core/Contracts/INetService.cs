@@ -20,6 +20,19 @@ namespace Whisper.Core.Contracts
         /// <summary>声纹事件：瞬时 RPC，不走状态同步（V9 §13.4）。</summary>
         void SendVoiceStimulus(in StimulusEvent stimulus);
 
+        /// <summary>
+        /// **本地玩家位姿上行口**（同步对象①的上行侧）。
+        ///
+        /// 为什么必须有它：<c>UpsertPlayer</c> 是**下行**语义（把远端/别人的状态写进本地快照），
+        /// 它属于实现类的驱动接口、不在契约里。而"我自己的位置要发出去"是玩法层每帧都要做的事
+        /// （10Hz 发送由实现内部按 <c>network.transformSendHz</c> 节流），此前**没有任何口子** ——
+        /// 于是"玩家能动"与"别人能看到我动"是两件事，联机永远是断的。
+        ///
+        /// 命名带 <c>Local</c> 前缀，与下行的 <see cref="OnPlayerUpdated"/> 明确区分，
+        /// 避免再次出现"以为是上行、其实只写进了本地快照"的静默失效。
+        /// </summary>
+        void SendLocalPlayer(in PlayerSnapshot local);
+
         /// <summary>Host 迁移或房主退出导致房间关闭（V9 §13.4：买断房主退出 → 本局打完再解散）。</summary>
         event Action<string> OnRoomClosed;
 

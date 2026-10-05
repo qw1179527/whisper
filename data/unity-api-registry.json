@@ -1,167 +1,247 @@
 {
-  "_comment": [
-    "Unity API 出处台账（Editor 构建设置侧）。",
-    "",
-    "为什么要有这个文件（CI #18 真实事故 2026-10-03）：",
-    "  我在 BuildConfigurator 里写了 `UnityEditor.SplashScreen.show = false`，",
-    "  因为我在本机手写的 native/unity-stubs 里就是这么声明的 —— 桩替我的臆造背书，",
-    "  本机语法门禁全绿，CI 报 `CS0103: The name 'SplashScreen' does not exist`，",
-    "  真名是 PlayerSettings.SplashScreen（嵌套类型），白烧一次 45 分钟构建。",
-    "  桩只能验证**内部一致性**，永远无法验证『Unity 真的有这个成员』。",
-    "",
-    "因此：Editor 代码里用到的每个 Unity API 都必须在这里登记官方文档 URL。",
-    "  · 有 URL  → 说明是人**查过文档**才写的（gate-editor-api.mjs 校验 URL 前缀合法）",
-    "  · 未登记  → 门禁判红，必须补 URL 或改写成反射（反射式调用不在此列）",
-    "",
-    "判据的诚实边界：本门禁**不能**证明 API 签名一定对（那需要真 Unity 程序集）。",
-    "它只保证『没有人再凭记忆写 API 而不留出处』—— 这正是 #18 的失效模式。"
-  ],
-  "verifiedAt": "2026-10-03",
-  "unityVersion": "6000.3.25f1",
-  "apis": {
-    "PlayerSettings.companyName": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings-companyName.html",
-      "note": "包身份：公司名"
-    },
-    "PlayerSettings.productName": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings-productName.html",
-      "note": "包身份：产品名（真机显示为 App 名）"
-    },
-    "PlayerSettings.bundleVersion": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings-bundleVersion.html",
-      "note": "版本号；CI 里从 GITHUB_RUN_NUMBER 派生以便区分构建"
-    },
-    "PlayerSettings.SetApplicationIdentifier": {
-      "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/PlayerSettings.SetApplicationIdentifier.html",
-      "note": "包名；NamedBuildTarget 重载"
-    },
-    "PlayerSettings.GetApplicationIdentifier": {
-      "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/PlayerSettings.GetApplicationIdentifier.html",
-      "note": "自检：把最终包名打进 CI 日志"
-    },
-    "PlayerSettings.SetScriptingBackend": {
-      "doc": "https://docs-alpha.unity3d.com/es/current/ScriptReference/PlayerSettings.SetScriptingBackend.html",
-      "note": "IL2CPP（V9 §13.8）"
-    },
-    "PlayerSettings.GetScriptingBackend": {
-      "doc": "https://docs-alpha.unity3d.com/es/current/ScriptReference/PlayerSettings.SetScriptingBackend.html",
-      "note": "自检用"
-    },
-    "PlayerSettings.SetManagedStrippingLevel": {
-      "doc": "https://docs.unity.cn/6000.2/Documentation/ScriptReference/PlayerSettings.SetManagedStrippingLevel.html",
-      "note": "Medium（V9 §13.8）"
-    },
-    "PlayerSettings.GetManagedStrippingLevel": {
-      "doc": "https://docs.unity.cn/6000.2/Documentation/ScriptReference/PlayerSettings.SetManagedStrippingLevel.html",
-      "note": "自检用"
-    },
-    "PlayerSettings.Android.targetArchitectures": {
-      "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/PlayerSettings.Android-targetArchitectures.html",
-      "note": "ARM64"
-    },
-    "PlayerSettings.Android.bundleVersionCode": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings.Android-bundleVersionCode.html",
-      "note": "整数版本号，必须单调递增（回滚保护）"
-    },
-    "PlayerSettings.Android.minSdkVersion": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings.Android-minSdkVersion.html",
-      "note": "minSdk 26"
-    },
-    "PlayerSettings.Android.targetSdkVersion": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings.Android-targetSdkVersion.html",
-      "note": "targetSdk 36（V9 §12，Android 16 合规）"
-    },
-    "PlayerSettings.defaultInterfaceOrientation": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings-defaultInterfaceOrientation.html",
-      "note": "横屏：恐怖游戏不该竖屏跑"
-    },
-    "PlayerSettings.allowedAutorotateToPortrait": {
-      "doc": "https://docs.unity3d.com/530/Documentation/ScriptReference/PlayerSettings-allowedAutorotateToPortrait.html",
-      "note": "关掉竖屏自动旋转"
-    },
-    "PlayerSettings.allowedAutorotateToPortraitUpsideDown": {
-      "doc": "https://docs.unity3d.com/530/Documentation/ScriptReference/PlayerSettings-allowedAutorotateToPortraitUpsideDown.html",
-      "note": "关掉倒置竖屏"
-    },
-    "PlayerSettings.allowedAutorotateToLandscapeLeft": {
-      "doc": "https://docs.unity3d.com/530/Documentation/ScriptReference/PlayerSettings-allowedAutorotateToLandscapeLeft.html",
-      "note": "保留横屏左"
-    },
-    "PlayerSettings.allowedAutorotateToLandscapeRight": {
-      "doc": "https://docs.unity3d.com/530/Documentation/ScriptReference/PlayerSettings-allowedAutorotateToLandscapeRight.html",
-      "note": "保留横屏右"
-    },
-    "PlayerSettings.useAnimatedAutorotation": {
-      "doc": "https://docs.unity.cn/6000.0/Documentation/ScriptReference/PlayerSettings-useAnimatedAutorotation.html",
-      "note": "关掉旋转动画（真机方向变化会触发窗口重配，是启动期画面闪烁的常见来源）"
-    },
-    "AndroidArchitecture.ARM64": {
-      "doc": "https://docs-alpha.unity3d.com:443/ScriptReference/AndroidArchitecture.html",
-      "note": "枚举值 2"
-    },
-    "AndroidSdkVersions.AndroidApiLevel26": {
-      "doc": "https://docs.unity3d.com/ScriptReference/AndroidSdkVersions.html",
-      "note": "枚举值 26"
-    },
-    "AndroidSdkVersions.AndroidApiLevel36": {
-      "doc": "https://docs.unity3d.com/ScriptReference/AndroidSdkVersions.AndroidApiLevel36.html",
-      "note": "枚举值 36"
-    },
-    "ScriptingImplementation.IL2CPP": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ScriptingImplementation.html",
-      "note": "枚举值 1"
-    },
-    "ManagedStrippingLevel.Medium": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ManagedStrippingLevel.html",
-      "note": "枚举值 2"
-    },
-    "UIOrientation.LandscapeLeft": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/UIOrientation.html",
-      "note": "枚举值 3"
-    },
-    "NamedBuildTarget.Android": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Build-NamedBuildTarget.html",
-      "note": "Unity 6 的按平台目标（取代 BuildTargetGroup 的新式重载）"
-    },
-    "PlayerSettings.SplashScreen": {
-      "doc": "https://docs.unity.cn/6000.1/Documentation/ScriptReference/PlayerSettings.SplashScreen-show.html",
-      "note": "★ #18 事故点：它是 PlayerSettings 的**嵌套类型**，不是 UnityEditor.SplashScreen。现改为反射访问（只要嵌套类型上存在可写 bool 属性 show 即关掉），因此即使这个名字再变也不会让构建失败。"
-    },
-    "PlayerSettings.SplashScreen.show": {
-      "doc": "https://docs.unity.cn/6000.1/Documentation/ScriptReference/PlayerSettings.SplashScreen-show.html",
-      "note": "同上；调用点是 BuildConfigurator.TryDisableSplash 的反射访问（GetNestedType(\"SplashScreen\") + GetProperty(\"show\")），不依赖编译期成员。"
-    },
-    "BuildPipeline.BuildPlayer": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/BuildPipeline.BuildPlayer.html",
-      "note": "命令行出包主入口（BuildScript.BuildAndroid）"
-    },
-    "BuildTarget.Android": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/BuildTarget.Android.html",
-      "note": "枚举值 13"
-    },
-    "BuildOptions.None": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/BuildOptions.None.html",
-      "note": "枚举值 0；不加 Development 标记（Release 包）"
-    },
-    "BuildPlayerOptions": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/BuildPlayerOptions.html",
-      "note": "scenes / locationPathName / target / options 四字段"
-    },
-    "EditorBuildSettings.scenes": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/EditorBuildSettings-scenes.html",
-      "note": "把 Boot 场景写进构建场景列表（否则打出空包）"
-    },
-    "EditorSceneManager.NewScene": {
-      "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/SceneManagement.EditorSceneManager.NewScene.html",
-      "note": "C1 场景零手工：Boot 场景由代码生成"
-    },
-    "EditorSceneManager.SaveScene": {
-      "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/SceneManagement.EditorSceneManager.SaveScene.html",
-      "note": "落盘 Assets/Scenes/Boot.unity"
-    },
-    "Quaternion.LookRotation": {
-      "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Quaternion.LookRotation.html",
-      "note": "相机朝向门口方向（真机实测修正：原 Euler.identity 导致贴墙）"
-    }
+ "_comment": [
+  "Unity API 出处台账（Editor 构建设置侧）。",
+  "",
+  "为什么要有这个文件（CI #18 真实事故 2026-10-03）：",
+  "  我在 BuildConfigurator 里写了 `UnityEditor.SplashScreen.show = false`，",
+  "  因为我在本机手写的 native/unity-stubs 里就是这么声明的 —— 桩替我的臆造背书，",
+  "  本机语法门禁全绿，CI 报 `CS0103: The name 'SplashScreen' does not exist`，",
+  "  真名是 PlayerSettings.SplashScreen（嵌套类型），白烧一次 45 分钟构建。",
+  "  桩只能验证**内部一致性**，永远无法验证『Unity 真的有这个成员』。",
+  "",
+  "因此：Editor 代码里用到的每个 Unity API 都必须在这里登记官方文档 URL。",
+  "  · 有 URL  → 说明是人**查过文档**才写的（gate-editor-api.mjs 校验 URL 前缀合法）",
+  "  · 未登记  → 门禁判红，必须补 URL 或改写成反射（反射式调用不在此列）",
+  "",
+  "判据的诚实边界：本门禁**不能**证明 API 签名一定对（那需要真 Unity 程序集）。",
+  "它只保证『没有人再凭记忆写 API 而不留出处』—— 这正是 #18 的失效模式。",
+  "",
+  "【构建智能体 A 的追加说明】（原写在 apis 里，导致 gate-editor-api 把它当成一条 API 条目，",
+  "  报 _appendedBy_buildRender → undefined。移到顶层注释区，语义不变、判据不再误伤。）",
+  "以下条目由【构建智能体 A · 渲染路径】追加（RenderEvidenceCapture.cs 的取证用 API）。",
+  "为什么值得登记：它们都是**编译期无法核验**的调用点 —— 本机没有 UnityEngine.dll，桩只能验证内部一致性，",
+  "  永远证明不了『Unity 真的有这个成员』（CI #18 的失效模式）。",
+  "其中 Shader.SetGlobalFloat / SetGlobalColor 走**反射**调用：native/** 不在构建 A 的写权内，无法补桩；",
+  "  而 gate-editor-api.mjs 把反射式调用列为设计豁免形态（名字写错只会运行时报错 + 本脚本判红，不会让构建失败）。"
+ ],
+ "verifiedAt": "2026-10-04",
+ "unityVersion": "6000.3.25f1",
+ "apis": {
+  "PlayerSettings.companyName": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings-companyName.html",
+   "note": "包身份：公司名"
+  },
+  "PlayerSettings.productName": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings-productName.html",
+   "note": "包身份：产品名（真机显示为 App 名）"
+  },
+  "PlayerSettings.bundleVersion": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings-bundleVersion.html",
+   "note": "版本号；CI 里从 GITHUB_RUN_NUMBER 派生以便区分构建"
+  },
+  "PlayerSettings.SetApplicationIdentifier": {
+   "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/PlayerSettings.SetApplicationIdentifier.html",
+   "note": "包名；NamedBuildTarget 重载"
+  },
+  "PlayerSettings.GetApplicationIdentifier": {
+   "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/PlayerSettings.GetApplicationIdentifier.html",
+   "note": "自检：把最终包名打进 CI 日志"
+  },
+  "PlayerSettings.SetScriptingBackend": {
+   "doc": "https://docs-alpha.unity3d.com/es/current/ScriptReference/PlayerSettings.SetScriptingBackend.html",
+   "note": "IL2CPP（V9 §13.8）"
+  },
+  "PlayerSettings.GetScriptingBackend": {
+   "doc": "https://docs-alpha.unity3d.com/es/current/ScriptReference/PlayerSettings.SetScriptingBackend.html",
+   "note": "自检用"
+  },
+  "PlayerSettings.SetManagedStrippingLevel": {
+   "doc": "https://docs.unity.cn/6000.2/Documentation/ScriptReference/PlayerSettings.SetManagedStrippingLevel.html",
+   "note": "Medium（V9 §13.8）"
+  },
+  "PlayerSettings.GetManagedStrippingLevel": {
+   "doc": "https://docs.unity.cn/6000.2/Documentation/ScriptReference/PlayerSettings.SetManagedStrippingLevel.html",
+   "note": "自检用"
+  },
+  "PlayerSettings.Android.targetArchitectures": {
+   "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/PlayerSettings.Android-targetArchitectures.html",
+   "note": "ARM64"
+  },
+  "PlayerSettings.Android.bundleVersionCode": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings.Android-bundleVersionCode.html",
+   "note": "整数版本号，必须单调递增（回滚保护）"
+  },
+  "PlayerSettings.Android.minSdkVersion": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings.Android-minSdkVersion.html",
+   "note": "minSdk 26"
+  },
+  "PlayerSettings.Android.targetSdkVersion": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings.Android-targetSdkVersion.html",
+   "note": "targetSdk 36（V9 §12，Android 16 合规）"
+  },
+  "PlayerSettings.defaultInterfaceOrientation": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/PlayerSettings-defaultInterfaceOrientation.html",
+   "note": "横屏：恐怖游戏不该竖屏跑"
+  },
+  "PlayerSettings.allowedAutorotateToPortrait": {
+   "doc": "https://docs.unity3d.com/530/Documentation/ScriptReference/PlayerSettings-allowedAutorotateToPortrait.html",
+   "note": "关掉竖屏自动旋转"
+  },
+  "PlayerSettings.allowedAutorotateToPortraitUpsideDown": {
+   "doc": "https://docs.unity3d.com/530/Documentation/ScriptReference/PlayerSettings-allowedAutorotateToPortraitUpsideDown.html",
+   "note": "关掉倒置竖屏"
+  },
+  "PlayerSettings.allowedAutorotateToLandscapeLeft": {
+   "doc": "https://docs.unity3d.com/530/Documentation/ScriptReference/PlayerSettings-allowedAutorotateToLandscapeLeft.html",
+   "note": "保留横屏左"
+  },
+  "PlayerSettings.allowedAutorotateToLandscapeRight": {
+   "doc": "https://docs.unity3d.com/530/Documentation/ScriptReference/PlayerSettings-allowedAutorotateToLandscapeRight.html",
+   "note": "保留横屏右"
+  },
+  "PlayerSettings.useAnimatedAutorotation": {
+   "doc": "https://docs.unity.cn/6000.0/Documentation/ScriptReference/PlayerSettings-useAnimatedAutorotation.html",
+   "note": "关掉旋转动画（真机方向变化会触发窗口重配，是启动期画面闪烁的常见来源）"
+  },
+  "AndroidArchitecture.ARM64": {
+   "doc": "https://docs-alpha.unity3d.com:443/ScriptReference/AndroidArchitecture.html",
+   "note": "枚举值 2"
+  },
+  "AndroidSdkVersions.AndroidApiLevel26": {
+   "doc": "https://docs.unity3d.com/ScriptReference/AndroidSdkVersions.html",
+   "note": "枚举值 26"
+  },
+  "AndroidSdkVersions.AndroidApiLevel36": {
+   "doc": "https://docs.unity3d.com/ScriptReference/AndroidSdkVersions.AndroidApiLevel36.html",
+   "note": "枚举值 36"
+  },
+  "ScriptingImplementation.IL2CPP": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ScriptingImplementation.html",
+   "note": "枚举值 1"
+  },
+  "ManagedStrippingLevel.Medium": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ManagedStrippingLevel.html",
+   "note": "枚举值 2"
+  },
+  "UIOrientation.LandscapeLeft": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/UIOrientation.html",
+   "note": "枚举值 3"
+  },
+  "NamedBuildTarget.Android": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Build-NamedBuildTarget.html",
+   "note": "Unity 6 的按平台目标（取代 BuildTargetGroup 的新式重载）"
+  },
+  "PlayerSettings.SplashScreen": {
+   "doc": "https://docs.unity.cn/6000.1/Documentation/ScriptReference/PlayerSettings.SplashScreen-show.html",
+   "note": "★ #18 事故点：它是 PlayerSettings 的**嵌套类型**，不是 UnityEditor.SplashScreen。现改为反射访问（只要嵌套类型上存在可写 bool 属性 show 即关掉），因此即使这个名字再变也不会让构建失败。"
+  },
+  "PlayerSettings.SplashScreen.show": {
+   "doc": "https://docs.unity.cn/6000.1/Documentation/ScriptReference/PlayerSettings.SplashScreen-show.html",
+   "note": "同上；调用点是 BuildConfigurator.TryDisableSplash 的反射访问（GetNestedType(\"SplashScreen\") + GetProperty(\"show\")），不依赖编译期成员。"
+  },
+  "BuildPipeline.BuildPlayer": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/BuildPipeline.BuildPlayer.html",
+   "note": "命令行出包主入口（BuildScript.BuildAndroid）"
+  },
+  "BuildTarget.Android": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/BuildTarget.Android.html",
+   "note": "枚举值 13"
+  },
+  "BuildOptions.None": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/BuildOptions.None.html",
+   "note": "枚举值 0；不加 Development 标记（Release 包）"
+  },
+  "BuildPlayerOptions": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/BuildPlayerOptions.html",
+   "note": "scenes / locationPathName / target / options 四字段"
+  },
+  "EditorBuildSettings.scenes": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/EditorBuildSettings-scenes.html",
+   "note": "把 Boot 场景写进构建场景列表（否则打出空包）"
+  },
+  "EditorSceneManager.NewScene": {
+   "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/SceneManagement.EditorSceneManager.NewScene.html",
+   "note": "C1 场景零手工：Boot 场景由代码生成"
+  },
+  "EditorSceneManager.SaveScene": {
+   "doc": "https://docs.unity3d.com/6000.1/Documentation/ScriptReference/SceneManagement.EditorSceneManager.SaveScene.html",
+   "note": "落盘 Assets/Scenes/Boot.unity"
+  },
+  "Quaternion.LookRotation": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Quaternion.LookRotation.html",
+   "note": "相机朝向门口方向（真机实测修正：原 Euler.identity 导致贴墙）"
+  },
+  "LightType.Spot": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/LightType.html",
+   "note": "取证里的手电筒（聚光灯）—— 用于 ForwardAdd pass 的判据：主光关掉、只开手电，画面必须可分辨。出处与 LightType.Directional 同页。"
+  },
+  "EditorApplication.Exit": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/EditorApplication.Exit.html",
+   "note": "取证脚本在 batchmode 渲染完后主动退出（带退出码）"
+  },
+  "LightType.Directional": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/LightType.html",
+   "note": "取证用的检视光照（单向光）"
+  },
+  "CameraClearFlags.SolidColor": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/CameraClearFlags.html",
+   "note": "取证相机背景清成近黑，避免天空盒干扰像素统计"
+  },
+  "AssetDatabase.Refresh": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/AssetDatabase.Refresh.html",
+   "note": "取证脚本藏起/还原套件文件后必须让资产数据库重新扫描——否则 Resources.Load 仍返回已导入的 TextAsset，A/B 会变成自己比自己（实测踩过）"
+  },
+  "AssetDatabase.SaveAssets": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/AssetDatabase.SaveAssets.html",
+   "note": "PlayerSettings 的赋值只改内存；构建前显式落盘，否则版本号会静默退回旧值（历史事故：文件名 0.1.19/0.1.20、包内恒 versionCode=1）"
+  },
+  "Shader.SetGlobalFloat": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Shader.SetGlobalFloat.html",
+   "note": "雾的全局开关/调参（_WhisperFogOff / _WhisperFogStartM / _WhisperFogEndM）。刻意用全局量而非材质属性：材质属性会被 new Material(shader) 固化进每个材质，而本工程材质由 LevelBuilder 运行时批量创建（拿不到引用）→ 放属性里就等于失去『一处可调』。调用点：RenderEvidenceCapture.SetGlobal（反射）。"
+  },
+  "Shader.SetGlobalColor": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Shader.SetGlobalColor.html",
+   "note": "雾色全局量（_WhisperFogColor；alpha<=0 视为未设置）。调用点：RenderEvidenceCapture.SetGlobal（反射）。"
+  },
+  "Camera.Render": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Camera.Render.html",
+   "note": "离屏取帧主入口。batchmode 下 ScreenCapture.CaptureScreenshot **一张图都不产出**（依赖游戏循环末尾写文件，而脚本 Exit 后一帧都没跑完，且不报错）→ 必须手动 Render。⚠ 加 -nographics 会崩 0xC0000005。"
+  },
+  "Camera.targetTexture": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Camera-targetTexture.html",
+   "note": "把相机输出指向 RenderTexture（手动 Render 的目标）"
+  },
+  "RenderTexture.GetTemporary": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/RenderTexture.GetTemporary.html",
+   "note": "取证用临时 RT（960x600 · 24 位深度 · ARGB32）"
+  },
+  "RenderTexture.ReleaseTemporary": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/RenderTexture.ReleaseTemporary.html",
+   "note": "与 GetTemporary 配对释放"
+  },
+  "RenderTexture.active": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/RenderTexture-active.html",
+   "note": "ReadPixels 前必须把该 RT 设为 active，读完置回 null"
+  },
+  "Texture2D.ReadPixels": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Texture2D.ReadPixels.html",
+   "note": "从 active 的 RenderTexture 读回像素"
+  },
+  "Texture2D.GetPixels32": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Texture2D.GetPixels32.html",
+   "note": "取像素做判据统计（平均亮度 / 标准差 / 颜色数 / 洋红占比 / 相对基准变化占比）"
+  },
+  "Texture2D.EncodeToPNG": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ImageConversion.EncodeToPNG.html",
+   "note": "落盘为 PNG（证据文件；实际为 ImageConversion 的扩展方法，ScriptReference 归在 ImageConversion 下）"
+  },
+  "Component.GetComponentInChildren": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Component.GetComponentInChildren.html",
+   "note": "从产品的 GameBootstrap 上取回它建的主光/相机（不复制 0.85/bone/Euler 这些数值，避免第二份真源）"
+  },
+  "Transform.LookAt": {
+   "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Transform.LookAt.html",
+   "note": "取证相机对准房间中心（取景点公式与 KitVisibilityCapture 同口径，那里已修过『相机埋进墙里 → 空帧』的坑）"
   }
+ }
 }

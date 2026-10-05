@@ -162,7 +162,8 @@ for (const [from, tos] of edges) for (const t of tos) reverse[t]?.push(from);
 
 const manifest = {
   meta: {
-    source: path.relative(ROOT, SRC),
+    // 同上：清单内一律 POSIX 分隔符
+    source: path.relative(ROOT, SRC).split(path.sep).join('/'),
     sourceBytes: Buffer.byteLength(code),
     sourceSha256: crypto.createHash('sha256').update(code).digest('hex'),
     moduleCount: modules.length,

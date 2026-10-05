@@ -34,6 +34,29 @@ const bad = (m) => { fails.push(m); console.log('  ✗ ' + m); };
 const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
 const srcRoot = path.join(ROOT, 'unity', manifest.sourceRoot ?? 'Assets/ThirdParty/CC0');
 
+/**
+ * 某个套件被哪些房间使用、这些房间的**最大层高**是多少。
+ * 用于 B3 的第二条判据："套件整体高度不得超过使用它的房间层高 + 0.15m"——
+ * 抓的是"套件比房间还高、捅穿楼板"这个新风险（接入天花板后才可能出现）。
+ * 数据来源是关卡 DSL 的唯一真源 `unity/Assets/Levels/asylum_v1.json`（房间的 size[1] 即层高）。
+ * 读不到就返回 null（**不猜**：宁可跳过这条，也不要凭默认值误判）。
+ */
+function maxCeilingFor(kitId) {
+  try {
+    const levelsDir = path.join(ROOT, 'unity/Assets/Levels');
+    let maxY = null;
+    for (const f of fs.readdirSync(levelsDir).filter((n) => n.endsWith('.json'))) {
+      const lv = JSON.parse(fs.readFileSync(path.join(levelsDir, f), 'utf8'));
+      for (const r of (lv.rooms ?? [])) {
+        if (r.kit !== kitId) continue;
+        const h = Array.isArray(r.size) ? r.size[1] : null;
+        if (typeof h === 'number' && (maxY === null || h > maxY)) maxY = h;
+      }
+    }
+    return maxY;
+  } catch { return null; }
+}
+
 /** 读 GLB 的 JSON chunk */
 function readGlbJson(file) {
   const b = fs.readFileSync(file);
@@ -122,9 +145,24 @@ for (const k of manifest.kits) {
     bads.push(`${k.id} footprint=[${fx},${fz}] 与 GLB 占地 XZ=[${wantX},${wantZ}] 不符` +
       `（bbox X=${ROUND(bb.size[0])} Y=${ROUND(bb.size[1])} Z=${ROUND(bb.size[2])}）`);
   }
-  // 躺平检查：地面类套件的 Y 必须远小于其 XZ（否则说明部件竖立了）
-  if (k.kind === 'room' && bb.size[1] > Math.max(bb.size[0], bb.size[2])) {
-    bads.push(`${k.id} 的 Y 向尺寸 ${ROUND(bb.size[1])} 大于 XZ，疑似部件竖立（地面应躺平）`);
+  // 躺平检查（B3，2026-10-04 改为两条更严的判据）：
+  //
+  // 【为什么改】原判据是 `房间套件的整体 Y > max(XZ)` 即判红，它抓的是"部件竖立"
+  // （病床竖板那次事故）。但接入天花板之后这个前提就不成立了：房间套件**本来就该有层高**，
+  // 于是"整体 Y 大于 XZ"变成了正常现象。实测反例：morgue 楼板 2×3、层高 3.2
+  // → 整体 Y = 3.3 > max(2,3) = 3 → 按原判据**必红**，等于"要天花板就过不了门禁"。
+  //
+  // 新判据（更严，不是更松）：
+  //   ① 占地件（floor/body/frame）必须躺平 —— 直接对着"竖板事故"的那个部件，
+  //      而不是拿整体 bbox 猜
+  //   ② 房间套件整体高度必须 ≤ 使用它的房间最大层高 + 0.15m ——
+  //      这条能抓到新风险："套件比房间还高、捅穿楼板"
+  if (k.kind === 'room' && floor && floor.size[1] > Math.max(floor.size[0], floor.size[2])) {
+    bads.push(`${k.id} 的占地件 Y=${ROUND(floor.size[1])} 大于其 XZ（${ROUND(floor.size[0])}×${ROUND(floor.size[2])}），疑似竖立`);
+  }
+  const maxRoomY = maxCeilingFor(k.id);
+  if (k.kind === 'room' && maxRoomY !== null && bb.size[1] > maxRoomY + 0.15) {
+    bads.push(`${k.id} 整体高度 ${ROUND(bb.size[1])} 超过用它的房间最大层高 ${ROUND(maxRoomY)} + 0.15（会捅穿楼板）`);
   }
 }
 bads.length === 0

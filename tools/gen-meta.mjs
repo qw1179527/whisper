@@ -29,11 +29,17 @@ const checkOnly = process.argv.includes('--check');
 /** 按扩展名选 importer 类型 */
 function importerFor(p, isDir) {
   if (isDir) return 'DefaultImporter';
+  const lower = p.toLowerCase();
+  // 【实测踩坑】`<名字>.glb.bytes` 的 path.extname 是 `.bytes`，会落到 default: DefaultImporter ——
+  // 而 DefaultImporter **不是 TextAsset**，`Resources.Load<TextAsset>()` 恒返回 null。
+  // 套件的 `.glb.bytes` 落点正是靠"被当二进制文本资产"才能在 Android 上读到（StreamingAssets
+  // 在 APK 内不能用 File API 读），所以这里必须先识别 `.glb.bytes` 这个复合扩展名。
+  if (lower.endsWith('.glb.bytes') || lower.endsWith('.gltf.bytes')) return 'TextScriptImporter';
   const e = path.extname(p).toLowerCase();
   switch (e) {
     case '.cs': return 'MonoImporter';
     case '.asmdef': return 'AssemblyDefinitionImporter';
-    case '.json': case '.txt': case '.md': return 'TextScriptImporter';
+    case '.json': case '.txt': case '.md': case '.bytes': return 'TextScriptImporter';
     case '.shader': return 'ShaderImporter';
     case '.glb': case '.gltf': return 'ModelImporter';
     case '.png': case '.jpg': case '.jpeg': return 'TextureImporter';

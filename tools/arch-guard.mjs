@@ -222,7 +222,8 @@ console.log('A6 未注册 asmdef');
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p);
-      else if (e.name.endsWith('.asmdef')) found.push(path.relative(UNITY, p));
+      // path.relative yields OS separators; the rule table and the /Tests/ probe are POSIX-shaped.
+      else if (e.name.endsWith('.asmdef')) found.push(path.relative(UNITY, p).split(path.sep).join('/'));
     }
   })(path.join(UNITY, 'Assets'));
   const registered = new Set(Object.keys(RULES).map((m) => `Assets/Scripts/${m}/Whisper.${m}.asmdef`));
@@ -251,7 +252,7 @@ console.log('A7 服务注入可达性');
     })(dir);
     return out;
   })(SCRIPTS)) {
-    const rel = path.relative(UNITY, f);
+    const rel = path.relative(UNITY, f).split(path.sep).join('/');
     // 匹配调用形态（前面是 = ( , ; 或行首）；排除 `public static void Install(...)` 这类声明
     if (/(?:^|[=(,;]\s*)Services\.Install\s*\(/m.test(stripComments(fs.readFileSync(f, 'utf8')))) callSites.push(rel);
   }

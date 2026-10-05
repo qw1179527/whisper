@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -62,7 +63,16 @@ namespace Whisper.Tests.PlayMode
             // ③ 关卡
             Assert.IsNotNull(boot.Level, "关卡未加载");
             Assert.AreEqual("asylum_v1", boot.Level.LevelId);
-            Assert.AreEqual(11, boot.Level.Rooms.Count, "布局重写后为 11 房间（10 任务房 + 太平间前室）");
+            // 【2026-10-04 改：从数据派生，不再写死】
+            // 原写死 11（"布局重写后为 11 房间"）—— 三层改造后变成 15，这条立刻假红。
+            // 教训与 `native/csharp-verify` 里那几条同源：**凡"房间数/楼层数/点位数"这类会随关卡演进的量，
+            // 一律从数据派生**；写死等于给未来的每次布局改动埋一颗假红。
+            Assert.GreaterOrEqual(boot.Level.Rooms.Count, 11, "房间数不应少于单层时代的 11");
+            var floors = new System.Collections.Generic.HashSet<int>();
+            foreach (var r in boot.Level.Rooms) floors.Add(r.Floor);
+            Assert.GreaterOrEqual(floors.Count, 3, "三层之后楼层数应 ≥3（竖井连通由 gate-model 的 M8 判据覆盖）");
+            Assert.IsNotNull(boot.Level.Shafts, "三层关卡必须带竖井表");
+            Assert.GreaterOrEqual(boot.Level.Shafts.Count, 2, "至少 2 个竖井（lift/stair）");
             // pos 是**最小角点**（与灰盒 __m4.rect 一致）；灰盒是本项目唯一已验证行为的参照物
             var ward01 = boot.Level.Rooms.Find(r => r.Id == "ward_01");
             Assert.IsNotNull(ward01, "缺 ward_01");
@@ -103,13 +113,17 @@ namespace Whisper.Tests.PlayMode
             var go = new GameObject("BootRootBadConfig");
             var boot = go.AddComponent<GameBootstrap>();
             boot.ConfigResourcePath = "Data/__does_not_exist__";
+
+            // 必须在错误日志**产生之前**声明预期：GameBootstrap.Start 在下一帧才调用 Fail → Debug.LogError。
+            // 旧写法把 LogAssert.ignoreFailingMessages 放在 yield 之后 —— 那时日志早已入账被判失败，
+            // 用例恒红；且 ignoreFailingMessages 是钝器，会顺带掩盖真的意外错误。本机首次真跑时暴露。
+            LogAssert.Expect(LogType.Error, new Regex("BOOT FAILED"));
+
             yield return null;
             yield return null;
 
-            LogAssert.ignoreFailingMessages = true;
             Assert.IsFalse(boot.Booted, "缺配置表时不应报告启动成功");
             Assert.IsNotNull(boot.LastError, "缺配置表时必须给出确切原因，而不是静默失败");
-            LogAssert.ignoreFailingMessages = false;
 
             Object.Destroy(go);
             yield return null;
@@ -121,13 +135,15 @@ namespace Whisper.Tests.PlayMode
             var go = new GameObject("BootRootBadLevel");
             var boot = go.AddComponent<GameBootstrap>();
             boot.LevelResourcePath = "Levels/__does_not_exist__";
+
+            // 同上：预期必须在日志产生前声明
+            LogAssert.Expect(LogType.Error, new Regex("BOOT FAILED"));
+
             yield return null;
             yield return null;
 
-            LogAssert.ignoreFailingMessages = true;
             Assert.IsFalse(boot.Booted, "缺关卡时不应报告启动成功");
             Assert.IsNotNull(boot.LastError, "缺关卡时必须给出确切原因");
-            LogAssert.ignoreFailingMessages = false;
 
             Object.Destroy(go);
             yield return null;

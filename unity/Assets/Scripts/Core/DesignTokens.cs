@@ -5,8 +5,8 @@
 //   由 tools/gen-design-tokens.mjs 从 data/design-tokens.json 生成，请勿手改。
 //   V9 §19.1 C2：设计 Token 直接落为 C# 静态类，设计与代码一一对应。
 //   重新生成：node tools/gen-design-tokens.mjs    CI 校验：--check
-//   来源 token 顶层分组：meta / color / font / spacing / radius / layers / motion / touch / accessibility
-//   生成覆盖：颜色 12 个 · 数值 28 个（递归全量，非后缀筛选取样）
+//   来源 token 顶层分组：meta / color / font / spacing / radius / layers / motion / touch / accessibility / render
+//   生成覆盖：颜色 12 个 · 数值 37 个（递归全量，非后缀筛选取样）
 // </auto-generated>
 
 namespace Whisper.Core
@@ -96,6 +96,24 @@ namespace Whisper.Core
         public const float TouchStickRadiusPx = 68f;
         /// <summary>token 路径 accessibility_contrastMinRatio = 4.5</summary>
         public const float AccessibilityContrastMinRatio = 4.5f;
+        /// <summary>token 路径 render_light_ambient = 0.22</summary>
+        public const float RenderLightAmbient = 0.22f;
+        /// <summary>token 路径 render_fog_startM = 8</summary>
+        public const float RenderFogStartM = 8f;
+        /// <summary>token 路径 render_fog_endM = 40</summary>
+        public const float RenderFogEndM = 40f;
+        /// <summary>token 路径 render_target_wallLitLuma = 91</summary>
+        public const float RenderTargetWallLitLuma = 91f;
+        /// <summary>token 路径 render_target_sceneMeanLumaMin = 20</summary>
+        public const float RenderTargetSceneMeanLumaMin = 20f;
+        /// <summary>token 路径 render_target_sceneMeanLumaMax = 110</summary>
+        public const float RenderTargetSceneMeanLumaMax = 110f;
+        /// <summary>token 路径 render_washout_meanLuma = 150</summary>
+        public const float RenderWashoutMeanLuma = 150f;
+        /// <summary>token 路径 render_washout_stdDev = 5</summary>
+        public const float RenderWashoutStdDev = 5f;
+        /// <summary>token 路径 render_washout_colorCount = 2</summary>
+        public const float RenderWashoutColorCount = 2f;
 
         /// <summary>运行时真源（Unity 工程内路径，运行时可直接读）。</summary>
         public const string SourcePath = "Assets/Data/design-tokens.json";

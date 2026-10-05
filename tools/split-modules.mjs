@@ -96,7 +96,9 @@ for (const b of blocks) {
   fs.writeFileSync(file, fileText, 'utf8');
   written.push({
     id: b.id,
-    file: path.relative(ROOT, file),
+    // 清单内一律 POSIX 分隔符：path.relative 在 Windows 给的是反斜杠，
+    // 会让同一份源树在手机/CI 上被误判为「漂移」。
+    file: path.relative(ROOT, file).split(path.sep).join('/'),
     bytes: Buffer.byteLength(fileText),
     verbatimBytes: b.end - b.start,
     sha256: crypto.createHash('sha256').update(fileText).digest('hex').slice(0, 16),

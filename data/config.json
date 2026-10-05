@@ -211,7 +211,73 @@
       "lookAtMonsterPerSec": -8,
       "darknessPerSec": -1,
       "allyDeath": -15,
-      "jumpscare": -10
+      "jumpscare": -10,
+      "official": {
+        "_src": "official：phasmophobia.su/knowledge-base/gameplay/sanity（2026-07-12 修订）。数值原样抄录，未做本地化改动；用途见本段各字段注释。",
+        "_note": "被动流失 = 基础值(按地图大小×阶段) × 难度乘数 × 单人/血月修正；主灯全开时该房间为 0；大暗区开主灯只降到 80%；火源按等级降低但不归零。",
+        "passivePerSec": {
+          "small": {
+            "setup": 0.09,
+            "normal": 0.12
+          },
+          "medium": {
+            "setup": 0.05,
+            "normal": 0.08
+          },
+          "large": {
+            "setup": 0.03,
+            "normal": 0.05
+          }
+        },
+        "difficultyMultiplier": {
+          "amateur": 1,
+          "intermediate": 1.5,
+          "professional": 2,
+          "nightmare": 2,
+          "insanity": 2
+        },
+        "bloodMoonAdditive": 1,
+        "soloPassiveMultiplier": 0.5,
+        "setupFloor": 50,
+        "light": {
+          "stopDrainRequires": "mainLight",
+          "ignoreForDrain": [
+            "deskLamp",
+            "floorLamp",
+            "tv",
+            "monitor",
+            "flashlight",
+            "brightnessSetting"
+          ],
+          "largeDarkZoneMinRatio": 0.8,
+          "fireRadiusM": 2,
+          "fireTierFactor": {
+            "1": 0.33,
+            "2": 0.5,
+            "3": 0.66
+          }
+        },
+        "sources": {
+          "allyDeath": -15,
+          "ghostEventContact": -10,
+          "bansheeEventOnTarget": -15,
+          "oniEventContact": -20,
+          "jinnAbility": -25,
+          "yureiAbility": -15,
+          "phantomPerSec": -0.5,
+          "poltergeistPerItem": -2,
+          "moroiCurse": "doublesPassiveDrainAndIgnoresLightAndFire",
+          "tarotSun": "to100",
+          "tarotMoon": "to0",
+          "tarotWheel": 25
+        },
+        "_consistencyNotes": [
+          "既有 sanity.drain.allyDeath = -15 与官方一致（无需改）",
+          "既有 sanity.drain.jumpscare = -10 与官方 ghostEventContact 一致（无需改）",
+          "既有 sanity.drain.darknessPerSec = -1 **不是官方值**（官方按地图大小与阶段分档，见 passivePerSec）",
+          "既有 recover.sedative = 25 / extractionSafeZonePerSec = 2 **属本项目 design**，官方只说明\"恢复比例随难度/等级\""
+        ]
+      }
     },
     "recover": {
       "sedative": 25,
@@ -229,7 +295,15 @@
       "sightRangeM": 14,
       "canOpenDoors": false,
       "ignoresLockers": false,
-      "counterplay": "关门可迟滞；躲柜静止 + 控制音量"
+      "counterplay": "关门可迟滞；躲柜静止 + 控制音量",
+      "ghost": "demon",
+      "evidence": [
+        "uv",
+        "ghost_writing",
+        "freezing"
+      ],
+      "hasFreezingEvidence": true,
+      "_ghostMappingNote": "教学怪（压力型）→ 恶魔：猎杀阈值最高、冷却最短"
     },
     "whisperer": {
       "label": "低语者",
@@ -241,7 +315,15 @@
       "sightRangeM": 6,
       "canOpenDoors": true,
       "ignoresLockers": false,
-      "counterplay": "对语音声纹极敏感；安静时几乎失明；快捷喊话诱饵引开"
+      "counterplay": "对语音声纹极敏感；安静时几乎失明；快捷喊话诱饵引开",
+      "ghost": "hantu",
+      "evidence": [
+        "uv",
+        "orb",
+        "freezing"
+      ],
+      "hasFreezingEvidence": true,
+      "_ghostMappingNote": "语音猎手（核心怪）→ 寒魔：低温更快，绕行压迫感"
     },
     "coroner": {
       "label": "收殓人",
@@ -253,7 +335,15 @@
       "sightRangeM": 20,
       "canOpenDoors": true,
       "ignoresLockers": true,
-      "counterplay": "视野感知为主、无视柜子；声音诱饵 + 灯光限制"
+      "counterplay": "视野感知为主、无视柜子；声音诱饵 + 灯光限制",
+      "ghost": "jinn",
+      "evidence": [
+        "emf5",
+        "uv",
+        "freezing"
+      ],
+      "hasFreezingEvidence": true,
+      "_ghostMappingNote": "终局压迫（高压怪）→ 巨灵：常驻太平间一带"
     },
     "_speedNote": "追击速度 = speedMps × 1.6（V9 §7 表7-2，唯一真相源为 monsterBehavior.chaseSpeedScale）。缝匠 5.8 / 低语者 6.7 / 收殓人 5.1 m/s；玩家跑速 5.6 —— 只有低语者（语音猎手）比你快，其余可以甩掉。"
   },
@@ -309,6 +399,39 @@
     "startGraceSeconds": 20,
     "graceNote": "开局保护期：期间不判定接触、怪物不因\"看见\"入追击，且巡逻不进入入口区（给玩家看清 UI 与校准的时间）"
   },
+  "maps": {
+    "_note": "地图注册表（多地图唯一真源）。resource = Resources 下路径（不含 .json）；size/floors 供地图板与投票显示。",
+    "_src": "asylum_v1 = design（由 tools/gen-asylum-v1.mjs 生成：房间 15 / 走廊 12）；其余为 official 地图名，关卡文件尚未生成。",
+    "list": [
+      {
+        "id": "asylum_v1",
+        "name": "疗养院",
+        "resource": "Levels/asylum_v1",
+        "floors": 3,
+        "size": "large",
+        "implemented": true,
+        "_src": "design：本仓已建成（tools/gen-asylum-v1.mjs）"
+      },
+      {
+        "id": "tanglewood_v1",
+        "name": "坦格尔伍德街 6 号",
+        "resource": "Levels/tanglewood_v1",
+        "floors": 1,
+        "size": "small",
+        "implemented": true,
+        "_src": "design：参照官方最小图（6 Tanglewood Drive，单层住宅）的规模做的布局，由 tools/gen-map.mjs + tools/lib/map-layouts.mjs 生成（房间 6 / 走廊 5）；非官方几何还原"
+      },
+      {
+        "id": "bleasdale_v1",
+        "name": "布利斯代尔农舍",
+        "resource": "Levels/bleasdale_v1",
+        "floors": 2,
+        "size": "medium",
+        "implemented": true,
+        "_src": "design：两层农舍（房间 7 / 走廊 5 / 楼梯井 1），由 tools/gen-map.mjs + tools/lib/map-layouts.mjs 生成；规模参照官方中型两层图，非官方几何还原"
+      }
+    ]
+  },
   "items": {
     "flashlight": {
       "batterySeconds": 120,
@@ -329,6 +452,138 @@
     },
     "flare": {
       "safeZoneSeconds": 15
+    },
+    "emf": {
+      "_note": "EMF five levels (supplement section \"EMF setting\"). Ghost interaction in range -> level 1-4 alert; a ghost WITH the emf5 evidence has an 8% chance to spike to level 5; during a hunt ANY ghost makes it read 1-5 randomly, and readings then are UNRELIABLE by design (they must not count as evidence).",
+      "level5ChanceWithEvidence": 0.08,
+      "lowLevelMin": 1,
+      "lowLevelMax": 4,
+      "readingHoldSeconds": 3,
+      "_reliabilityNote": "duringHunt=true -> IsReliable=false. The player must read EMF when the ghost is not hunting."
+    },
+    "roster": {
+      "_note": "The 8 added items from supplement section 1. tier1/tier2 differ in durability AND in hand model (the supplement explicitly requires a different model per durability).",
+      "salt": {
+        "label": "盐",
+        "kind": "placed",
+        "tiers": {
+          "t1": {
+            "label": "罐装盐",
+            "uses": 1
+          },
+          "t2": {
+            "label": "袋装盐",
+            "uses": 2
+          }
+        },
+        "mechanic": "ghost_walking_over_leaves_trace",
+        "note": "放置性；鬼经过留痕；撒完道具消失；耐久不同时手上建模不同"
+      },
+      "smudge": {
+        "label": "圣木",
+        "kind": "consumable",
+        "burnSeconds": 3,
+        "effectImmediateOnIgnite": true,
+        "huntBlockSecondsNormal": 90,
+        "huntBlockSecondsSpirit": 150,
+        "huntBlockSecondsDemon": 60,
+        "freezeGhostSeconds": 5,
+        "moroiBlindSeconds": 7.5,
+        "throwableWhileLit": true,
+        "note": "点燃瞬间即生效；3 秒内燃烧消失（有动画）；猎杀中在鬼周围点燃 → 普通鬼丢失目标并定身 5s"
+      },
+      "candlestick": {
+        "label": "烛台",
+        "kind": "carryable",
+        "ghostBlowOutChance": 0.35,
+        "relightable": true,
+        "blocksHuntForYurei": true,
+        "blocksHuntForOnryo": true,
+        "note": "可手持可放置；鬼有概率吹灭（互动）；吹灭后可再次点燃"
+      },
+      "motionSensor": {
+        "label": "运动传感仪",
+        "kind": "placed",
+        "triggerOnLine": true,
+        "infraredVisible": true,
+        "blockedByWalls": true,
+        "reflectsOffMirrors": true,
+        "noRefraction": true,
+        "lineLengthM": 6,
+        "note": "判定范围=判定线本身，直线、不穿墙、不折射；红外线符合物理（碰墙止、碰镜反弹）"
+      },
+      "sanityMeds": {
+        "label": "理智回复药",
+        "kind": "consumable",
+        "tiers": {
+          "t1": {
+            "label": "理智药",
+            "restore": 15
+          },
+          "t2": {
+            "label": "肾上腺素",
+            "restore": 30
+          }
+        },
+        "animationVisibleToOthers": true,
+        "note": "一级 +15，二级 +30；使用有动画且其他玩家可见"
+      },
+      "spiritBox": {
+        "label": "通灵盒",
+        "kind": "carryable",
+        "refreshSeconds": 0.5,
+        "responseChance": 0.05,
+        "requiresMicVolume": true,
+        "onlyUserHearsResponse": true,
+        "toggleByViewKey": true,
+        "note": "手握 + 查看键 → 屏幕提示开始使用；麦克风检测音量启动判定；仅使用者能听到回复"
+      },
+      "ghostWriting": {
+        "label": "鬼魂笔记",
+        "kind": "placed",
+        "writeChance": 0.08,
+        "writtenModelDiffers": true,
+        "writingSoundRadiusM": 8,
+        "floatingPen": true,
+        "note": "有该证据的鬼经过时 8% 概率写下；写过/未写过建模不同；写字音效 + 悬空笔动作"
+      },
+      "dotsProjector": {
+        "label": "点阵投影仪",
+        "kind": "placed",
+        "grabableByOthers": true,
+        "note": "放置性；可直接放地上后被其他玩家拿取（补充方案第 151 行明确允许）"
+      },
+      "crucifix": {
+        "label": "十字架",
+        "kind": "placed",
+        "blocksHuntRadiusM": 3,
+        "charges": 2,
+        "note": "防护装备；Gallu 会因使用防护装备而暴怒"
+      },
+      "thermometer": {
+        "label": "温度计",
+        "kind": "carryable",
+        "note": "读房间温度；读数参数在 config.temperature.sampling"
+      },
+      "uvLight": {
+        "label": "紫外线",
+        "kind": "carryable",
+        "note": "照出紫外线证据（指纹/脚印）"
+      },
+      "camera": {
+        "label": "相机",
+        "kind": "carryable",
+        "note": "拍照取证；Phantom 拍照后暂时消失"
+      }
+    },
+    "carry": {
+      "_note": "Carry rules (supplement line 151): max 3 props + 1 head-mounted per player. Head-mounted gear can NOT be dropped - it can only be returned to the van.",
+      "maxProps": 3,
+      "maxHeadMounted": 1,
+      "headMountedCannotBeDropped": true,
+      "headMountedReturnToVanOnly": true,
+      "droppableAndPickableByAnyone": true,
+      "placedAndOneTimeItemsExcluded": true
     }
   },
   "economy": {
@@ -349,9 +604,9 @@
     "allDeadEvidenceLoss": 0.5
   },
   "player": {
-    "walkSpeedMps": 3.5,
-    "runSpeedMps": 5.6,
-    "crouchSpeedMps": 1.6,
+    "walkSpeedMps": 2.1,
+    "runSpeedMps": 3.4,
+    "crouchSpeedMps": 1,
     "sanityDrainFromDarknessPerSec": -1,
     "note": "V9 §7：移动与噪音形态由 movementStimulusKey 映射到刺激源；速度必须配置化，代码不得硬编码"
   },
@@ -414,5 +669,1119 @@
     "muteWinRateDelta": 0.15,
     "d1Retention": 0.25,
     "reopen24h": 0.5
+  },
+  "hunt": {
+    "_note": "Hunt rhythm (supplement 2026-10-04 section 3, user line 150). Threshold is only the trigger; actual hunts are a PROBABILITY roll after cooldown, negatively correlated with sanity. So \"sometimes never hunts\" is intended behaviour, not a bug.",
+    "default": {
+      "minIntervalSec": 60,
+      "baseChancePerSec": 0.02,
+      "sanityFactor": 3,
+      "maxChancePerSec": 0.15,
+      "huntDurationSec": 25,
+      "_note": "Cooldown at least 60s; per-second base chance 2%, multiplied by (1 + sanityFactor * how far below threshold). At threshold expect ~50s, at zero sanity ~7s -- but always probabilistic, never a timer."
+    },
+    "perMonster": {
+      "demon": {
+        "minIntervalSec": 20,
+        "baseChancePerSec": 0.04,
+        "_note": "Demon: mechanism allows as low as 20s, but NOT strictly on that timer (supplement item 4)."
+      },
+      "spirit": {
+        "minIntervalSec": 90,
+        "_note": "Spirit: smudge blocks hunting for 150s (handled by item system); base cooldown also longer."
+      },
+      "shade": {
+        "minIntervalSec": 75,
+        "baseChancePerSec": 0.012,
+        "_note": "Shade: threshold 35%, hunts less often."
+      },
+      "onryo": {
+        "minIntervalSec": 60,
+        "_note": "Onryo: after its candle is blown out it may hunt ignoring sanity (mechanism slot)."
+      }
+    },
+    "cursed": {
+      "ignoresSanity": true,
+      "ignoresCooldown": true,
+      "smudgeImmune": true,
+      "_note": "Cursed hunt: ignores sanity and cooldown and cannot be stopped by smudge (supplement section 5)."
+    }
+  },
+  "ghosts": {
+    "_note": "证据类型（原件用词）：emf5 / uv / spirit_box / ghost_writing / dots / orb / freezing。每只鬼恰好三条。",
+    "evidenceTypes": [
+      "emf5",
+      "uv",
+      "spirit_box",
+      "ghost_writing",
+      "dots",
+      "orb",
+      "freezing"
+    ],
+    "ghosts": {
+      "spirit": {
+        "label": "魂魄",
+        "labelEn": "Spirit",
+        "evidence": [
+          "emf5",
+          "spirit_box",
+          "ghost_writing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "smudge_blocks_hunt_150s",
+        "note": "被圣木熏到后 150 秒内无法猎杀（普通鬼为 90 秒）"
+      },
+      "wraith": {
+        "label": "魅影",
+        "labelEn": "Wraith",
+        "evidence": [
+          "emf5",
+          "dots",
+          "spirit_box"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "never_steps_salt",
+        "traitExtra": "teleport_near_player_emf2",
+        "note": "永远不会踩到盐堆。可传送到玩家附近并产生 EMF 2 级信号"
+      },
+      "phantom": {
+        "label": "幻影",
+        "labelEn": "Phantom",
+        "evidence": [
+          "dots",
+          "uv",
+          "spirit_box"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "hunt_nearly_invisible_slow_flicker",
+        "traitExtra": "photo_makes_it_vanish",
+        "note": "猎杀时几乎全程隐身、闪烁极慢。拍照后暂时消失，鬼照清晰无马赛克"
+      },
+      "poltergeist": {
+        "label": "骚灵",
+        "labelEn": "Poltergeist",
+        "evidence": [
+          "uv",
+          "ghost_writing",
+          "spirit_box"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "mass_throw_many_objects",
+        "note": "能一次性投掷大量物品；猎杀时投掷频率极快、距离很远"
+      },
+      "banshee": {
+        "label": "女妖",
+        "labelEn": "Banshee",
+        "evidence": [
+          "dots",
+          "uv",
+          "orb"
+        ],
+        "huntThreshold": 50,
+        "huntThresholdRule": "locked_target_sanity_not_team_average",
+        "speedMps": 1.7,
+        "trait": "locks_one_target_ignores_others",
+        "traitExtra": "recorder_33pct_unique_scream",
+        "modelGender": "female",
+        "note": "必定女性模型。只锁定并追杀一名玩家，无视其他人。收音器 33% 几率听到独特尖叫"
+      },
+      "jinn": {
+        "label": "巨灵",
+        "labelEn": "Jinn",
+        "evidence": [
+          "emf5",
+          "uv",
+          "freezing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "speedRule": "breaker_on_and_sees_player_2_5",
+        "trait": "never_turns_off_breaker",
+        "note": "开闸且看见玩家时速度可达 2.5 m/s；电闸关闭后失去加速能力"
+      },
+      "mare": {
+        "label": "梦魇",
+        "labelEn": "Mare",
+        "evidence": [
+          "spirit_box",
+          "orb",
+          "ghost_writing"
+        ],
+        "huntThreshold": 40,
+        "huntThresholdDynamic": {
+          "lights_on": 40,
+          "lights_off": 50
+        },
+        "speedMps": 1.7,
+        "trait": "turns_off_lights_breaks_bulbs",
+        "traitExtra": "stronger_in_dark",
+        "note": "房间灯亮时约 40%；灯灭时正常 50%。倾向关灯打碎灯泡，黑暗中更具攻击性"
+      },
+      "revenant": {
+        "label": "亡魂",
+        "labelEn": "Revenant",
+        "evidence": [
+          "orb",
+          "ghost_writing",
+          "freezing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "speedRule": "sees_player_3_0_loses_sight_1_0",
+        "note": "速度两极分化：看见玩家约 3.0 m/s，失去视野约 1.0 m/s。躲藏是有效应对"
+      },
+      "shade": {
+        "label": "暗影",
+        "labelEn": "Shade",
+        "evidence": [
+          "emf5",
+          "ghost_writing",
+          "freezing"
+        ],
+        "huntThreshold": 35,
+        "speedMps": 1.7,
+        "trait": "shy_rarely_interacts_or_hunts_when_player_in_room",
+        "note": "非常害羞。玩家在鬼房内时几乎不互动、不猎杀（猎杀阈值最低的鬼之一）"
+      },
+      "demon": {
+        "label": "恶魔",
+        "labelEn": "Demon",
+        "evidence": [
+          "uv",
+          "ghost_writing",
+          "freezing"
+        ],
+        "huntThreshold": 70,
+        "speedMps": 1.7,
+        "trait": "short_hunt_cooldown_20s",
+        "traitExtra": "smudge_blocks_hunt_60s",
+        "note": "猎杀阈值最高的鬼（70%）。猎杀冷却短（20 秒）；被圣木熏到后仅 60 秒无法猎杀"
+      },
+      "yurei": {
+        "label": "幽灵",
+        "labelEn": "Yurei",
+        "evidence": [
+          "dots",
+          "orb",
+          "freezing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "often_blows_out_candles",
+        "traitExtra": "no_hunt_inside_flame_zone",
+        "note": "会频繁吹灭蜡烛。在火焰覆盖区域内不会开启猎杀"
+      },
+      "oni": {
+        "label": "赤鬼",
+        "labelEn": "Oni",
+        "evidence": [
+          "emf5",
+          "uv",
+          "freezing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "hunt_almost_always_visible_fast_flicker",
+        "traitExtra": "interacts_more_often",
+        "note": "猎杀时几乎全程可见、闪烁频率极低（与幻影相反）。互动更频繁"
+      },
+      "myling": {
+        "label": "鬼婴",
+        "labelEn": "Myling",
+        "evidence": [
+          "emf5",
+          "uv",
+          "ghost_writing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "very_quiet_footsteps_heartbeat_louder_than_steps",
+        "note": "猎杀时脚步声非常轻，心跳声比脚步声大，难以靠声音判断距离"
+      },
+      "onryo": {
+        "label": "怨灵",
+        "labelEn": "Onryo",
+        "evidence": [
+          "spirit_box",
+          "orb",
+          "freezing"
+        ],
+        "huntThreshold": 60,
+        "speedMps": 1.7,
+        "trait": "candle_blown_out_can_hunt_ignoring_sanity",
+        "traitExtra": "flame_blocks_hunt",
+        "note": "吹灭蜡烛后有概率无视理智直接猎杀。火焰可阻止其猎杀"
+      },
+      "twins": {
+        "label": "孪魂",
+        "labelEn": "The Twins",
+        "evidence": [
+          "emf5",
+          "spirit_box",
+          "freezing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "speedRule": "main_minus_10pct_1_53_sub_plus_10pct_1_87",
+        "trait": "two_areas_interact_simultaneously",
+        "note": "主鬼 1.53 m/s、副鬼 1.87 m/s。可同时与两个区域互动，制造不在场证明"
+      },
+      "raiju": {
+        "label": "雷魂",
+        "labelEn": "Raiju",
+        "evidence": [
+          "emf5",
+          "orb",
+          "dots"
+        ],
+        "huntThreshold": 50,
+        "huntThresholdDynamic": {
+          "electronics_on_nearby": 65
+        },
+        "speedMps": 1.7,
+        "speedRule": "nearby_electronics_2_5",
+        "note": "附近有开启的电子设备时阈值约 65%、速度可达 2.5 m/s"
+      },
+      "hantu": {
+        "label": "寒魔",
+        "labelEn": "Hantu",
+        "evidence": [
+          "uv",
+          "orb",
+          "freezing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "speedRule": "cold_fast_hot_slow_1_4_to_2_7",
+        "trait": "never_turns_on_breaker_often_turns_it_off",
+        "traitExtra": "breath_fog_when_cold",
+        "note": "低温快、高温慢（1.4~2.7 m/s）。不会开闸并经常关它；关闸/低温时猎杀口中呼出白雾"
+      },
+      "moroi": {
+        "label": "魔洛伊",
+        "labelEn": "Moroi",
+        "evidence": [
+          "spirit_box",
+          "ghost_writing",
+          "freezing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "speedRule": "lower_sanity_faster_3_7_at_zero_with_los",
+        "trait": "spirit_box_response_curses_player",
+        "traitExtra": "smudge_blind_7_5s",
+        "note": "理智越低越快（0 理智+视线可达 3.7）。通灵盒回应会诅咒玩家加速理智流失；圣木致盲 7.5s"
+      },
+      "deogen": {
+        "label": "雾影",
+        "labelEn": "Deogen",
+        "evidence": [
+          "spirit_box",
+          "ghost_writing",
+          "dots"
+        ],
+        "huntThreshold": 40,
+        "speedMps": 1.7,
+        "speedRule": "farther_faster_close_0_4",
+        "trait": "sees_through_walls_can_find_hiding_players",
+        "note": "透视，能精准锁定躲藏的玩家。靠近时极慢（约 0.4 m/s），是遛鬼的好机会"
+      },
+      "thaye": {
+        "label": "刹耶",
+        "labelEn": "Thaye",
+        "evidence": [
+          "ghost_writing",
+          "orb",
+          "dots"
+        ],
+        "huntThreshold": 75,
+        "huntThresholdDynamic": {
+          "youngest": 75,
+          "oldest": 15
+        },
+        "speedMps": 2.7,
+        "speedRule": "youngest_fastest_2_7_slows_with_age",
+        "trait": "ages_faster_near_players",
+        "note": "最年轻时最快（约 2.7）且阈值 75%，随年龄增长变慢、阈值降至 15%"
+      },
+      "mimic": {
+        "label": "拟魂",
+        "labelEn": "The Mimic",
+        "evidence": [
+          "spirit_box",
+          "uv",
+          "freezing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "always_shows_orb",
+        "traitExtra": "mimics_other_ghost_speed_and_behaviour",
+        "note": "必定显示「灵球」证据（即使难度里灵球不是证据）。会模仿其他鬼的速度与行为"
+      },
+      "obambo": {
+        "label": "盲灵",
+        "labelEn": "Obambo",
+        "evidence": [
+          "ghost_writing",
+          "orb",
+          "dots"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "speedRule": "periodic_slow_fast_cycles_by_minute",
+        "trait": "completely_blind_sensitive_to_sound_and_electronics",
+        "note": "完全失明，看不见静止的玩家，但对声音与电子设备敏感。速度周期性变化"
+      },
+      "aswang": {
+        "label": "阿斯旺",
+        "labelEn": "Aswang",
+        "evidence": [
+          "dots",
+          "freezing",
+          "ghost_writing"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.53,
+        "speedRule": "slow_base_fast_los_accel",
+        "trait": "found_in_hiding_spot_ends_hunt_and_targets_it_next",
+        "note": "基础速度较慢（约 1.53）但视线加速极快。猎杀中在躲藏点被发现则猎杀立即结束，下次直冲该点"
+      },
+      "dayan": {
+        "label": "达彦",
+        "labelEn": "Dayan",
+        "evidence": [
+          "emf5",
+          "orb",
+          "spirit_box"
+        ],
+        "huntThreshold": 50,
+        "huntThresholdDynamic": {
+          "nobody_within_10m": 50,
+          "nearby_still": 45,
+          "nearby_moving": 65
+        },
+        "speedMps": 1.7,
+        "speedRule": "player_moves_fast_player_still_slow",
+        "trait": "player_can_reduce_threat_by_staying_still",
+        "modelGender": "female",
+        "note": "必定女性模型。玩家动它就快、静止它就慢（无论有无视野）"
+      },
+      "gallu": {
+        "label": "加鲁",
+        "labelEn": "Gallu",
+        "evidence": [
+          "emf5",
+          "uv",
+          "spirit_box"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "speedRule": "three_states_normal_enraged_weakened",
+        "trait": "protective_gear_triggers_enrage",
+        "traitExtra": "enraged_does_not_step_on_salt",
+        "note": "在正常/暴怒/虚弱三态间循环。用盐、十字架、圣木会使其暴怒，暴怒时不踩盐"
+      },
+      "deildegast": {
+        "label": "德戴尔加斯特",
+        "labelEn": "Deildegast",
+        "evidence": [
+          "emf5",
+          "ghost_writing",
+          "dots"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 3,
+        "speedRule": "starts_3_0_slows_after_interactions_0_4_at_26",
+        "trait": "heavily_interaction_dependent",
+        "note": "初始猎杀速度极快（3.0），若投掷/互动了 26 个物体则降至 0.4 m/s"
+      },
+      "kormos": {
+        "label": "科莫斯",
+        "labelEn": "Kormos",
+        "evidence": [
+          "orb",
+          "spirit_box",
+          "uv"
+        ],
+        "huntThreshold": 50,
+        "speedMps": 1.7,
+        "trait": "completely_blind_longer_detection_range",
+        "note": "完全失明但探测范围更远，靠听觉与电子设备定位。安静与关电子设备是有效策略"
+      }
+    },
+    "modelPool": [
+      {
+        "id": "female_gaunt",
+        "sex": "female",
+        "frame": "gaunt",
+        "resPath": "Models/ghostbody/GEO-GhostBody_female_gaunt.glb"
+      },
+      {
+        "id": "female_lanky",
+        "sex": "female",
+        "frame": "lanky",
+        "resPath": "Models/ghostbody/GEO-GhostBody_female_lanky.glb"
+      },
+      {
+        "id": "female_normal",
+        "sex": "female",
+        "frame": "normal",
+        "resPath": "Models/ghostbody/GEO-GhostBody_female_normal.glb"
+      },
+      {
+        "id": "female_stocky",
+        "sex": "female",
+        "frame": "stocky",
+        "resPath": "Models/ghostbody/GEO-GhostBody_female_stocky.glb"
+      },
+      {
+        "id": "male_gaunt",
+        "sex": "male",
+        "frame": "gaunt",
+        "resPath": "Models/ghostbody/GEO-GhostBody_male_gaunt.glb"
+      },
+      {
+        "id": "male_lanky",
+        "sex": "male",
+        "frame": "lanky",
+        "resPath": "Models/ghostbody/GEO-GhostBody_male_lanky.glb"
+      },
+      {
+        "id": "male_normal",
+        "sex": "male",
+        "frame": "normal",
+        "resPath": "Models/ghostbody/GEO-GhostBody_male_normal.glb"
+      },
+      {
+        "id": "male_stocky",
+        "sex": "male",
+        "frame": "stocky",
+        "resPath": "Models/ghostbody/GEO-GhostBody_male_stocky.glb"
+      }
+    ],
+    "modelSelection": {
+      "rule": "matchSeed",
+      "note": "开局由匹配种子确定性随机取一个；**与鬼的类型无关**（用户规则 2026-10-05）。"
+    },
+    "modelRules": {
+      "allHumanoid": true,
+      "note": "全部为完整人形（有腿有臂有头）。禁止\"无腿/雾状尾梢/漂浮\"这类按类型残缺失真的做法。"
+    }
+  },
+  "temperature": {
+    "_note": "Temperature mechanics. AUTHORITATIVE SOURCE: user spec 2026-10-04 late, section 2 (docs/spec/supplement-2026-10-04-late-full.md). Supersedes my earlier Phasmophobia-derived guess.",
+    "ambient": {
+      "minC": -1,
+      "maxC": 23,
+      "_note": "不同天气/局数下的正常室温在 -1~23C 徘徊（用户第 7 条）。具体值由 weather 决定。"
+    },
+    "ghostRoom": {
+      "targetC": 0,
+      "floorC": -2,
+      "targetWithFreezingEvidenceC": -5,
+      "floorWithFreezingEvidenceC": -8,
+      "coolPerSecC": 0.35,
+      "_inRoomCoolMultiplier": 1.6,
+      "_note": "普通鬼区间 [-2,5]C；带刺骨寒温证据的区间 [-8,-5]C。鬼在鬼房内时降温速度 x1.6（用户第 5 条）。"
+    },
+    "aroundGhost": {
+      "radiusM": 3,
+      "coolPerSecC": 0.8,
+      "_note": "鬼周围 3m 内降温更快 —— 玩家体感是\"走到鬼边上突然一冷\"，这是找鬼的主要线索之一。"
+    },
+    "rewarmPerSecC": 0.12,
+    "_rewarmNote": "鬼离开后逐渐回升，直至与周围正常区域持平（用户第 6 条）。比降温慢，制造\"待久了更冷\"。",
+    "playerBreathC": -1,
+    "_breathNote": "玩家周围温度 < -1C 时口吐寒气，其他玩家可见（用户第 4 条）。",
+    "freezingEvidence": {
+      "thresholdC": 0,
+      "holdSecondsToConfirm": 3,
+      "_note": "「刺骨寒温」证据成立 = 连续低于阈值满 holdSeconds（防抖：鬼路过不算）。"
+    },
+    "sampling": {
+      "intervalSec": 0.5,
+      "precisionC": 0.1,
+      "rangeC": [
+        -15,
+        45
+      ],
+      "noiseC": 0.15
+    },
+    "weather": {
+      "_note": "8 种天气（用户第 8 条）。baselineC = 该天气下的正常室温；wind 表示是否伴随刮风类事件。",
+      "clear": {
+        "label": "晴天",
+        "baselineC": 23
+      },
+      "cloudy": {
+        "label": "阴天",
+        "baselineC": 18
+      },
+      "rain": {
+        "label": "下雨",
+        "baselineC": 15
+      },
+      "heavyRain": {
+        "label": "暴雨",
+        "baselineC": 12
+      },
+      "snow": {
+        "label": "下雪",
+        "baselineC": 4
+      },
+      "sleet": {
+        "label": "雨加雪",
+        "baselineC": 2
+      },
+      "hail": {
+        "label": "冰雹",
+        "baselineC": 0
+      },
+      "blizzard": {
+        "label": "暴雪",
+        "baselineC": -1
+      }
+    },
+    "events": {
+      "_note": "天气之外的环境事件（用户第 9 条）。",
+      "wind": {
+        "label": "刮风",
+        "coolsBy": 1.5,
+        "_note": "刮风进一步压低室温 1.5C"
+      }
+    }
+  },
+  "ghostRoom": {
+    "_note": "Ghost room is a SETTING, not \"wherever the ghost currently is\". Orbs are only visible in the ghost room. The ghost may relocate mid-match; probability depends on difficulty.",
+    "orb": {
+      "visibleOnlyInGhostRoom": true,
+      "_note": "灵球只在鬼房可见（用户原话）。这是确认鬼房的判据，所以实现上必须与\"鬼当前所在房间\"分开。"
+    },
+    "coolWhileGhostAway": true,
+    "_coolNote": "鬼房恒冷（不因为鬼离开而回暖）—— 它是\"被设定过的房间\"。鬼周围另有独立的瞬时降温。",
+    "relocate": {
+      "minIntervalSec": 90,
+      "_note": "换鬼房的最小间隔：到点后**掷一次概率**决定是否换（不是每帧掷，否则换个不停）。",
+      "perDifficulty": {
+        "easy": {
+          "chance": 0.05,
+          "label": "简单"
+        },
+        "normal": {
+          "chance": 0.15,
+          "label": "普通"
+        },
+        "nightmare": {
+          "chance": 0.3,
+          "label": "噩梦"
+        },
+        "insanity": {
+          "chance": 0.45,
+          "label": "疯狂"
+        }
+      },
+      "defaultDifficulty": "normal"
+    },
+    "temperature": {
+      "ghostRoomFloorC": -2,
+      "_note": "鬼房地板温度（未带刺骨寒温证据时）。带证据的下限在 temperature.ghostRoom.floorWithFreezingEvidenceC = -8C。"
+    }
+  },
+  "progression": {
+    "_src": "design",
+    "_note": "等级/经验/声望。官方具体数值未取到（web_search 只返回索引页）→ 这里是本工程设计值，取到官方正文后只改本段。",
+    "maxLevel": 100,
+    "xp": {
+      "base": 100,
+      "perLevel": 40,
+      "_note": "升到下一级所需经验 = base + (level-1)*perLevel（分段线性，可被配置替换）"
+    },
+    "prestige": {
+      "atLevel": 100,
+      "xpMultiplier": 1.35,
+      "_note": "满级可声望：等级归 1、钱/碎片/装备保留；每级声望后升级所需经验 ×= xpMultiplier"
+    },
+    "xpSources": {
+      "contractComplete": 120,
+      "perEvidence": 35,
+      "survived": 60,
+      "perTaskDaily": 50,
+      "perTaskWeekly": 200
+    },
+    "moneySources": {
+      "contractComplete": 80,
+      "perEvidence": 25,
+      "survived": 40
+    }
+  },
+  "shop": {
+    "_src": "design",
+    "_note": "装备分 Tier I/II/III（官方语义）；价格为本工程设计值。买了即拥有，可装备。碎片不可购买装备。",
+    "items": [
+      {
+        "id": "flashlight_t1",
+        "tier": 1,
+        "price": 0,
+        "weightKg": 0.5,
+        "label": "手电筒 I",
+        "effects": {
+          "rangeM": 8,
+          "batterySec": 180
+        }
+      },
+      {
+        "id": "flashlight_t2",
+        "tier": 2,
+        "price": 320,
+        "weightKg": 0.6,
+        "label": "手电筒 II",
+        "effects": {
+          "rangeM": 12,
+          "batterySec": 260
+        }
+      },
+      {
+        "id": "flashlight_t3",
+        "tier": 3,
+        "price": 900,
+        "weightKg": 0.7,
+        "label": "手电筒 III",
+        "effects": {
+          "rangeM": 16,
+          "batterySec": 360
+        }
+      },
+      {
+        "id": "emf_t1",
+        "tier": 1,
+        "price": 0,
+        "weightKg": 0.4,
+        "label": "EMF I",
+        "effects": {
+          "rangeM": 3,
+          "windowSec": 1.6
+        }
+      },
+      {
+        "id": "emf_t2",
+        "tier": 2,
+        "price": 280,
+        "weightKg": 0.4,
+        "label": "EMF II",
+        "effects": {
+          "rangeM": 4,
+          "windowSec": 2.4
+        }
+      },
+      {
+        "id": "emf_t3",
+        "tier": 3,
+        "price": 780,
+        "weightKg": 0.4,
+        "label": "EMF III",
+        "effects": {
+          "rangeM": 5,
+          "windowSec": 3.2
+        }
+      },
+      {
+        "id": "thermo_t1",
+        "tier": 1,
+        "price": 0,
+        "weightKg": 0.3,
+        "label": "温度计 I",
+        "effects": {
+          "readSec": 3
+        }
+      },
+      {
+        "id": "thermo_t2",
+        "tier": 2,
+        "price": 240,
+        "weightKg": 0.3,
+        "label": "温度计 II",
+        "effects": {
+          "readSec": 1.6
+        }
+      },
+      {
+        "id": "thermo_t3",
+        "tier": 3,
+        "price": 700,
+        "weightKg": 0.3,
+        "label": "温度计 III",
+        "effects": {
+          "readSec": 0.8
+        }
+      },
+      {
+        "id": "dots_t1",
+        "tier": 1,
+        "price": 0,
+        "weightKg": 2,
+        "label": "点阵投影仪 I",
+        "effects": {
+          "revealChance": 0.07
+        }
+      },
+      {
+        "id": "dots_t2",
+        "tier": 2,
+        "price": 420,
+        "weightKg": 2,
+        "label": "点阵投影仪 II",
+        "effects": {
+          "revealChance": 0.1
+        }
+      },
+      {
+        "id": "dots_t3",
+        "tier": 3,
+        "price": 1100,
+        "weightKg": 2,
+        "label": "点阵投影仪 III",
+        "effects": {
+          "revealChance": 0.14
+        }
+      },
+      {
+        "id": "uv_t1",
+        "tier": 1,
+        "price": 0,
+        "weightKg": 0.4,
+        "label": "紫外线灯 I",
+        "effects": {
+          "revealChance": 0.1
+        }
+      },
+      {
+        "id": "uv_t2",
+        "tier": 2,
+        "price": 300,
+        "weightKg": 0.4,
+        "label": "紫外线灯 II",
+        "effects": {
+          "revealChance": 0.15
+        }
+      },
+      {
+        "id": "uv_t3",
+        "tier": 3,
+        "price": 850,
+        "weightKg": 0.4,
+        "label": "紫外线灯 III",
+        "effects": {
+          "revealChance": 0.2
+        }
+      },
+      {
+        "id": "crucifix_t1",
+        "tier": 1,
+        "price": 0,
+        "weightKg": 1,
+        "label": "十字架 I",
+        "effects": {
+          "rangeM": 3,
+          "charges": 1
+        }
+      },
+      {
+        "id": "crucifix_t2",
+        "tier": 2,
+        "price": 600,
+        "weightKg": 1,
+        "label": "十字架 II",
+        "effects": {
+          "rangeM": 4,
+          "charges": 2
+        }
+      },
+      {
+        "id": "crucifix_t3",
+        "tier": 3,
+        "price": 1500,
+        "weightKg": 1,
+        "label": "十字架 III",
+        "effects": {
+          "rangeM": 5,
+          "charges": 3
+        }
+      }
+    ]
+  },
+  "tasks": {
+    "_src": "design",
+    "_note": "每日 3 条 + 每周 1 条（官方结构）；任务池与奖励为本工程设计值。按 dayIndex 种子确定性生成，不读时钟。",
+    "dailyCount": 3,
+    "weeklyCount": 1,
+    "weeklyRewardMultiplier": 4,
+    "pool": [
+      {
+        "goal": "collectAllEvidence",
+        "target": 3,
+        "text": "收齐本局全部证据",
+        "rewardXp": 60,
+        "rewardMoney": 40
+      },
+      {
+        "goal": "photographGhost",
+        "target": 1,
+        "text": "拍到鬼的照片",
+        "rewardXp": 70,
+        "rewardMoney": 45
+      },
+      {
+        "goal": "useToolReading",
+        "target": 1,
+        "text": "用 EMF 读到一次读数",
+        "rewardXp": 40,
+        "rewardMoney": 25,
+        "toolId": "emf"
+      },
+      {
+        "goal": "useToolReading",
+        "target": 1,
+        "text": "用紫外线灯找到一次指纹/足迹",
+        "rewardXp": 45,
+        "rewardMoney": 30,
+        "toolId": "uv"
+      },
+      {
+        "goal": "surviveAndExtract",
+        "target": 1,
+        "text": "活着撤离",
+        "rewardXp": 80,
+        "rewardMoney": 55
+      },
+      {
+        "goal": "dwellInGhostRoom",
+        "target": 45,
+        "text": "在鬼房累计停留 45 秒",
+        "rewardXp": 65,
+        "rewardMoney": 40
+      }
+    ]
+  },
+  "objectives": {
+    "_src": "design",
+    "_note": "局内任务（合同日志里的可选目标）——与 tasks（每日/每周）是两套系统：本段是**每局**按本局种子抽 N 条，奖励在结算时叠加。目标种类取自官方 Objectives 列表（phasmophobia.fandom.com/wiki/Objectives）；数量/奖励为本工程设计值。",
+    "perContract": 3,
+    "pool": [
+      {
+        "kind": "findEvidence",
+        "target": 3,
+        "text": "找齐 3 条证据",
+        "rewardMoney": 60,
+        "rewardXp": 90
+      },
+      {
+        "kind": "emfLevel5",
+        "target": 1,
+        "text": "读到一次 EMF 5 级",
+        "rewardMoney": 45,
+        "rewardXp": 70
+      },
+      {
+        "kind": "photographGhost",
+        "target": 1,
+        "text": "拍到鬼的照片",
+        "rewardMoney": 50,
+        "rewardXp": 80
+      },
+      {
+        "kind": "witnessGhostEvent",
+        "target": 1,
+        "text": "目击一次鬼事件",
+        "rewardMoney": 40,
+        "rewardXp": 65
+      },
+      {
+        "kind": "repelWithSmudge",
+        "target": 1,
+        "text": "在猎杀中用熏香驱鬼",
+        "rewardMoney": 55,
+        "rewardXp": 85
+      },
+      {
+        "kind": "stopHunt",
+        "target": 1,
+        "text": "用十字架阻止一次猎杀",
+        "rewardMoney": 60,
+        "rewardXp": 95
+      },
+      {
+        "kind": "motionSensor",
+        "target": 1,
+        "text": "触发运动传感器",
+        "rewardMoney": 35,
+        "rewardXp": 55
+      },
+      {
+        "kind": "saltFootprint",
+        "target": 1,
+        "text": "在盐上找到足迹",
+        "rewardMoney": 35,
+        "rewardXp": 55
+      },
+      {
+        "kind": "candleLit",
+        "target": 1,
+        "text": "点燃一支蜡烛",
+        "rewardMoney": 30,
+        "rewardXp": 45
+      },
+      {
+        "kind": "spiritBoxResponse",
+        "target": 1,
+        "text": "用通灵盒得到一次回应",
+        "rewardMoney": 45,
+        "rewardXp": 70
+      },
+      {
+        "kind": "ghostWriting",
+        "target": 1,
+        "text": "让鬼在书上写字",
+        "rewardMoney": 50,
+        "rewardXp": 75
+      },
+      {
+        "kind": "dirtyWater",
+        "target": 1,
+        "text": "清理一处脏水",
+        "rewardMoney": 30,
+        "rewardXp": 45
+      }
+    ]
+  },
+  "power": {
+    "_src": "design",
+    "_note": "单总闸模型（对齐官方）。开局必为断开 —— 玩家要深入去找总闸，这是开场压力来源。",
+    "breaker": {
+      "interactRadiusM": 1.6,
+      "ghostOffChance": 0.15,
+      "startOn": false
+    },
+    "lights": {
+      "sanityDrainLightsOffPerSec": 1,
+      "sanityRecoverLightsOnPerSec": 0.2
+    }
+  },
+  "interaction": {
+    "_src": "design",
+    "_note": "鬼的互动行为（门/灯/扔物/敲击/关总闸）。间隔与强度为本工程设计值；官方行为种类可确证，数值未取到。",
+    "ghost": {
+      "intervalMinSec": 8,
+      "intervalMaxSec": 22,
+      "knock": {
+        "intensity": 55,
+        "radiusM": 14
+      },
+      "throw": {
+        "intensity": 70,
+        "radiusM": 18
+      },
+      "light": {
+        "intensity": 25,
+        "radiusM": 12
+      },
+      "door": {
+        "intensity": 45,
+        "radiusM": 12
+      }
+    }
+  },
+  "render": {
+    "_src": "design",
+    "_note": "渲染质量三档（用户永久约束 §2/§6）。官方是 Unity 内置管线、无此套数值 → 本工程设计值。帧率档（60/90/120）与画质档**相互独立**，由 render.frameRates 给出。",
+    "frameRates": [
+      60,
+      90,
+      120
+    ],
+    "defaultTier": "high",
+    "defaultFrameRate": 60,
+    "fog": {
+      "startM": 8,
+      "endM": 40,
+      "_note": "自研距离雾（几何着色器里）。真机标定过 4 轮，别随手改：改浓会把别人取证相机的画面也吃掉。"
+    },
+    "tiers": {
+      "low": {
+        "name": "低画质",
+        "renderScale": 0.75,
+        "pixelLightCount": 2,
+        "shadows": 0,
+        "shadowResolution": 0,
+        "shadowDistanceM": 22,
+        "antiAliasing": 0,
+        "anisotropicFiltering": 1,
+        "farClipM": 60,
+        "bloom": false,
+        "ssgi": false,
+        "ssao": false,
+        "eyeAdaptation": false,
+        "grain": false,
+        "vignette": true,
+        "volumetricLight": false,
+        "bloomIntensity": 0,
+        "ssgiIntensity": 0,
+        "ssaoRadiusM": 0.6,
+        "grainAmount": 0,
+        "eyeAdaptSpeed": 0,
+        "_disabledWhy": "ssao/ssgi/eyeAdaptation/volumetricLight 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。"
+      },
+      "high": {
+        "name": "高画质",
+        "renderScale": 1,
+        "pixelLightCount": 4,
+        "shadows": 2,
+        "shadowResolution": 2,
+        "shadowDistanceM": 40,
+        "antiAliasing": 4,
+        "anisotropicFiltering": 2,
+        "farClipM": 90,
+        "bloom": true,
+        "ssgi": false,
+        "ssao": false,
+        "eyeAdaptation": false,
+        "grain": true,
+        "vignette": true,
+        "volumetricLight": false,
+        "bloomIntensity": 0.55,
+        "ssgiIntensity": 0.35,
+        "ssaoRadiusM": 0.6,
+        "grainAmount": 0.04,
+        "eyeAdaptSpeed": 1.2,
+        "_disabledWhy": "ssao/ssgi/eyeAdaptation/volumetricLight 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。"
+      },
+      "top": {
+        "name": "顶级画质",
+        "renderScale": 1,
+        "pixelLightCount": 8,
+        "shadows": 2,
+        "shadowResolution": 3,
+        "shadowDistanceM": 60,
+        "antiAliasing": 8,
+        "anisotropicFiltering": 2,
+        "farClipM": 140,
+        "bloom": true,
+        "ssgi": false,
+        "ssao": false,
+        "eyeAdaptation": false,
+        "grain": true,
+        "vignette": true,
+        "volumetricLight": false,
+        "bloomIntensity": 0.8,
+        "ssgiIntensity": 0.55,
+        "ssaoRadiusM": 0.75,
+        "grainAmount": 0.055,
+        "eyeAdaptSpeed": 1.1,
+        "_disabledWhy": "ssao/ssgi/eyeAdaptation/volumetricLight 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。"
+      }
+    }
   }
 }

@@ -100,5 +100,28 @@
     "subtitleForAllVoiceLines": true,
     "colorblindSafeIcons": true,
     "hapticsToggle": true
+  },
+  "render": {
+    "_note": "渲染路径基准值（构建智能体 A · 2026-10-04 真 Unity 离屏渲染实测标定）。为什么必须放 token：着色器默认值 / 亮度目标 / 取证判据必须是**同一个数** —— 三处各写一遍就是三份真源（本项目踩过 EyeHeightM 三份拷贝的坑）。消费方：unity/Assets/Resources/Shaders/WhisperUnlitColor.shader（编译期默认值）与 unity/Assets/Editor/RenderEvidenceCapture.cs（判据 + 契约断言：两边对不上就判红）。",
+    "light": {
+      "ambient": 0.22
+    },
+    "fog": {
+      "_note": "自研距离雾：8m 起、40m 饱和、近黑雾色。房间进深 3~4m → 完全无雾；走廊 12m/17m → 12%/28%；30m 外仍保留 31% 形体（不糊成一片）。雾只压暗、不提亮。",
+      "startM": 8,
+      "endM": 40
+    },
+    "target": {
+      "_note": "亮度目标（Gamma 空间，屏显 0-255）。wallLitLuma = 安全区墙**迎光面**的目标亮度，用于 LevelPalette 的 albedo 校准（旧 Unlit 值 93 → 校准后迎光 91、背光 33）。sceneMeanLumaMin/Max = 取证整幅平均亮度的可接受区间（判据：不低于 Min 才叫“看得见”，不高于 Max 才不叫“洗白”）。",
+      "wallLitLuma": 91,
+      "sceneMeanLumaMin": 20,
+      "sceneMeanLumaMax": 110
+    },
+    "washout": {
+      "_note": "洗白判据（2026-10-03 真机雾事故的形态）：均值高 + 标准差极低 + 颜色数极少。RenderEvidenceCapture 用这三个数直接判红。",
+      "meanLuma": 150,
+      "stdDev": 5,
+      "colorCount": 2
+    }
   }
 }

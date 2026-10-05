@@ -107,8 +107,9 @@ const reference = JSON.parse(fs.readFileSync(REF, 'utf8'));
 // ── ③ 调 C# 跑手产出移植件输出 ──
 let csOut;
 try {
-  // 注意：native/dotnet.sh 是 bash 脚本，不能用 process.execPath 起（会变成 node 解析 bash）
-  const res = execFileSync(path.join(ROOT, 'native/dotnet.sh'), ['run', '--project', path.join(ROOT, 'native/csharp-verify'), '--nologo', '-c', 'Release', '--', '--emit-voice-vectors'], { encoding: 'utf8', cwd: ROOT, stdio: 'pipe' });
+  // 注意：native/dotnet.sh 是 bash 脚本。不能用 process.execPath 起（会变成 node 解析 bash），
+  // 也不能直接当可执行文件起 —— Windows 没有 shebang 支持，会静默失败且 stderr 为空。
+  const res = execFileSync('bash', [path.join(ROOT, 'native/dotnet.sh'), 'run', '--project', path.join(ROOT, 'native/csharp-verify'), '--nologo', '-c', 'Release', '--', '--emit-voice-vectors'], { encoding: 'utf8', cwd: ROOT, stdio: 'pipe' });
   const start = res.indexOf('{');
   csOut = JSON.parse(res.slice(start));
 } catch (e) {

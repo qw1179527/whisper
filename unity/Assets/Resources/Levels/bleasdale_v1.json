@@ -1,0 +1,341 @@
+{
+  "levelId": "bleasdale_v1",
+  "_note": "布利斯代尔农舍（两层中型图）：两层同位——走廊带 z1..4 上下贯通，北侧一层厨房、二层起居/主卧/阁楼。设计依据：官方中型图为两层农舍；本布局是 design（官方原图几何不公开），非官方还原。",
+  "_layout": "坐标单位米，XZ 平面；房间 pos=[最小角点x,最小角点z] + size=[宽,高,深]；走廊以 doorA/doorB 引用具体门，两端门必须贴同一条共享墙且开口对齐——由 tools/validate-levels.mjs 强制校验。**本文件由 tools/gen-map.mjs 从 tools/lib/map-layouts.mjs 生成，手改会被覆盖。**",
+  "_zones": {
+    "entrance": [
+      "entrance"
+    ],
+    "pressure": [
+      "corridor_f0",
+      "kitchen_f0",
+      "corridor_f1",
+      "corridor2_f1",
+      "master_f1"
+    ],
+    "deep": [
+      "attic_f1"
+    ]
+  },
+  "rooms": [
+    {
+      "id": "entrance",
+      "pos": [
+        0,
+        1
+      ],
+      "size": [
+        4,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hall_main_entrance_safe",
+      "doors": [
+        {
+          "id": "d_east",
+          "wall": "east",
+          "offsetM": 0.5,
+          "widthM": 2
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 180,
+          "pref": "nw"
+        }
+      ],
+      "evidencePoint": false,
+      "lightZone": "safe"
+    },
+    {
+      "id": "corridor_f0",
+      "pos": [
+        4,
+        1
+      ],
+      "size": [
+        8,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hall_main",
+      "doors": [
+        {
+          "id": "d_west",
+          "wall": "west",
+          "offsetM": 0.5,
+          "widthM": 2
+        },
+        {
+          "id": "d_n_kitchen",
+          "wall": "north",
+          "offsetM": 0.7,
+          "widthM": 1.6
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "kitchen_f0",
+      "pos": [
+        4,
+        4
+      ],
+      "size": [
+        8,
+        3,
+        4
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 0.7,
+          "widthM": 1.6
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 0,
+          "pref": "nw"
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "corridor_f1",
+      "pos": [
+        4,
+        1
+      ],
+      "size": [
+        8,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 1,
+      "kit": "hall_main_corridor_main_f1",
+      "doors": [
+        {
+          "id": "d_n1",
+          "wall": "north",
+          "offsetM": 0.2,
+          "widthM": 1.6
+        },
+        {
+          "id": "d_n2",
+          "wall": "north",
+          "offsetM": 2.2,
+          "widthM": 1.6
+        },
+        {
+          "id": "d_n3",
+          "wall": "north",
+          "offsetM": 5.2,
+          "widthM": 1.6
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "corridor2_f1",
+      "pos": [
+        4,
+        4
+      ],
+      "size": [
+        2,
+        3,
+        4
+      ],
+      "rotY": 0,
+      "floor": 1,
+      "kit": "hall_main_corridor_link",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 0.2,
+          "widthM": 1.6
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "master_f1",
+      "pos": [
+        6,
+        4
+      ],
+      "size": [
+        2,
+        3,
+        4
+      ],
+      "rotY": 0,
+      "floor": 1,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 0.2,
+          "widthM": 1.6
+        }
+      ],
+      "props": [
+        {
+          "kit": "bed_b",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 0,
+          "pref": "nw"
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "attic_f1",
+      "pos": [
+        8,
+        4
+      ],
+      "size": [
+        4,
+        3,
+        4
+      ],
+      "rotY": 0,
+      "floor": 1,
+      "kit": "morgue",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 1.2,
+          "widthM": 1.6
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 270,
+          "pref": "ne"
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "high-risk"
+    }
+  ],
+  "corridors": [
+    {
+      "from": "entrance",
+      "to": "corridor_f0",
+      "doorA": "entrance/d_east",
+      "doorB": "corridor_f0/d_west",
+      "width": 2
+    },
+    {
+      "from": "corridor_f0",
+      "to": "kitchen_f0",
+      "doorA": "corridor_f0/d_n_kitchen",
+      "doorB": "kitchen_f0/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "corridor_f1",
+      "to": "corridor2_f1",
+      "doorA": "corridor_f1/d_n1",
+      "doorB": "corridor2_f1/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "corridor_f1",
+      "to": "master_f1",
+      "doorA": "corridor_f1/d_n2",
+      "doorB": "master_f1/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "corridor_f1",
+      "to": "attic_f1",
+      "doorA": "corridor_f1/d_n3",
+      "doorB": "attic_f1/d_south",
+      "width": 1.6
+    }
+  ],
+  "events": [
+    {
+      "type": "power_surge",
+      "minute": 5,
+      "durationSec": 12,
+      "params": {
+        "scope": "farmhouse"
+      },
+      "sanityEffect": -4,
+      "counterplay": "总闸跳闸：先确认手电电量，再摸黑回玄关（安全区）等恢复"
+    },
+    {
+      "type": "mirror_flicker",
+      "minute": 11,
+      "durationSec": 8,
+      "params": {
+        "scope": "bedroom"
+      },
+      "sanityEffect": -3,
+      "counterplay": "卧室镜面闪烁：不要盯着看（会加速掉理智），离开房间即止"
+    }
+  ],
+  "extraction": {
+    "standard": "entrance",
+    "deep": "attic_f1"
+  },
+  "shafts": [
+    {
+      "id": "stair_well",
+      "kind": "stair",
+      "minX": 6,
+      "minZ": 2,
+      "maxX": 9,
+      "maxZ": 3,
+      "fromFloor": 0,
+      "toFloor": 1
+    }
+  ]
+}
