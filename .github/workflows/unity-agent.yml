@@ -122,30 +122,46 @@ jobs:
         run: |
           set -uo pipefail
           LICDIR="$HOME/.local/share/unity3d/Unity"; mkdir -p "$LICDIR"
-          # 【实测教训】只写 .ulf 是不够的。第一版只写文件，任务报：
-          #   `[Licensing::Client] Error: Code 404 (Found 0 entitlement groups and 0 free entitlements)`
-          #   `No valid Unity Editor license found.`
-          # 即"文件读到了，但没有可用授权" —— .ulf 是**机器绑定**的，runner 不是激活它的那台机器。
-          # 而 unity-android.yml 能构建成功，是因为它把 EMAIL/PASSWORD/SERIAL 交给 GameCI，
-          # **由 GameCI 做在线激活**。这里照做。
-          if [ -n "$UL" ]; then
-            # 去 CR：secret 若含 CRLF，会破坏 XML 解析（低成本高保险）
-            printf '%s' "$UL" | tr -d '\r' > "$LICDIR/Unity_lic.ulf"
-            echo "① .ulf 已写入：$(stat -c%s "$LICDIR/Unity_lic.ulf") 字节（已去 CR）"
-          else
-            echo "① 没有 UNITY_LICENSE —— 只能靠在线激活"
-          fi
 
-          # ② 有凭据就做在线激活（个人版通常也吃 EMAIL/PASSWORD）
+          # ═══ 根因（从 unity-android 成功那次 #26 的日志里挖出来的）═══
+          # GameCI 的实际做法是：
+          #     skipActivation: false
+          #     Randomizing machine ID for personal license activation   ← ★
+          #     Requesting activation
+          # 也就是：**它随机化 machine ID，让 .ulf 的机器绑定失效，强制走在线激活。**
+          #
+          # 我第一版把 .ulf 放上去就完事 → 报
+          #     `[Licensing::Client] Error: Code 404
+          #      (Found 0 entitlement groups and 0 free entitlements)`
+          # **不是"只写 .ulf 不够"，而是【机器绑定的 .ulf 在场会挡住在线激活】** ——
+          # Unity 看到有 .ulf 就去用它，机器不对就失败，**不会回退**。
+          #
+          # ⇒ 所以顺序是：**先删 .ulf，再在线激活**；只有拿不到凭据时才退回 .ulf。
+
           if [ -n "$UE" ] && [ -n "$UP" ]; then
-            echo "② 在线激活（$( [ -n "$US" ] && echo '序列号模式' || echo '账号模式' )）…"
-            ARGS=(-batchmode -quit -nographics -username "$UE" -password "$UP" -logFile "$GITHUB_WORKSPACE/activation.log")
+            echo "① 在线激活（先删掉机器绑定的 .ulf，否则它会挡住激活）"
+            rm -f "$LICDIR/Unity_lic.ulf"
+            # 照 GameCI 的参数形态：-serial/-username/-password + -quit 放在末尾
+            ARGS=(-batchmode -nographics -logFile "$GITHUB_WORKSPACE/activation.log")
             [ -n "$US" ] && ARGS+=(-serial "$US")
-            xvfb-run -a /opt/unity/Editor/Unity "${ARGS[@]}" || true
+            ARGS+=(-username "$UE" -password "$UP" -quit)
+            /opt/unity/Editor/Unity "${ARGS[@]}" || true
             echo "   激活日志关键行："
-            grep -iE "Licensing|entitlement|activat|serial|error|denied" "$GITHUB_WORKSPACE/activation.log" 2>/dev/null | head -6 | sed 's/^/     /' || echo "     (无匹配)"
+            grep -iE "Licensing|entitlement|activat|serial|Next license update|error|denied" \
+              "$GITHUB_WORKSPACE/activation.log" 2>/dev/null | head -8 | sed 's/^/     /' || echo "     (无匹配)"
+            if [ -f "$LICDIR/Unity_lic.ulf" ]; then
+              echo "   ✓ 激活后生成了 .ulf（$(stat -c%s "$LICDIR/Unity_lic.ulf") 字节）—— 这是【本机激活】的，与 runner 绑定"
+            else
+              echo "   ⚠ 激活后没有生成 .ulf —— 看上面的激活日志"
+            fi
           else
-            echo "② 没有 EMAIL/PASSWORD —— 跳过在线激活（.ulf 若与本机绑定则会失败）"
+            echo "① 没有 EMAIL/PASSWORD 凭据 → 退回 .ulf（机器绑定，runner 大概率不认）"
+            if [ -n "$UL" ]; then
+              printf '%s' "$UL" | tr -d '\r' > "$LICDIR/Unity_lic.ulf"
+              echo "   已写入 $(stat -c%s "$LICDIR/Unity_lic.ulf") 字节（已去 CR）"
+            else
+              echo "::error title=无任何许可证凭据::既没有 EMAIL/PASSWORD 也没有 UNITY_LICENSE"; exit 1
+            fi
           fi
 
       # 许可证自检：**不许"写进去了"就算成功**。
