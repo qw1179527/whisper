@@ -120,11 +120,12 @@ var unity = errors.Where(e => allowed.Contains(e.Id) && !TouchesProjectCode(e)).
 
 Console.WriteLine($"[unity-syntax] 检查 {targets.Count} 个目标文件（附 {refFiles.Count} 个非 Unity 源作为类型上下文）");
 Console.WriteLine($"  Unity 缺失引起的错误（允许）: {unity.Count} 条");
-foreach (var e in unity.Take(6)) Console.WriteLine($"      [允许] {e.Id} {Path.GetFileName(e.Location.SourceTree?.FilePath)}({e.Location.GetLineSpan().StartLinePosition.Line + 1}): {e.GetMessage()}");
+// 全量输出（原先 Take(6)/Take(12) 只给样本，排查桩缺口时必须看全）
+foreach (var e in unity) Console.WriteLine($"      [允许] {e.Id} {Path.GetFileName(e.Location.SourceTree?.FilePath)}({e.Location.GetLineSpan().StartLinePosition.Line + 1}): {e.GetMessage()}");
 if (real.Count > 0)
 {
     Console.WriteLine($"  ✗ 真实错误 {real.Count} 条（与 Unity 缺失无关，必须修）:");
-    foreach (var e in real.Take(12))
+    foreach (var e in real)
         Console.WriteLine($"      {e.Id} {Path.GetFileName(e.Location.SourceTree?.FilePath)}({e.Location.GetLineSpan().StartLinePosition.Line + 1}): {e.GetMessage()}");
     return 1;
 }
