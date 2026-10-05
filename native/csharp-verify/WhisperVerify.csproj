@@ -22,6 +22,14 @@
     <!-- LevelBuilder 引用 UnityEngine（MonoBehaviour/GameObject/Material…），不属于本机跑手范围；
          它由 tools/unity-syntax-check.sh（Roslyn + Unity 桩）与 Unity Test Framework 覆盖。 -->
     <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LevelBuilder.cs" />
+    <!-- LevelBuilder 是 partial：Doors/LightRig 是它的其余分部，同样引用 UnityEngine
+         （Transform/Vector3/Light/GameObject/MonoBehaviour），必须一并排除 —— 否则
+         "排了主文件、漏了分部"会让本工程以 CS0246 全线崩掉（实测踩过）。 -->
+    <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LevelBuilder.Doors.cs" />
+    <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LevelBuilder.LightRig.cs" />
+    <!-- KitMeshLibrary 引用 UnityEngine（Mesh/Application.streamingAssetsPath）→ 同上由
+         tools/unity-syntax-check.sh 覆盖；它的纯逻辑部分由 KitVerifier 断言（本工程内）。 -->
+    <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/KitMeshLibrary.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Config/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Voice/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Hearing/*.cs" />
@@ -34,6 +42,10 @@
     <!-- HudBuilder 引用 UnityEngine（Canvas/Text/RectTransform）→ 由 tools/unity-syntax-check.sh 覆盖 -->
     <Compile Remove="../../unity/Assets/Scripts/Gameplay/Hud/HudBuilder.cs" />
     <Compile Include="../../unity/Assets/Scripts/Gameplay/Session/*.cs" />
+    <!-- Objectives：GameSession.cs 引用 Gameplay.Objectives 命名空间。
+         缺这条 include 时症状是 CS0246 'Objectives' could not be found 出现在
+         GameSession.cs 里 —— 看起来像 GameSession 的问题，实际是 csproj 漏了目录。 -->
+    <Compile Include="../../unity/Assets/Scripts/Gameplay/Objectives/*.cs" />
     <!-- 三个模块的本机桩实现（零第三方依赖 → 可在本机真编译真跑；真 SDK 实现将来放同目录） -->
     <Compile Include="../../unity/Assets/Scripts/Net/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Audio/*.cs" />

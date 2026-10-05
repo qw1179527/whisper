@@ -831,9 +831,29 @@ static class Program
             if (bad > 0) Console.WriteLine($"      [内墙] {string.Join(" · ", detail.GetRange(0, Math.Min(3, detail.Count)))}");
             return bad == 0;
         });
-        Check("门真的打通了两侧空间：从入口洪水填充可达全部 11 个房间", () =>
+        Check("门关着时确实封路：从入口可达范围【小于】全部可走格", () =>
+        {
+            // 为什么要新加这条：2026-10-05 引入门系统后，`PassableCell` 多了一层
+            // 「动态阻挡」——门**结构上是洞**（凿墙时留下的），但**出厂是关的**
+            // （`LevelGeometry.Doors.cs` 的 `SyncClosedDoorCells` 注释原文：「门出厂是关的」）。
+            // 于是"从入口洪水填充"在门全关时**必然到不了别的房间**。
+            // 原来的断言只测"开着"这一态，把"关着"当成了失败 —— 这里把两态都测上。
+            var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float ex, out float ez);
+            int closed = geo.ReachableCount(ex, ez);
+            int total = geo.PassableCount();
+            Console.WriteLine($"      [门关着] 从入口可达 {closed} / 可走 {total} · 门 {geo.DoorOpeningCount} 扇");
+            // 关着时必须【进不去别的房间】：可达 > 0（自己房间能走）且 < 全部（跨不出去）
+            return closed > 0 && closed < total;
+        });
+        Check("门打开后真正打通两侧空间：从入口洪水填充可达全部 11 个房间", () =>
         {
             var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+            int opened = 0;
+            for (int i = 0; i < geo.Doors.Count; i++)
+                if (geo.SetDoorOpen(geo.Doors[i].Key, true)) opened++;
+            if (opened != geo.DoorOpeningCount)
+            { Console.WriteLine($"      [开门] 只开了 {opened} / {geo.DoorOpeningCount} 扇"); return false; }
             // 起点/终点都要用"最近的空可走格"——房间中心常被家具占用（ward_03 中心就是病床）
             foreach (var r in level.Rooms)
             {
@@ -843,7 +863,7 @@ static class Program
             }
             geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float ex, out float ez);
             int fromEntrance = geo.ReachableCount(ex, ez);
-            Console.WriteLine($"      [连通] 从入口可达 {fromEntrance} / 可走 {geo.PassableCount()}");
+            Console.WriteLine($"      [全开] 从入口可达 {fromEntrance} / 可走 {geo.PassableCount()}（开门 {opened} 扇）");
             return fromEntrance == geo.PassableCount();
         });
         Check("子步进防穿墙：一次 5 米位移不能穿过整面墙", () =>
@@ -874,14 +894,19 @@ static class Program
             var into = geo.Resolve(bx - 1.5f, bz, 1.5f, 0f, 0.34f);   // 朝床推
             return into.Blocked;                                       // 必须被挡（此前是 1×1 盒，朝向不对）
         });
-        Check("门口可通过：从走廊经门洞走进病房（几何连通性实证）", () =>
+        Check("门口可通过：开门后从走廊经门洞走进病房（几何连通性实证）", () =>
         {
             var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
             var ward = level.Rooms.Find(x => x.Id == "ward_02");
             var door = ward.FindDoor("d_south");
             door.ToWorld(ward, out float dx, out float dz);
-            // 门洞中心应可走（门格被真正打通），且门内侧、外侧都可走
-            return geo.Passable(dx, dz) && geo.Passable(dx, dz + 0.5f) && geo.Passable(dx, dz - 0.5f);
+            // 新语义（门出厂是关的）：门格**关着时必须挡住、开门后才可走** —— 两态都验，
+            // 只验"开着能走"会漏掉"关着也能走过去"这种真 bug（门形同虚设）。
+            bool closedBlocks = !geo.Passable(dx, dz);
+            bool opened = geo.SetDoorOpen(Whisper.Gameplay.Level.LevelGeometry.DoorKey("ward_02", "d_south"), true);
+            bool openPasses = geo.Passable(dx, dz) && geo.Passable(dx, dz + 0.5f) && geo.Passable(dx, dz - 0.5f);
+            Console.WriteLine($"      [门] 关着挡住={(closedBlocks ? "是" : "否 ✗")} · 开门调用={(opened ? "成功" : "失败 ✗")} · 开着通畅={(openPasses ? "是" : "否 ✗")}");
+            return closedBlocks && opened && openPasses;
         });
 
         Console.WriteLine("\n[3.8] 理智系统（V9 附录 A-2 / §7）");
@@ -1208,11 +1233,24 @@ static class Program
         Console.WriteLine("\n[8] 玩家移动（V9 §7：速度配置化 · 碰撞不得穿墙 · 脚步刺激由形态决定）");
         // 为什么要有这一段：没有移动就不是游戏。而移动的两个正确性核心
         // （子步进防穿墙、速度必须来自配置）都能在没有 Unity 的机器上验到。
-        Check("三条速度来自配置真源（3.5 / 5.6 / 1.6）", () =>
+        Check("三条速度来自配置真源（与 config.player.* 逐项相等，不写死）", () =>
         {
+            // 【2026-10-05 修正】原断言写死 `== 1.6f/3.5f/5.6f`（V9 原值）——
+            // 那让**测试变成第二数值真源**，与 `TRUE-SOURCE.md` 的硬约定
+            // 「data/config.json 是数值唯一真源，代码不得硬编码」直接冲突：
+            // 配置一改（本次改成 2.1/3.4/1.0），测的就是"V9 的旧值"而不是"代码有没有读配置"。
+            // 现在改成**从配置读出期望值再逐项比**，测的才是断言名字说的那件事。
             var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader());
-            Console.WriteLine($"      [速度] 蹲 {m.CrouchSpeedMps} · 走 {m.WalkSpeedMps} · 跑 {m.RunSpeedMps} m/s");
-            return m.CrouchSpeedMps == 1.6f && m.WalkSpeedMps == 3.5f && m.RunSpeedMps == 5.6f;
+            var c = cfgReader();
+            float cw = c.Float("player.walkSpeedMps", 0f);
+            float cr = c.Float("player.runSpeedMps", 0f);
+            float cc = c.Float("player.crouchSpeedMps", 0f);
+            Console.WriteLine($"      [速度] 配置 蹲{cc:0.##} · 走{cw:0.##} · 跑{cr:0.##} || 实例 蹲{m.CrouchSpeedMps} · 走{m.WalkSpeedMps} · 跑{m.RunSpeedMps} m/s");
+            bool same = m.CrouchSpeedMps == cc && m.WalkSpeedMps == cw && m.RunSpeedMps == cr;
+            bool sane = m.RunSpeedMps > m.WalkSpeedMps && m.WalkSpeedMps > m.CrouchSpeedMps;
+            if (!same) Console.WriteLine($"      [速度] 与配置不等 → 代码里可能藏了一份硬编码");
+            if (!sane) Console.WriteLine($"      [速度] 不自洽（应 跑 > 走 > 蹲）");
+            return same && sane;
         });
         Check("缺配置时构造必须报错（不许代码里藏一份数值真源）", () =>
         {
@@ -1355,15 +1393,27 @@ static class Program
         {
             var geo = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
             if (!geo.TryFindFreeCell(level.Rooms[0].CenterX, level.Rooms[0].CenterZ, out float sx, out float sz)) return false;
+            // 【2026-10-05 修正】原断言把期望位移**写死成 `0.175f`**（= V9 的走速 3.5 × 0.05s）。
+            // 配置一改（现走速 2.1）它就在**第一个朝向就失败并 return**，
+            // 于是这条"视角无关"的断言**根本没测到视角**——测的是"配置有没有等于 V9 的旧值"。
+            // 现在改成**从配置真源算期望值**（走速 × dt），它才真的在测"各朝向位移是否一致"。
+            var probe = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
+            float expect = probe.WalkSpeedMps * 0.05f;
+            var seen = new System.Collections.Generic.List<string>();
             float moved = 0f;
             foreach (var yaw in new[] { 0f, 45f, 90f, 180f, 270f })
             {
                 var m = new Whisper.Gameplay.Session.PlayerMotion(cfgReader(), sx, sz);
                 m.Look(yaw, 0f);
                 moved = m.Step(0f, 1f, Whisper.Gameplay.Session.MoveMode.Walk, 0.05f, geo).MovedM;
-                if (Math.Abs(moved - 0.175f) > 0.01f) { Console.WriteLine($"      [位移] 朝向 {yaw}° 时位移 {moved:0.0000}"); return false; }
+                seen.Add($"{yaw}°:{moved:0.0000}");
+                if (Math.Abs(moved - expect) > 1e-3f)
+                {
+                    Console.WriteLine($"      [位移] 朝向 {yaw}° 位移 {moved:0.0000} ≠ 期望 {expect:0.0000}（走速 {probe.WalkSpeedMps} × 0.05s）");
+                    return false;
+                }
             }
-            Console.WriteLine($"      [位移] 各朝向位移一致（示例 {moved:0.0000} m = 走速 3.5 × 0.05s）");
+            Console.WriteLine($"      [位移] 各朝向一致 {string.Join(" · ", seen)}（期望 {expect:0.0000} = 走速 {probe.WalkSpeedMps} × 0.05s）");
             return true;
         });
         Check("玩家碰撞半径与 EvidencePlacer 的代理半径一致（两套口径会出鬼）", () =>
@@ -1541,6 +1591,21 @@ static class Program
         public void Connect(string roomCode, string authToken) { }
         public void Disconnect() { }
         public void SendVoiceStimulus(in Whisper.Core.Contracts.StimulusEvent stimulus) { }
+        /// <summary>
+        /// 本地玩家位姿上行口（契约 <c>INetService.SendLocalPlayer</c>）。
+        ///
+        /// 【同类问题的第三次复发，2026-10-05】契约新增本成员后，实现方一共三处需要跟上：
+        /// `LocalNetService`（已实现）· `UdpV6NetService`（已实现）·
+        /// Unity 侧测试桩 `CoreContractTests.cs:64`（已补，且那里留了"第二次复发"的注记）——
+        /// **唯独本文件的 FakeNet 漏了**，导致 `gate-test` 以 CS0535 全线崩、
+        /// 156 条断言**完全跑不起来**。
+        ///
+        /// 为什么容易漏：本工程把真实源文件链接进来编译，**它本身也是 INetService 的实现方**，
+        /// 但它在 `native/` 下、不在 `unity/Assets/Tests/` 里，改契约时想不到它。
+        /// 这边记成"第三次"，是为了下次改 `INetService` 时**先全文搜实现方**：
+        /// <c>rg "INetService" --glob '*.cs'</c>。
+        /// </summary>
+        public void SendLocalPlayer(in Whisper.Core.Contracts.PlayerSnapshot local) { }
         public event Action<string> OnRoomClosed { add { } remove { } }
         public event Action<bool> OnHostMigration { add { } remove { } }
         // §13.4 状态面（接口新增成员 → 编译器强制所有实现方跟上）
