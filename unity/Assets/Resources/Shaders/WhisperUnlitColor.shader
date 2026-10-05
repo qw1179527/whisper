@@ -114,10 +114,18 @@ Shader "Whisper/UnlitColor"
             fixed4 frag(v2f i) : SV_Target
             {
                 float3 n = normalize(i.worldN);
-                float3 l = normalize(_WorldSpaceLightPos0.xyz);
+
+                // ⚠ 【实测踩到的坑，别再犯】主光被关掉时 `_WorldSpaceLightPos0` 会是 `(0,0,0)`，
+                //   而 `normalize((0,0,0))` = **NaN** → 片元输出 NaN → **整张图全黑**，
+                //   并且 ForwardAdd 加到 NaN 上仍是 NaN（手电也跟着消失）。
+                //   取证实测：lightOff 亮度 0.0 · 颜色数 1，18 项判红就是这个。
+                //   所以必须**先判零向量再归一化**。
+                float3 lp = _WorldSpaceLightPos0.xyz;
+                float3 l = (dot(lp, lp) > 1e-6) ? normalize(lp) : float3(0.0, 1.0, 0.0);
 
                 // 半兰伯特：纯兰伯特在盒体背光面会全黑，半兰伯特保留体积感，
                 // 也避免"关灯后什么都看不见"造成的取证歧义。
+                // 主光关掉时 `_LightColor0` 为 0 → 只剩环境项，正是"关灯"应有的观感。
                 float ndl = dot(n, l) * 0.5 + 0.5;
                 float3 lit = _LightColor0.rgb * ndl;
 
@@ -226,7 +234,9 @@ Shader "Whisper/UnlitColor"
                 }
                 else
                 {
-                    ldir = normalize(_WorldSpaceLightPos0.xyz);
+                    // 同样先判零向量（见 Pass 1 的说明）—— 否则附加光也会把该像素变 NaN
+                    float3 lp = _WorldSpaceLightPos0.xyz;
+                    ldir = (dot(lp, lp) > 1e-6) ? normalize(lp) : float3(0.0, 0.0, 0.0);
                 }
 
                 float ndl = saturate(dot(n, ldir));
