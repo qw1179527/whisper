@@ -208,37 +208,7 @@ namespace Whisper.Gameplay.Level
 
             var m = new Model { Name = "glb" };
 
-            // ── 材质解析（glTF `materials[]`）────────────────────────────────
-            // 为什么在这里做：装配端要按 `primitive.material` 索引取参数；
-            // 不读出来，程序化几何之外的模型就永远是"一整块纯色"（本项目既有 11 个套件正是如此）。
-            var mats = ListOf(MiniJson.GetOrNull(root, "materials"));
-            if (mats != null)
-            {
-                foreach (var matObj in mats)
-                {
-                    var mm = MapOf(matObj);
-                    var km = KitMaterial.Default;
-                    if (mm != null)
-                    {
-                        km.Name = MiniJson.GetOrNull(mm, "name") as string;
-                        var pbr = MapOf(MiniJson.GetOrNull(mm, "pbrMetallicRoughness"));
-                        if (pbr != null)
-                        {
-                            var bc = ListOf(MiniJson.GetOrNull(pbr, "baseColorFactor"));
-                            if (bc != null && bc.Count >= 3)
-                            {
-                                km.R = FloatOf(bc[0]); km.G = FloatOf(bc[1]); km.B = FloatOf(bc[2]);
-                                km.A = bc.Count >= 4 ? FloatOf(bc[3]) : 1f;
-                            }
-                            var mf = MiniJson.GetOrNull(pbr, "metallicFactor");
-                            if (mf != null) km.Metallic = FloatOf(mf);
-                            var rf = MiniJson.GetOrNull(pbr, "roughnessFactor");
-                            if (rf != null) km.Roughness = FloatOf(rf);
-                        }
-                    }
-                    m.Materials.Add(km);
-                }
-            }
+            ParseMaterials(root, m);
             // mesh 下标 → 该 mesh 首个使用它的节点（含世界变换）。
             // 为什么必须走这层：套件的每个部件在 glTF 里是"顶点在原点、位置靠 node.translation"，
             // 只读顶点会把 4 根柱子/门框全塌到原点 —— 读得出来不等于建得对。
@@ -317,6 +287,48 @@ namespace Whisper.Gameplay.Level
         /// 建立 mesh 下标 → 首个引用它的节点世界变换（深度优先遍历场景图，逐层左乘父变换）。
         /// 套件的每个部件都由独立节点带 translation 摆放，不读这一层就会全部塌在原点。
         /// </summary>
+        /// <summary>
+        /// 解析 glTF 的 <c>materials[]</c> 并填入 <paramref name="m"/>.Materials。
+        ///
+        /// 为什么单独成方法（2026-10-06）：原先是 TryRead 内联的一大段，而 TryRead 长到 145 行
+        /// （gate-code C5 上限 120）。材质解析与读块/校验/拼几何本就是三件事 ——
+        /// 单独抽出来既让 TryRead 回到可评审的长度，也让材质规则只有一处可改。
+        /// </summary>
+        static void ParseMaterials(object root, Model m)
+        {
+            // ── 材质解析（glTF `materials[]`）────────────────────────────────
+            // 为什么在这里做：装配端要按 `primitive.material` 索引取参数；
+            // 不读出来，程序化几何之外的模型就永远是"一整块纯色"（本项目既有 11 个套件正是如此）。
+            var mats = ListOf(MiniJson.GetOrNull(root, "materials"));
+            if (mats != null)
+            {
+                foreach (var matObj in mats)
+                {
+                    var mm = MapOf(matObj);
+                    var km = KitMaterial.Default;
+                    if (mm != null)
+                    {
+                        km.Name = MiniJson.GetOrNull(mm, "name") as string;
+                        var pbr = MapOf(MiniJson.GetOrNull(mm, "pbrMetallicRoughness"));
+                        if (pbr != null)
+                        {
+                            var bc = ListOf(MiniJson.GetOrNull(pbr, "baseColorFactor"));
+                            if (bc != null && bc.Count >= 3)
+                            {
+                                km.R = FloatOf(bc[0]); km.G = FloatOf(bc[1]); km.B = FloatOf(bc[2]);
+                                km.A = bc.Count >= 4 ? FloatOf(bc[3]) : 1f;
+                            }
+                            var mf = MiniJson.GetOrNull(pbr, "metallicFactor");
+                            if (mf != null) km.Metallic = FloatOf(mf);
+                            var rf = MiniJson.GetOrNull(pbr, "roughnessFactor");
+                            if (rf != null) km.Roughness = FloatOf(rf);
+                        }
+                    }
+                    m.Materials.Add(km);
+                }
+            }
+        }
+
         static void BuildNodeWorlds(List<object> nodes, Dictionary<int, Mat4> outWorld)
         {
             if (nodes == null) return;
