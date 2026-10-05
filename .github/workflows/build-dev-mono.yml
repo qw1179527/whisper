@@ -1,0 +1,112 @@
+# 手机端快速迭代用的 **Mono 开发包**（与出货的 IL2CPP 包并存，互不影响）
+#
+# ## 为什么要它
+# 1. **省 14.7 分钟**：IL2CPP 那一段（C++ 转换 + 编译）实测占构建的 14.7/21.4 分
+#    （从 #24 日志时间戳解析），Mono 后端没有这一段。
+# 2. **手机端"换 DLL 热插拔"要的正是 Mono 形态** —— Mono 下游戏代码是
+#    `assets/bin/Data/Managed/*.dll` **明文文件**，可以直接替换 + 重签 + 装机（约 1~2 分钟）；
+#    IL2CPP 下它被编进 `libil2cpp.so`，改不了。
+#
+# ## 代价（必须知道）
+# Unity 6 在 Android 上 **Mono 只有 Armv7（32 位）**（官方文档原文）。
+# 所以开发包是 32 位、**性能与出货包不等价** → **只能用于逻辑/玩法迭代，不能用于性能验收**。
+# 本机设备已实测支持 32 位（`/system/bin/linker`、`app_process32`、`/system/lib` 554 个库）。
+#
+# ## 怎么切
+# `BuildConfigurator` 按环境变量 `WHISPER_DEV_MONO=1` 切后端与架构，产物名也分开
+# （`whisper-dev-mono.apk` vs `whisper-android.apk`）→ **两个包能同时存在，不会互相覆盖**。
+# 因此本工作流对出货链路**零影响**：默认值不变，出货包仍走 unity-android.yml 的 IL2CPP。
+name: build-dev-mono
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-dev-mono.yml'
+      - 'unity/Assets/Editor/BuildConfigurator.cs'
+      - 'unity/Assets/Editor/BuildScript.cs'
+
+jobs:
+  build:
+    name: 构建 Mono 开发包（快速迭代用）
+    runs-on: ubuntu-latest
+    steps:
+      - name: 释放 runner 磁盘空间
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # ⚠ 这五个参数**全是承重的**，别再"优化"掉：
+          # 我试过把 tool-cache/haskell/large-packages 改 false，结果 #25 构建
+          # `docker: failed to register layer: … no space left on device`。
+          # 清盘那步确实从 3.2 分降到 1.8 分，但构建挂了 —— 得不偿失。
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: false
+
+      - name: 检查 Unity 许可证 Secrets
+        env:
+          UL: ${{ secrets.UNITY_LICENSE }}
+          US: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          if [ -z "$UL" ] && [ -z "$US" ]; then
+            echo "::error title=缺 Unity 许可证::未配置 UNITY_LICENSE / UNITY_SERIAL"; exit 1
+          fi
+          echo "✓ 已检测到许可证凭据"
+
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: 缓存 Library（与出货包共用同一前缀 → 能互相预热）
+        uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-Android-v2-${{ hashFiles('unity/Assets/**', 'unity/ProjectSettings/**') }}
+          restore-keys: Library-Android-v2-
+
+      - name: 构建（GameCI · Mono 后端）
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          # ↓ 关键：BuildConfigurator 见到它就切 Mono2x + ARMv7
+          WHISPER_DEV_MONO: '1'
+        with:
+          projectPath: unity
+          targetPlatform: Android
+          androidExportType: androidPackage
+          buildMethod: Whisper.Editor.BuildScript.BuildAndroid
+          allowDirtyBuild: true
+
+      - name: 校验产物形态（**必须真的是 Mono**，否则这个包没有存在意义）
+        run: |
+          set -e
+          f=$(ls unity/build/Android/whisper-dev-mono.apk 2>/dev/null || true)
+          if [ -z "$f" ]; then
+            echo "::error::没出 whisper-dev-mono.apk —— 检查 WHISPER_DEV_MONO 是否传到构建设置里"
+            ls -la unity/build/Android/ || true
+            exit 1
+          fi
+          echo "产物：$f · $(stat -c%s "$f") 字节"
+          # Mono 形态的硬判据：APK 里必须有 assets/bin/Data/Managed/*.dll（IL2CPP 没有这一层）
+          if unzip -l "$f" | grep -q "assets/bin/Data/Managed/.*\.dll"; then
+            echo "✓ 确认是 Mono 形态（含 assets/bin/Data/Managed/*.dll）"
+            unzip -l "$f" | grep "assets/bin/Data/Managed/" | head -10
+          else
+            echo "::error::产物里没有 Managed/*.dll —— 说明后端没切成 Mono（还是 IL2CPP）"
+            exit 1
+          fi
+
+      - name: 上传开发包
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-dev-mono
+          path: unity/build/Android/whisper-dev-mono.apk
+          if-no-files-found: error
+          retention-days: 14

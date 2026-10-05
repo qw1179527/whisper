@@ -52,9 +52,23 @@ namespace Whisper.Editor
             PlayerSettings.bundleVersion = ResolveBundleVersion();
             SetVersionCode(ResolveVersionCode(problems));
 
-            // ② 脚本后端与架构（V9 §13.8：IL2CPP + ARM64）
-            PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
-            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            // ② 脚本后端与架构
+            //    **出货形态 = IL2CPP + ARM64**（V9 §13.8）——这是默认，行为一字不变。
+            //    **开发形态 = Mono + ARMv7**（环境变量 `WHISPER_DEV_MONO=1` 切换）：
+            //      · 为什么值得有：IL2CPP 那一段（C++ 转换 + 编译）实测占 CI 构建的 **14.7/21.4 分**
+            //        （从 #24 日志时间戳解析），Mono 没有这一段；
+            //      · 更要紧的是**手机端"换 DLL 热插拔"快速迭代**要的正是 Mono 形态
+            //        —— Mono 下游戏代码是 `assets/bin/Data/Managed/*.dll` 明文文件，可直接替换重签；
+            //        IL2CPP 下它被编进 `libil2cpp.so`，改不了。
+            //      · 代价：Mono 在 Android 上**只有 Armv7（32 位）**（Unity 6 文档原文），
+            //        所以开发包是 32 位、性能与出货包不等价 → **只能用于逻辑/玩法迭代**。
+            //      · 本机设备已实测支持 32 位（`/system/bin/linker`、`app_process32`、`/system/lib` 554 个库）。
+            //    切换用环境变量而**不是**改代码默认值：出货包的风险必须为零。
+            bool devMono = System.Environment.GetEnvironmentVariable("WHISPER_DEV_MONO") == "1";
+            PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android,
+                devMono ? ScriptingImplementation.Mono2x : ScriptingImplementation.IL2CPP);
+            PlayerSettings.Android.targetArchitectures =
+                devMono ? AndroidArchitecture.ARMv7 : AndroidArchitecture.ARM64;
             // 托管代码剥离：Medium 是 V9 §13.8 的取值；接口实现由 link.xml 保护
             PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android, ManagedStrippingLevel.Medium);
 

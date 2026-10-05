@@ -30,7 +30,11 @@ namespace Whisper.Editor
 
             var outDir = Path.Combine(Directory.GetCurrentDirectory(), "build", "Android");
             Directory.CreateDirectory(outDir);
-            var apk = Path.Combine(outDir, "whisper-android.apk");
+            // 产物名区分出货与开发两种形态（后端由 BuildConfigurator 按 WHISPER_DEV_MONO 决定）：
+            // 分开命名是为了**两个包能同时存在** —— 出货包用于真机验收/性能，开发包用于快速迭代；
+            // 若同名，后构建的会把前一个覆盖掉，验收时就分不清手上是哪个形态了。
+            bool devMono = System.Environment.GetEnvironmentVariable("WHISPER_DEV_MONO") == "1";
+            var apk = Path.Combine(outDir, devMono ? "whisper-dev-mono.apk" : "whisper-android.apk");
 
             // 场景列表：Boot 是唯一场景，其余内容由代码装配（No-Editor 纪律）。
             // 场景文件不存在时**明确报错**而不是让构建悄悄产出一个空包。

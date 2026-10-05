@@ -140,6 +140,45 @@ jobs:
           echo "=== Assets 下 .meta 数量（应为 assets+folders 总数）==="
           find unity/Assets -name "*.meta" | wc -l
 
+      # 抓 Bee 给 il2cpp 写的**响应文件**（手机端自出包路径 A 的关键拼图）。
+      # 为什么需要：`il2cpp-compile` 在构建日志里 **0 次命中** —— Unity 不直接调它，
+      # 而是由 `bee_backend --dagfile=...` 读 DAG、按其中的动作调它，**参数走 .rsp 响应文件**。
+      # 要在手机上驱动它就必须知道那份 rsp 的格式，而它在 `Library/Bee/` 里、不进仓库也不进产物。
+      # 这一步几乎零成本（就是 cp 几个小文件），但能把"猜格式"变成"看格式"。
+      - name: 抓 il2cpp 的 Bee 响应文件与 DAG（路径 A 用）
+        if: always()
+        run: |
+          mkdir -p il2cpp-probe
+          echo "=== 1. Bee 下的响应文件清单 ===" | tee il2cpp-probe/summary.txt
+          find unity/Library/Bee -name "*.rsp" -o -name "*.rsp2" 2>/dev/null | head -300 | tee -a il2cpp-probe/summary.txt
+          echo | tee -a il2cpp-probe/summary.txt
+          echo "=== 2. 内容里提到 il2cpp 的响应文件（真正要的那份）===" | tee -a il2cpp-probe/summary.txt
+          grep -rl -i "il2cpp" unity/Library/Bee/artifacts --include="*.rsp" --include="*.rsp2" 2>/dev/null | head -30 | tee il2cpp-probe/il2cpp-rsp-paths.txt | tee -a il2cpp-probe/summary.txt
+          while IFS= read -r f; do
+            [ -f "$f" ] && cp "$f" "il2cpp-probe/$(echo "$f" | tr '/' '_')" 2>/dev/null
+          done < il2cpp-probe/il2cpp-rsp-paths.txt
+          echo | tee -a il2cpp-probe/summary.txt
+          echo "=== 3. il2cpp 的 DAG（命令行在里面）===" | tee -a il2cpp-probe/summary.txt
+          grep -rl -i "il2cpp" unity/Library/Bee --include="*.dag" --include="*.dag.json" 2>/dev/null | head -5 | tee -a il2cpp-probe/summary.txt
+          for f in $(grep -rl -i "il2cpp" unity/Library/Bee --include="*.dag" --include="*.dag.json" 2>/dev/null | head -3); do
+            [ -f "$f" ] && head -c 3000000 "$f" > "il2cpp-probe/$(basename "$f")" 2>/dev/null
+          done
+          echo | tee -a il2cpp-probe/summary.txt
+          echo "=== 4. il2cpp 构建缓存目录 ===" | tee -a il2cpp-probe/summary.txt
+          ls -la unity/Library/Il2cppBuildCache 2>/dev/null | head -20 | tee -a il2cpp-probe/summary.txt || echo "(无)" | tee -a il2cpp-probe/summary.txt
+          echo | tee -a il2cpp-probe/summary.txt
+          echo "=== 体积 ===" | tee -a il2cpp-probe/summary.txt
+          du -sh il2cpp-probe | tee -a il2cpp-probe/summary.txt
+
+      - name: 上传 il2cpp 探针（路径 A 用）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: il2cpp-probe
+          path: il2cpp-probe/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: 上传 APK 工件
         uses: actions/upload-artifact@v4
         with:
