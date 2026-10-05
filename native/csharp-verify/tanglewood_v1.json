@@ -1,0 +1,298 @@
+{
+  "levelId": "tanglewood_v1",
+  "_note": "坦格尔伍德街 6 号（单层小图）：玄关 → 客厅走廊 → 厨房/卫生间/卧室 + 车库。设计依据：官方最小图为单层住宅（房间数远少于疗养院）；本布局是 design，非官方几何还原。",
+  "_layout": "坐标单位米，XZ 平面；房间 pos=[最小角点x,最小角点z] + size=[宽,高,深]；走廊以 doorA/doorB 引用具体门，两端门必须贴同一条共享墙且开口对齐——由 tools/validate-levels.mjs 强制校验。**本文件由 tools/gen-map.mjs 从 tools/lib/map-layouts.mjs 生成，手改会被覆盖。**",
+  "_zones": {
+    "entrance": [
+      "entrance"
+    ],
+    "pressure": [
+      "hall_main",
+      "kitchen",
+      "bath",
+      "bedroom"
+    ],
+    "deep": [
+      "garage"
+    ]
+  },
+  "rooms": [
+    {
+      "id": "entrance",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        4,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hall_main_entrance_safe",
+      "doors": [
+        {
+          "id": "d_east",
+          "wall": "east",
+          "offsetM": 0.5,
+          "widthM": 2
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 180,
+          "pref": "nw"
+        }
+      ],
+      "evidencePoint": false,
+      "lightZone": "safe"
+    },
+    {
+      "id": "hall_main",
+      "pos": [
+        4,
+        0
+      ],
+      "size": [
+        7,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hall_main",
+      "doors": [
+        {
+          "id": "d_west",
+          "wall": "west",
+          "offsetM": 0.5,
+          "widthM": 2
+        },
+        {
+          "id": "d_n_kitchen",
+          "wall": "north",
+          "offsetM": 0.7,
+          "widthM": 1.6
+        },
+        {
+          "id": "d_east",
+          "wall": "east",
+          "offsetM": 0.5,
+          "widthM": 2
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "kitchen",
+      "pos": [
+        4,
+        3
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 0.7,
+          "widthM": 1.6
+        },
+        {
+          "id": "d_east",
+          "wall": "east",
+          "offsetM": 0.9,
+          "widthM": 1.2
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 0,
+          "pref": "nw"
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "bath",
+      "pos": [
+        7,
+        3
+      ],
+      "size": [
+        3,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_west",
+          "wall": "west",
+          "offsetM": 0.9,
+          "widthM": 1.2
+        },
+        {
+          "id": "d_north",
+          "wall": "north",
+          "offsetM": 0.7,
+          "widthM": 1.6
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "bedroom",
+      "pos": [
+        7,
+        6
+      ],
+      "size": [
+        3,
+        3,
+        4
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 0.7,
+          "widthM": 1.6
+        }
+      ],
+      "props": [
+        {
+          "kit": "bed_b",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "rot": 0,
+          "pref": "nw"
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "garage",
+      "pos": [
+        11,
+        0
+      ],
+      "size": [
+        4,
+        3.2,
+        4
+      ],
+      "rotY": 0,
+      "floor": 0,
+      "kit": "morgue",
+      "doors": [
+        {
+          "id": "d_west",
+          "wall": "west",
+          "offsetM": 0.5,
+          "widthM": 2
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "high-risk"
+    }
+  ],
+  "corridors": [
+    {
+      "from": "entrance",
+      "to": "hall_main",
+      "doorA": "entrance/d_east",
+      "doorB": "hall_main/d_west",
+      "width": 2
+    },
+    {
+      "from": "hall_main",
+      "to": "kitchen",
+      "doorA": "hall_main/d_n_kitchen",
+      "doorB": "kitchen/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "kitchen",
+      "to": "bath",
+      "doorA": "kitchen/d_east",
+      "doorB": "bath/d_west",
+      "width": 1.2
+    },
+    {
+      "from": "bath",
+      "to": "bedroom",
+      "doorA": "bath/d_north",
+      "doorB": "bedroom/d_south",
+      "width": 1.6
+    },
+    {
+      "from": "hall_main",
+      "to": "garage",
+      "doorA": "hall_main/d_east",
+      "doorB": "garage/d_west",
+      "width": 2
+    }
+  ],
+  "events": [
+    {
+      "type": "blackout",
+      "minute": 6,
+      "durationSec": 10,
+      "params": {
+        "scope": "house"
+      },
+      "sanityEffect": -3,
+      "counterplay": "手电筒照地面确认出口；黑暗持续掉理智，回玄关（安全区）可恢复"
+    },
+    {
+      "type": "door_lock_shift",
+      "minute": 12,
+      "durationSec": 8,
+      "params": {
+        "scope": "bedroom"
+      },
+      "sanityEffect": -2,
+      "counterplay": "卧室门短暂锁死：先做别的房间取证，或从卫生间绕行"
+    }
+  ],
+  "extraction": {
+    "standard": "entrance",
+    "deep": "garage"
+  },
+  "shafts": []
+}
