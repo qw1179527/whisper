@@ -113,17 +113,64 @@ jobs:
           done
           echo "::error::Android 模块装不上 —— 出包任务无法继续"
 
-      - name: 装 Unity 许可证
+      - name: 装并激活 Unity 许可证
         env:
           UL: ${{ secrets.UNITY_LICENSE }}
+          UE: ${{ secrets.UNITY_EMAIL }}
+          UP: ${{ secrets.UNITY_PASSWORD }}
+          US: ${{ secrets.UNITY_SERIAL }}
         run: |
-          set -e
+          set -uo pipefail
           LICDIR="$HOME/.local/share/unity3d/Unity"; mkdir -p "$LICDIR"
+          # 【实测教训】只写 .ulf 是不够的。第一版只写文件，任务报：
+          #   `[Licensing::Client] Error: Code 404 (Found 0 entitlement groups and 0 free entitlements)`
+          #   `No valid Unity Editor license found.`
+          # 即"文件读到了，但没有可用授权" —— .ulf 是**机器绑定**的，runner 不是激活它的那台机器。
+          # 而 unity-android.yml 能构建成功，是因为它把 EMAIL/PASSWORD/SERIAL 交给 GameCI，
+          # **由 GameCI 做在线激活**。这里照做。
           if [ -n "$UL" ]; then
-            printf '%s' "$UL" > "$LICDIR/Unity_lic.ulf"
-            echo "✓ 许可证已写入（$(stat -c%s "$LICDIR/Unity_lic.ulf") 字节）"
+            # 去 CR：secret 若含 CRLF，会破坏 XML 解析（低成本高保险）
+            printf '%s' "$UL" | tr -d '\r' > "$LICDIR/Unity_lic.ulf"
+            echo "① .ulf 已写入：$(stat -c%s "$LICDIR/Unity_lic.ulf") 字节（已去 CR）"
           else
-            echo "::error title=缺许可证::没有 UNITY_LICENSE secret"; exit 1
+            echo "① 没有 UNITY_LICENSE —— 只能靠在线激活"
+          fi
+
+          # ② 有凭据就做在线激活（个人版通常也吃 EMAIL/PASSWORD）
+          if [ -n "$UE" ] && [ -n "$UP" ]; then
+            echo "② 在线激活（$( [ -n "$US" ] && echo '序列号模式' || echo '账号模式' )）…"
+            ARGS=(-batchmode -quit -nographics -username "$UE" -password "$UP" -logFile "$GITHUB_WORKSPACE/activation.log")
+            [ -n "$US" ] && ARGS+=(-serial "$US")
+            xvfb-run -a /opt/unity/Editor/Unity "${ARGS[@]}" || true
+            echo "   激活日志关键行："
+            grep -iE "Licensing|entitlement|activat|serial|error|denied" "$GITHUB_WORKSPACE/activation.log" 2>/dev/null | head -6 | sed 's/^/     /' || echo "     (无匹配)"
+          else
+            echo "② 没有 EMAIL/PASSWORD —— 跳过在线激活（.ulf 若与本机绑定则会失败）"
+          fi
+
+      # 许可证自检：**不许"写进去了"就算成功**。
+      # 真正判据是"Unity 认它"——跑一个最小方法，看日志里有没有 licensing 报错。
+      - name: 许可证自检（Unity 真的认吗）
+        run: |
+          set -uo pipefail
+          LOG="$GITHUB_WORKSPACE/license-check.log"
+          # 不写 C# 方法：那会牵动 gate-editor-api 的 API 台账（多一处要登记）。
+          # 直接让 Unity 以 batchmode 空跑一次 —— **日志里有没有 licensing 报错就是判据**。
+          # 未授权时 Unity 会打印 `No valid Unity Editor license found` 并退出（非 0），
+          # 这里刻意不让它中断，交给下面的 grep 判。
+          xvfb-run -a /opt/unity/Editor/Unity -batchmode -quit -nographics \
+            -projectPath "$GITHUB_WORKSPACE/unity" \
+            -logFile "$LOG" || true
+          if grep -qiE "No valid Unity Editor license|0 entitlement groups|License is not valid" "$LOG"; then
+            echo "::error title=许可证无效::Unity 明确报没有可用授权 —— 后续任务必然失败，先解决这个"
+            grep -iE "Licensing|entitlement" "$LOG" | head -8
+            exit 1
+          fi
+          if grep -qiE "Batchmode quit|Exiting batchmode|Application will quit" "$LOG"; then
+            echo "✓ 许可证自检通过（Unity 正常跑完 batchmode，且无 licensing 报错）"
+          else
+            echo "::warning::Unity 似乎没正常跑完 —— 无法判定，看日志尾部"
+            tail -20 "$LOG"
           fi
 
       - name: 执行任务
