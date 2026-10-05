@@ -1,0 +1,8 @@
+﻿鈹€鈹€ 鍑哄寘 0.1.56 路 宸ョ▼ D:/dsh-whisper-unity 鈹€鈹€
+Unity rc=0
+鈹€鈹€ 缁撴灉琛?鈹€鈹€
+  [Whisper] 宸插叧闂?Unity 鍚姩鐢婚潰锛圥layerSettings.SplashScreen.show = false锛?  [Whisper] ProjectSettings 钀界洏鏍￠獙锛歜undleVersion 纾佺洏='0.1.56' 鏈熸湜='0.1.56' 鈫?涓€鑷?路 versionCode 纾佺洏='56' 鏈熸湜='56' 鈫?涓€鑷?  [Whisper] PlayerSettings 宸插簲鐢細
+  [Whisper] KIT_PACK_SELFTEST SKIP锛圓ndroid APK 褰㈡€侊級锛氫骇鐗╂槸 whisper-android-0.1.56-code56.apk锛屾湭瑙ｅ寘鏃舵湰鏂规硶鏃犳硶閫愭枃浠舵牳楠屻€侫PK 绾у彇璇佺敱 CI 姝ラ銆屽寘鍐呭彇璇侊紙APK 閲岀湡鐨勮兘鏌ュ埌 5 涓浠惰祫浜э級銆嶆墽琛岋細瑙ｅ寘鍚庤窇 tools/verify-packed-kits.mjs銆?  [Whisper] 鏋勫缓鎴愬姛锛欴:\dsh-whisper-unity\build\Android\whisper-android-0.1.56-code56.apk 路 35894731 瀛楄妭锛?4 MB锛?鈹€鈹€ 浜х墿 鈹€鈹€
+  -rw-r--r-- 1 qing_ 197609 26666311 10鏈? 4 17:44 unity/build/Android/whisper-android-0.1.7-code7.apk
+  -rw-r--r-- 1 qing_ 197609 26665799 10鏈? 4 17:55 unity/build/Android/whisper-android-0.1.8-code8.apk
+  -rw-r--r-- 1 qing_ 197609 26665923 10鏈? 4 17:59 unity/build/Android/whisper-android-0.1.9-code9.apk

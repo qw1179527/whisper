@@ -1,0 +1,15 @@
+﻿鈹€鈹€ 鍑哄寘 0.1.41 路 宸ョ▼ D:/dsh-whisper-unity 鈹€鈹€
+
+Aborting batchmode due to fatal error:
+It looks like another Unity instance is running with this project open.
+
+Multiple Unity instances cannot open the same project.
+
+Project: D:/dsh-whisper-unity
+
+Unity rc=1
+鈹€鈹€ 缁撴灉琛?鈹€鈹€
+鈹€鈹€ 浜х墿 鈹€鈹€
+  -rw-r--r-- 1 qing_ 197609 26666311 10鏈? 4 17:44 unity/build/Android/whisper-android-0.1.7-code7.apk
+  -rw-r--r-- 1 qing_ 197609 26665799 10鏈? 4 17:55 unity/build/Android/whisper-android-0.1.8-code8.apk
+  -rw-r--r-- 1 qing_ 197609 26665923 10鏈? 4 17:59 unity/build/Android/whisper-android-0.1.9-code9.apk

@@ -1,0 +1,9 @@
+  ✓ Camera.ScreenPointToRay(Vector3)   [探针 ScreenPointToRay]
+  ✓ Mathf.Clamp01   [探针 public static float Clamp01]
+  ✗ Mathf.SmoothStep   [探针 public static float SmoothStep]
+  ✓ Vector3.Lerp   [探针 public static Vector3 Lerp]
+  ✓ Quaternion.Slerp   [探针 public static Quaternion Slerp]
+  ✓ Component.GetComponent<T>() 泛型   [探针 public T GetComponent<T>]
+  ✓ GameObject.AddComponent<T>() 泛型   [探针 public T AddComponent<T>]
+
+  → 需补 1 项

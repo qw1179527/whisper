@@ -1,0 +1,13 @@
+  ✓ Color32 类型（SetPixels32 的参数）  [struct Color32]
+  ✓ Texture2D 类  [class Texture2D]
+  ✓ Texture2D.SetPixels32  [SetPixels32]
+  ✓ Texture2D.Apply() 无参重载  [public void Apply()]
+  ✓ Texture2D.Apply(bool)  [public void Apply(bool]
+  ✓ TextureWrapMode  [enum TextureWrapMode]
+  ✓ Texture.wrapMode  [wrapMode]
+  ✓ Object.Destroy  [public static void Destroy]
+  ✓ Texture2D 四参构造  [Texture2D(int width, int height, TextureFormat]
+  ✗ 占位（不应缺）  [public static T CreatePrimitive]
+
+  ✗ 缺 1 项 —— 语法预检不会报（桩是宽松的），但真 Unity 编译会报 CS 错
+  · 文件 802 行
