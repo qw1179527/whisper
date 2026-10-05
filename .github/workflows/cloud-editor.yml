@@ -39,6 +39,10 @@ on:
         required: false
         default: 'unity'
 
+permissions:
+  contents: read
+  issues: write          # 用 issue 评论发网址（第二条通道，防日志取不到）
+
 jobs:
   editor:
     name: 云上 Unity Editor（浏览器可用）
@@ -185,17 +189,46 @@ jobs:
           echo "██  （在手机浏览器直接打开上面这个地址）"
           echo "████████████████████████████████████████████████████████████"
           echo ""
+          FULL_URL="${URL}/vnc.html?autoconnect=1&resize=scale&password=${VNCPW}"
           {
             echo "## 云上 Unity Editor 已就绪"
             echo ""
             echo "**打开这个地址：**"
             echo ""
             echo '```'
-            echo "${URL}/vnc.html?autoconnect=1&resize=scale&password=${VNCPW}"
+            echo "$FULL_URL"
             echo '```'
             echo ""
             echo "软件渲染（无 GPU），Scene View 会卡；编辑/播放/出包正常。"
           } >> $GITHUB_STEP_SUMMARY
+
+          # ── 三条通道同时发，防"网址拿不到"（实测：进行中的作业**取不到日志**，
+          #    GitHub 要等作业结束才生成日志 blob → 而本作业要保活几小时，等不起）──
+          # 通道 1：落盘，供下一步【立刻】上传为 artifact（最可靠）
+          printf '%s\n' "$FULL_URL" > "$GITHUB_WORKSPACE/cloud-editor-url.txt"
+          echo "已写 cloud-editor-url.txt"
+          # 通道 2：issue 评论（评论可被 API 立即读取）
+          if [ -n "${GITHUB_TOKEN:-}" ]; then
+            ISSUE=$(curl -fsS -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues" \
+              -d "{\"title\":\"☁️ 云上 Unity Editor 已就绪（run ${GITHUB_RUN_ID}）\",\"body\":\"打开这个地址：\\n\\n\\`\\`\\`\\n${FULL_URL}\\n\\`\\`\\`\\n\\n软件渲染（无 GPU），Scene View 会卡；编辑/播放/出包正常。\\n\\n（本条由工作流自动创建，用完可关）\"}" \
+              | grep -o '"number":[0-9]*' | head -1 | cut -d: -f2) || true
+            echo "issue 评论/创建结果编号: ${ISSUE:-失败}"
+          fi
+
+      # ★ 这一步必须紧跟"打印网址"，**不能等到作业结束** ——
+      #   实测：进行中的作业取不到日志（blob 要作业结束才生成），而本作业保活几小时。
+      #   产物一上传就能下载，所以这是拿到网址最可靠的通道。
+      - name: 立刻上传网址（artifact）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-editor-url
+          path: cloud-editor-url.txt
+          if-no-files-found: error
+          retention-days: 3
 
       - name: 保持会话（心跳 + 保活）
         env:
