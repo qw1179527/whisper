@@ -38,13 +38,36 @@ jobs:
       - name: 释放 runner 磁盘空间
         uses: jlumbroso/free-disk-space@main
         with:
-          tool-cache: true
+          # ── 参数取舍（2026-10-05 优化，实测清盘占 3.2 分）────────────────
+          # 目标是"腾够空间"而不是"腾得最干净"—— 每多删一类就多花时间，而 runner 只需要
+          # 装得下 Unity 镜像（解压后 8.7GB）+ Library，不需要把机器清空。
+          #
+          # android/dotnet **保留 true**：这两类是最大头（Android SDK/NDK ~10GB + .NET ~2GB），
+          #   是"腾空间"的主力，关掉会真的报 `failed to register layer: no space left on device`。
+          # tool-cache/haskell/large-packages **改为 false**：收益小、耗时长，
+          #   而且 `tool-cache: true` 删的是 **runner 的托管工具缓存**（含 actions 自己用的东西），
+          #   属于"顺手破坏缓存"的操作，与"构建要缓存 Library"的思路相悖。
+          tool-cache: false
           android: true
           dotnet: true
-          haskell: true
-          large-packages: true
+          haskell: false
+          large-packages: false
           docker-images: false
           swap-storage: false
+
+      # 磁盘诊断：清盘参数是"腾够就好"还是"腾过头/腾不够"，**用数据判断而不是猜**。
+      # 上一版注释说"不腾会 no space left"；本步打印腾出多少、够不够 Unity 镜像（解压 8.7GB）。
+      - name: 诊断磁盘（清盘后）
+        run: |
+          echo "=== 清盘后可用空间 ==="
+          df -h / | tail -1
+          AVAIL=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          echo "可用：${AVAIL} GB（Unity 镜像解压约需 8.7GB + Library 约 2GB）"
+          if [ "${AVAIL:-0}" -lt 12 ]; then
+            echo "::warning title=空间偏紧::清盘后仅 ${AVAIL} GB，构建可能 no space left —— 考虑恢复 tool-cache/haskell/large-packages"
+          else
+            echo "✓ 空间充足（${AVAIL} GB ≥ 12 GB）"
+          fi
 
       - name: 检查 Unity 许可证 Secrets 是否已配置
         env:
