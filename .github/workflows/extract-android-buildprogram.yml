@@ -51,10 +51,51 @@ jobs:
           test "$S" -eq 4536554312 || { echo "::error::体积不符 $S"; exit 1; }
           echo "✓ 4.2GB"
 
+      # ⚠ 【v1 的错，记下来】我原以为 Android 构建程序在基础编辑器包里，结果
+      # `tar --wildcards 'Editor/Data/PlaybackEngines/AndroidPlayer/...'` **一个文件都没取到** ——
+      # **Linux 编辑器的基础 tar.xz 不含 Android Player，它是单独的模块包**。
+      # （unity-android.yml 能构建，是因为 GameCI 的 Docker 镜像已把模块装好了，掩盖了这一点。）
+      # 模块包的命名有几种历史形态，逐个试 —— 猜一个不如都试一遍。
+      - name: 下载 Android 模块包（构建程序在这里面）
+        run: |
+          set -uo pipefail
+          BASE="https://download.unity3d.com/download_unity/e1dba0a9aba4"
+          VER=6000.3.25f1
+          OK=0
+          for cand in \
+            "${BASE}/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" \
+            "${BASE}/LinuxEditorTargetInstaller/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" \
+            "${BASE}/TargetSupportInstaller/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" \
+            "${BASE}/LinuxEditorTargetInstaller/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" ; do
+            echo "试：$(basename "$cand")"
+            if curl -fL -sS -o dl/android.tar.xz "$cand" 2>/dev/null; then
+              SZ=$(stat -c%s dl/android.tar.xz 2>/dev/null || echo 0)
+              if [ "$SZ" -gt 10000000 ]; then
+                echo "✓ 模块包已下：$SZ 字节"
+                echo "=== 包内与 AndroidPlayer 相关的顶层路径（前 20）==="
+                tar -tJf dl/android.tar.xz 2>/dev/null | grep -i 'AndroidPlayerBuildProgram\|netcorerun\|BuildPipeline' | head -20 || true
+                OK=1; break
+              fi
+            fi
+          done
+          [ "$OK" = 1 ] || { echo "::error::三种命名都没取到 Android 模块包"; exit 1; }"
+
       - name: 只取 Android 构建程序与 netcorerun
         run: |
           set -uo pipefail
           mkdir -p out
+          # 先从**模块包**里取（v1 的教训：基础包里根本没有这些）
+          for pat in \
+            '*/PlaybackEngines/AndroidPlayer/AndroidPlayerBuildProgram*' \
+            '*/PlaybackEngines/AndroidPlayer/*.dll' \
+            '*/PlaybackEngines/AndroidPlayer/*.json' \
+            '*/Tools/BuildPipeline/*' \
+            '*/netcorerun/*' \
+            ; do
+            echo "-- 模块包 取 $pat"
+            tar -xJf dl/android.tar.xz -C out --wildcards "$pat" 2>/dev/null || true
+          done
+          echo "  模块包取出 $(find out -type f 2>/dev/null | wc -l) 个文件"
           # 逐个 pattern 取，取不到不算致命（路径可能变了）—— 最后统一点清单
           for pat in \
             'Editor/Data/PlaybackEngines/AndroidPlayer/AndroidPlayerBuildProgram*' \
