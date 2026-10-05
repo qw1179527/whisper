@@ -54,7 +54,14 @@ for (let i = 0; i < argv.length; i++) {
     if (k > 0) HEADERS[argv[i + 1].slice(0, k).trim()] = argv[i + 1].slice(k + 1).trim();
   }
 }
-const CONN = Math.max(1, Number(optOf('--conn', 8)));
+// ⚠ 【实测 bug · 2026-10-06】并行模式（conn>1）会**写坏数据**：
+//   文件总字节数与官方 size_in_bytes 完全一致，但 unzip 报
+//   "End-of-central-directory signature not found" —— 块被写到了错误偏移。
+//   对照实验：--conn 8 ✗ 损坏 · --conn 1 ✓ 无错。
+//   根因：完成判据只校验"每块都写过了"，**不校验写的位置与内容**（字节数相等 ≠ 内容正确）。
+//   ⇒ 在加上位置自校验 + CRC 之前，这里**默认单连接**；要并行必须显式 --conn N 并由调用方自担校验。
+//   详见 docs/downloader-bug-parallel-corruption-2026-10-06.md
+const CONN = Math.max(1, Number(optOf('--conn', 1)));
 const CHUNK_MB = Math.max(0.05, Number(optOf('--chunk', 1)));
 const CHUNK = Math.round(CHUNK_MB * 1048576);
 const MAX_RETRY = 12;

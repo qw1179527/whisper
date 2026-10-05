@@ -103,11 +103,20 @@ for (const a of list) {
   execFileSync(process.execPath, [
     path.join(ROOT, 'tools/fast-download.mjs'),
     `https://api.github.com/repos/${REPO}/actions/artifacts/${a.id}/zip`,
-    zip, '--conn', '8', '--chunk', '2',
+    zip, '--conn', '1',   // ⚠ 用单连接：实测并行模式会写坏数据（见 docs/downloader-bug-parallel-corruption-2026-10-06.md）
     '--header', 'Authorization: Bearer ' + TOKEN,
   ], { stdio: 'inherit' });
   log(`  用时 ${((Date.now() - t0) / 1000).toFixed(0)}s`);
-  execFileSync('unzip', ['-o', '-q', zip, '-d', outDir]);
+  // 【内容级判据】解压必须成功，且必须真的解出文件 ——
+  // 光比字节数不够：实测"大小完全正确但内容损坏"（并行下载写错偏移），
+  // unzip 会失败而字节数校验照样通过。这里让它在下载阶段就红，而不是等到用产物时才发现。
+  try {
+    execFileSync('unzip', ['-o', '-q', zip, '-d', outDir]);
+  } catch (e) {
+    console.error('\n✗ 产物解压失败（下载内容损坏）—— 见 docs/downloader-bug-parallel-corruption-2026-10-06.md');
+    console.error('  文件: ' + zip + ' · ' + fs.statSync(zip).size + ' 字节');
+    process.exit(1);
+  }
   fs.rmSync(zip, { force: true });
 }
 
