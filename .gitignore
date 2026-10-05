@@ -26,3 +26,7 @@ Thumbs.db
 # 为什么 vendor 进来：本机没有 libsodium，pnpm 在 Android 上因文件锁装不了依赖，
 # 而 GitHub Actions secret 只接受 crypto_box_seal 密文。1.8MB，可接受。
 # 注意：**不 vendor** 任何凭据；seal 工具只做加密，令牌经环境变量传入。
+
+# Unity 许可证：绝不提交（本机自用；云上用 Codespaces secret）
+Unity_lic.ulf
+*.ulf

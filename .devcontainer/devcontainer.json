@@ -1,0 +1,30 @@
+{
+  "name": "Whisper · 云上 Unity Editor（手机浏览器可用）",
+  // ── 这是什么 ────────────────────────────────────────────────────────
+  // 在**免费云开发环境**（GitHub Codespaces / Gitpod）里起一个**真的 Unity Editor**，
+  // 通过浏览器里的 noVNC 操作它。手机端只需要一个浏览器。
+  //
+  // 为什么走这条路（2026-10-05 实测结论）：
+  //   · 手机被路由到 Unity 的**中国镜像**（AliyunOSS 上海），那里**没有 Linux 版、
+  //     也没有 Windows-ARM64 版** → 手机上根本拿不到这两个文件（实测 404 · HostId=download-unity-cn-sh）
+  //   · 云主机走**全球 CDN**，能正常下载；而且它是 **x86_64**，Unity **原生运行、零指令翻译**
+  //   · 手机只收视频流 → **不需要往手机传 4.5 GB**
+  //
+  // 保真度：真 Editor —— Play Mode / Scene View / Inspector / Profiler / 本地出包**全都有**。
+  // 代价：无 GPU，走 Mesa 软件渲染（llvmpipe/lavapipe）→ Scene View 会卡，但工作流完整。
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  // 4 核 / 8 GB 是 Unity 的可用下限；免费额度按核时计（Codespaces 120 核时/月 → 4 核约 30 小时）
+  "hostRequirements": { "cpus": 4, "memory": "8gb", "storage": "32gb" },
+  "postCreateCommand": "bash .devcontainer/setup-unity-vnc.sh",
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": {
+      "label": "Unity Editor (noVNC)",
+      "visibility": "public",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": { "extensions": [] }
+  }
+}

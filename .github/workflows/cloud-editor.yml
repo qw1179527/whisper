@@ -1,0 +1,234 @@
+# 云上 Unity Editor —— **手机浏览器点开就能用**，用户零操作
+#
+# ## 它解决什么
+# 用户要"和 PC 等价开发"。手机上本地跑 Unity 要么拿不到文件（Unity 中国镜像没有 Linux/ARM64 版），
+# 要么要叠 Wine + box64 两层模拟（慢 10~30 倍）。而 **GitHub Actions 的 runner 本来就是
+# 一台免费的 x86_64 Linux**（4 核 / 16 GB / 清盘后约 30 GB）—— Unity 在上面**原生运行、零翻译**。
+#
+# ## 它是怎么做到"用户不动手"的
+# ```
+# 智能体：POST /actions/workflows/cloud-editor.yml/dispatches   ← 令牌驱动，无需点网页
+#   runner：装 Unity → 起 Xvfb + x11vnc + noVNC → 开 cloudflared 隧道 → 打印公网网址
+# 智能体：从日志里抓出那个网址，发给用户
+# 用户：  在手机浏览器点开网址                    ← 唯一动作，就是"点一下"
+# ```
+# **不需要注册 Codespaces、不需要配 secret、不需要建账号** —— cloudflared 的快速隧道免账号。
+#
+# ## ⚠️ 必须说清楚的两件事
+# 1. **这是把 Actions 当交互式开发机用**。GitHub 的 AUP 期望 Actions 用于"与该项目软件的生产/
+#    测试/部署/发布相关的活动"。**本项目正是这个仓库的软件开发**，用途上说得通；但它毕竟不是
+#    Codespaces 那种被设计来干这事的形态。**如果长期重度依赖，正规做法是迁到 Codespaces。**
+# 2. **单次最长 6 小时**（GitHub 硬上限），到点会被回收。适合"集中开发一段时间"，
+#    不适合挂着当常驻开发机。
+#
+# ## 性能现实（别期望错）
+# · CPU：**x86_64 原生** —— 这是它相对"手机本地跑"的根本优势（那边要 box64 翻译）
+# · GPU：**没有** → Mesa llvmpipe 软件渲染，Scene View 会卡；编辑/播放逻辑/出包都可用
+# · 出包：在 runner 上跑，速度接近真 PC（**比 CI 那套 Docker 镜像还快，因为没有镜像拉取**）
+name: cloud-editor
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: '保持多少分钟（上限 340，远小于 GitHub 6 小时硬限）'
+        required: false
+        default: '180'
+      project:
+        description: '要打开的工程路径'
+        required: false
+        default: 'unity'
+
+jobs:
+  editor:
+    name: 云上 Unity Editor（浏览器可用）
+    runs-on: ubuntu-latest
+    timeout-minutes: 355          # 略低于 6 小时硬限，留出收尾时间
+    steps:
+      - name: 释放 runner 磁盘空间
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # ⚠️ 这五个参数**全是承重的**，别再"优化"掉：
+          # 实测把 tool-cache/haskell/large-packages 改 false 后构建报
+          # `failed to register layer: no space left on device`。
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: false
+
+      - name: 诊断磁盘
+        run: |
+          echo "=== 清盘后可用空间 ==="
+          df -h / | tail -1
+          AVAIL=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          echo "可用：${AVAIL} GB（Unity 编辑器解压约 5 GB + Android 模块约 4 GB）"
+          if [ "${AVAIL:-0}" -lt 15 ]; then
+            echo "::error title=空间不足::清盘后仅 ${AVAIL} GB，装不下 Unity"; exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: 装显示栈与工具
+        run: |
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            xvfb x11vnc novnc websockify \
+            mesa-utils libgl1-mesa-dri libglu1-mesa libvulkan1 mesa-vulkan-drivers \
+            xz-utils ca-certificates curl
+          # cloudflared 快速隧道：免费、**不需要账号**，给一个随机 trycloudflare.com 域名
+          sudo curl -fL -o /usr/local/bin/cloudflared \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          sudo chmod +x /usr/local/bin/cloudflared
+          echo "✓ 显示栈 + cloudflared 就绪（$(cloudflared --version 2>&1 | head -1)）"
+
+      - name: 下载并解压 Unity Linux 编辑器
+        run: |
+          set -e
+          VER=6000.3.25f1; HASH=e1dba0a9aba4
+          BASE="https://download.unity3d.com/download_unity/${HASH}"
+          mkdir -p dl
+          echo "=== 下载编辑器（约 4.2 GB，runner 走全球 CDN）==="
+          time curl -fL --retry 3 --retry-delay 3 -o dl/editor.tar.xz \
+            "${BASE}/LinuxEditorInstaller/Unity-${VER}.tar.xz"
+          S=$(stat -c%s dl/editor.tar.xz)
+          test "$S" -eq 4536554312 || { echo "::error::体积不符 $S"; exit 1; }
+          echo "✓ 4.2 GB 完整"
+          sudo mkdir -p /opt/unity
+          echo "=== 解压 ==="
+          time sudo tar -xJf dl/editor.tar.xz -C /opt/unity
+          test -x /opt/unity/Editor/Unity || { echo "::error::解压后没有 /opt/unity/Editor/Unity"; exit 1; }
+          echo "✓ $(du -sh /opt/unity | cut -f1)"
+
+      - name: Android Build Support（出包必需）
+        run: |
+          set -e
+          VER=6000.3.25f1; HASH=e1dba0a9aba4
+          BASE="https://download.unity3d.com/download_unity/${HASH}"
+          # Linux 模块的命名有几种历史形态，逐个试 —— 猜一个不如都试一遍
+          for cand in \
+            "${BASE}/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" \
+            "${BASE}/LinuxEditorTargetInstaller/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" \
+            "${BASE}/TargetSupportInstaller/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" ; do
+            echo "试：$(basename "$cand")"
+            if curl -fL -sS -o dl/android.tar.xz "$cand" 2>/dev/null; then
+              SZ=$(stat -c%s dl/android.tar.xz 2>/dev/null || echo 0)
+              if [ "$SZ" -gt 10000000 ]; then
+                sudo tar -xJf dl/android.tar.xz -C /opt/unity && { echo "✓ Android 模块已装"; exit 0; }
+              fi
+            fi
+          done
+          echo "::warning title=Android 模块未装::Editor 仍可用（编辑/播放），但**不能出包**"
+
+      - name: 装 Unity 许可证
+        env:
+          UL: ${{ secrets.UNITY_LICENSE }}
+          US: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          set -e
+          LICDIR="$HOME/.local/share/unity3d/Unity"
+          mkdir -p "$LICDIR"
+          if [ -n "$UL" ]; then
+            printf '%s' "$UL" > "$LICDIR/Unity_lic.ulf"
+            echo "✓ 许可证已写入（来自 secret UNITY_LICENSE，$(stat -c%s "$LICDIR/Unity_lic.ulf") 字节）"
+          elif [ -n "$US" ]; then
+            echo "::warning::只有 UNITY_SERIAL 没有 UNITY_LICENSE —— Editor 启动时可能需要手动登录"
+          else
+            echo "::warning title=无许可证::没有 UNITY_LICENSE secret —— Editor 起来后需要手动激活"
+          fi
+
+      - name: 起图形界面 + 隧道，并打印网址
+        env:
+          PROJECT: ${{ inputs.project }}
+        run: |
+          set -e
+          # 软件渲染：runner 没有 GPU
+          export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
+          # 随机 VNC 密码：隧道网址虽然是随机的，但多一层不吃亏
+          VNCPW=$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 10)
+          echo "VNCPW=$VNCPW" >> $GITHUB_ENV
+
+          Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset > /tmp/xvfb.log 2>&1 &
+          sleep 3
+          x11vnc -display :99 -forever -shared -rfbauth <(x11vnc -storepasswd "$VNCPW" /dev/stdout 2>/dev/null) \
+            -rfbport 5900 > /tmp/x11vnc.log 2>&1 || \
+            x11vnc -display :99 -forever -shared -passwd "$VNCPW" -rfbport 5900 > /tmp/x11vnc.log 2>&1 &
+          sleep 2
+          websockify --web=/usr/share/novnc/ 6080 localhost:5900 > /tmp/novnc.log 2>&1 &
+          sleep 2
+
+          cloudflared tunnel --url http://localhost:6080 --no-autoupdate > /tmp/cf.log 2>&1 &
+          echo "=== 等隧道 URL（最多 90 秒）==="
+          for i in $(seq 1 45); do
+            URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cf.log 2>/dev/null | head -1)
+            [ -n "$URL" ] && break
+            sleep 2
+          done
+          if [ -z "$URL" ]; then
+            echo "::error title=隧道失败::cloudflared 没给出 URL"; tail -30 /tmp/cf.log; exit 1
+          fi
+
+          # 启动 Unity Editor（软件渲染，首次打开工程慢）
+          if [ -x /opt/unity/Editor/Unity ]; then
+            (cd "$GITHUB_WORKSPACE" && DISPLAY=:99 /opt/unity/Editor/Unity \
+              -projectPath "$GITHUB_WORKSPACE/$PROJECT" > /tmp/unity.log 2>&1 &)
+            echo "✓ Unity Editor 已启动（日志 /tmp/unity.log）"
+          fi
+
+          # ★ 把网址打成显眼的一行 —— 智能体会从日志里抓它
+          echo ""
+          echo "████████████████████████████████████████████████████████████"
+          echo "██  CLOUD_EDITOR_URL = ${URL}/vnc.html?autoconnect=1&resize=scale&password=${VNCPW}"
+          echo "██  （在手机浏览器直接打开上面这个地址）"
+          echo "████████████████████████████████████████████████████████████"
+          echo ""
+          {
+            echo "## 云上 Unity Editor 已就绪"
+            echo ""
+            echo "**打开这个地址：**"
+            echo ""
+            echo '```'
+            echo "${URL}/vnc.html?autoconnect=1&resize=scale&password=${VNCPW}"
+            echo '```'
+            echo ""
+            echo "软件渲染（无 GPU），Scene View 会卡；编辑/播放/出包正常。"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: 保持会话（心跳 + 保活）
+        env:
+          MINUTES: ${{ inputs.minutes }}
+        run: |
+          set -u
+          M=${MINUTES:-180}
+          [ "$M" -gt 340 ] && M=340
+          echo "保持 ${M} 分钟…"
+          for i in $(seq 1 "$M"); do
+            sleep 60
+            if [ $((i % 15)) -eq 0 ]; then
+              echo "[$i/${M} 分] 存活检查：Xvfb=$(pgrep -c Xvfb || echo 0) · x11vnc=$(pgrep -c x11vnc || echo 0) · novnc=$(pgrep -c websockify || echo 0) · Unity=$(pgrep -c -f '/opt/unity/Editor/Unity' || echo 0) · 磁盘剩余=$(df -h / | tail -1 | awk '{print $4}')"
+              # 隧道断了就重连（长时间会话里这是最常见的故障）
+              if ! pgrep -f 'cloudflared tunnel' >/dev/null; then
+                echo "  ⚠ cloudflared 掉了，重连…"
+                cloudflared tunnel --url http://localhost:6080 --no-autoupdate > /tmp/cf2.log 2>&1 &
+              fi
+            fi
+          done
+          echo "到时收工"
+
+      - name: 收尾：导出 Unity 日志（便于排查）
+        if: always()
+        run: |
+          tail -200 /tmp/unity.log > unity-editor-tail.log 2>/dev/null || echo "(无 Unity 日志)" > unity-editor-tail.log
+          tail -50 /tmp/cf.log >> unity-editor-tail.log 2>/dev/null || true
+
+      - name: 上传日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-editor-logs
+          path: unity-editor-tail.log
+          if-no-files-found: warn
+          retention-days: 7
