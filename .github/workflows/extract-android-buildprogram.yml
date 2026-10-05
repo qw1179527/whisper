@@ -1,0 +1,112 @@
+# extract-android-buildprogram —— 只取「Android 构建管线本体」，验证一个关键假设
+#
+# ## 要验证的假设
+# `#24` 的构建日志里挖到：
+# ```
+# Starting: /opt/unity/Editor/Data/netcorerun/netcorerun \
+#   "/opt/unity/Editor/Data/PlaybackEngines/AndroidPlayer/AndroidPlayerBuildProgram.exe" …
+# Starting: …/netcorerun "/opt/unity/Editor/Data/Tools/BuildPipeline/ScriptCompilationBuildProgram.exe" …
+# ```
+# **Unity 用自带的 `netcorerun`（.NET 运行时）去跑这些 `.exe`** ——
+# 也就是说 **Android 构建管线本体是 .NET 程序**，而 `.NET 程序 = 平台无关的 IL`。
+#
+# 而我们已经**实测过同一套路**：`il2cpp-compile.dll` 也是托管 .NET，
+# 在手机上用手机自己的 `dotnet 8` 跑起来了（轨迹里出现 `Launch host: … app: il2cpp-compile.dll`）。
+#
+# **⇒ 若 `AndroidPlayerBuildProgram` 也是纯托管的，那么整条 Android 构建链
+#    （脚本编译 → UnityLinker → il2cpp → 链接 → Gradle）都能在手机上跑，
+#    而且用的就是 Unity 自己的构建程序，不是重写。**
+#
+# ## 为什么只取这一小块
+# 完整 Android 模块（含 NDK）有 2~3 GB，超出 Actions 产物的合理体量。
+# 但这一个程序**很小**，取它就能判定假设真伪 —— 先判生死，再谈取大件。
+name: extract-android-buildprogram
+
+on:
+  workflow_dispatch:
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: 释放 runner 磁盘空间
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: false
+
+      - name: 下载 Linux 编辑器 tarball（4.2GB）
+        run: |
+          set -e
+          mkdir -p dl
+          time curl -fL --retry 3 -o dl/editor.tar.xz \
+            "https://download.unity3d.com/download_unity/e1dba0a9aba4/LinuxEditorInstaller/Unity-6000.3.25f1.tar.xz"
+          S=$(stat -c%s dl/editor.tar.xz)
+          test "$S" -eq 4536554312 || { echo "::error::体积不符 $S"; exit 1; }
+          echo "✓ 4.2GB"
+
+      - name: 只取 Android 构建程序与 netcorerun
+        run: |
+          set -uo pipefail
+          mkdir -p out
+          # 逐个 pattern 取，取不到不算致命（路径可能变了）—— 最后统一点清单
+          for pat in \
+            'Editor/Data/PlaybackEngines/AndroidPlayer/AndroidPlayerBuildProgram*' \
+            'Editor/Data/PlaybackEngines/AndroidPlayer/*.dll' \
+            'Editor/Data/PlaybackEngines/AndroidPlayer/*.json' \
+            'Editor/Data/PlaybackEngines/AndroidPlayer/*.runtimeconfig.json' \
+            'Editor/Data/Tools/BuildPipeline/*' \
+            'Editor/Data/netcorerun/*' \
+            ; do
+            echo "-- 取 $pat"
+            tar -xJf dl/editor.tar.xz -C out --wildcards "$pat" 2>/dev/null || true
+          done
+          echo
+          echo "== 取到什么 =="
+          find out -type f | head -40
+          echo
+          echo "== 体积 =="
+          du -sh out
+
+      - name: 判类型（关键证据：是托管 IL 还是原生？）
+        run: |
+          set -uo pipefail
+          echo "=== AndroidPlayerBuildProgram* 的文件类型 ==="
+          for f in $(find out -name 'AndroidPlayerBuildProgram*' -type f 2>/dev/null); do
+            printf '%-70s ' "$f"; file -b "$f" | head -1
+          done
+          echo
+          echo "=== BuildPipeline/* 的类型（前 12 个）==="
+          for f in $(find out -path '*BuildPipeline*' -type f 2>/dev/null | head -12); do
+            printf '%-70s ' "$(basename "$f")"; file -b "$f" | head -1
+          done
+          echo
+          echo "=== netcorerun 的类型（看 Unity 自带运行时是什么）==="
+          for f in $(find out -path '*netcorerun*' -type f 2>/dev/null | head -8); do
+            printf '%-40s ' "$(basename "$f")"; file -b "$f" | head -1
+          done
+          echo
+          echo "=== 有没有 runtimeconfig.json（.NET 应用的标志）==="
+          find out -name '*.runtimeconfig.json' 2>/dev/null | head -10
+
+      - name: 打包产物
+        run: |
+          set -e
+          # 去掉明显的大件（如果有），保留全部元数据
+          du -sh out
+          tar -czf android-buildprogram.tar.gz -C out .
+          ls -la android-buildprogram.tar.gz
+
+      - name: 上传
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-buildprogram
+          path: android-buildprogram.tar.gz
+          if-no-files-found: error
+          retention-days: 14
