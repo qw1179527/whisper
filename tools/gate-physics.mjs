@@ -23,6 +23,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripCsComments, selfTestStripCsComments } from './lib/strip-cs-comments.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CFG = path.join(ROOT, 'data/config.json');
@@ -56,75 +57,7 @@ function collectCs(dir, out = []) {
 const csFiles = SRC_DIRS.flatMap((d) => (fs.existsSync(d) ? collectCs(d) : []));
 const csText = csFiles.map((f) => ({ f: path.relative(ROOT, f), t: fs.readFileSync(f, 'utf8') }));
 
-/**
- * 剥掉 C# 注释，**只留代码**（P2 确定性判据用它匹配）。
- *
- * ## 为什么必须有它（2026-10-05 实测的误报）
- * 本仓库的纪律是"注释里写明为什么不用某个 API"。实测有 4 个文件在注释里**提到**
- * `UnityEngine.Random` / `DateTime.Now` 来解释它们**刻意不用**：
- * ```
- * InteractionSystem.cs:48   「……这样 gate-physics 的"禁 UnityEngine.Random / DateTime"纪律不会被绕过」
- * TaskSystem.cs:59-61       「gate-physics 禁止 DateTime.Now/UtcNow……所以这里把 dayIndex 作为参数传进来」
- * ProceduralTextures.cs:28  「全部用整数哈希 + xorshift，不用 UnityEngine.Random（本工程门禁禁止）」
- * GameBootstrap.cs:533      「确定性随机源（xorshift32）—— 禁 UnityEngine.Random」
- * ```
- * 旧实现直接对**原文**做正则 → 这 4 个文件全部误报。
- * **误报比漏报更坏**：它会训练人不敢在注释里记录纪律（而纪律正是靠注释传承的）。
- *
- * ## 为什么不能简单地"砍掉 // 之后的内容"
- * `"http://x"`、`@"C:\a\b"`、`'/'` 里都有斜杠；粗暴处理会把**真代码**当注释吞掉，
- * 那会从"误报"变成"漏报"——更危险。所以用状态机，逐字符走。
- *
- * ## 做法
- * 注释内容用**等长空格**顶替（保留换行）→ 匹配用的文本与原文**行号列宽一一对应**，
- * 报错位置不用换算。字符串字面量**原样保留**（它里面的 `//` 不是注释）。
- */
-function stripCsComments(src) {
-  let out = '';
-  let i = 0;
-  const n = src.length;
-  let st = 'code'; // code | line | block | str | vstr | chr
-  while (i < n) {
-    const c = src[i], c2 = src[i + 1];
-    if (st === 'code') {
-      if (c === '/' && c2 === '/') { st = 'line'; out += '  '; i += 2; continue; }
-      if (c === '/' && c2 === '*') { st = 'block'; out += '  '; i += 2; continue; }
-      // 逐字字符串 @"…" / 插值逐字 $@"…" / @$"…"
-      if ((c === '@' && c2 === '"') || (c === '$' && c2 === '@' && src[i + 2] === '"')
-          || (c === '@' && c2 === '$' && src[i + 2] === '"')) {
-        const len = (c === '@' && c2 === '"') ? 2 : 3;
-        st = 'vstr'; out += src.substr(i, len); i += len; continue;
-      }
-      if (c === '"') { st = 'str'; }
-      else if (c === "'") { st = 'chr'; }
-      out += c; i++; continue;
-    }
-    if (st === 'line') {
-      if (c === '\n') { st = 'code'; out += '\n'; i++; continue; }
-      out += ' '; i++; continue;
-    }
-    if (st === 'block') {
-      if (c === '*' && c2 === '/') { st = 'code'; out += '  '; i += 2; continue; }
-      out += (c === '\n') ? '\n' : ' '; i++; continue;
-    }
-    if (st === 'str') {
-      if (c === '\\') { out += src.substr(i, 2); i += 2; continue; }
-      if (c === '"') st = 'code';
-      out += c; i++; continue;
-    }
-    if (st === 'vstr') {
-      if (c === '"' && c2 === '"') { out += '""'; i += 2; continue; } // "" 是转义的双引号
-      if (c === '"') st = 'code';
-      out += c; i++; continue;
-    }
-    // chr
-    if (c === '\\') { out += src.substr(i, 2); i += 2; continue; }
-    if (c === "'") st = 'code';
-    out += c; i++; continue;
-  }
-  return out;
-}
-
+// 注释剥离器已抽到 `tools/lib/strip-cs-comments.mjs`（gate-code 也要用同一份，避免两份实现漂移）。
 /** 只含代码的版本（P2 用）。**注意：必须在下面的注入块之后计算**，
  *  否则 `--inject-random` 推入的假文件不会进这份集合 → P2 看不到它 → 注入静默失效（削弱门禁）。 */
 const buildCsCode = () => csText.map((x) => ({ f: x.f, t: stripCsComments(x.t) }));
@@ -311,22 +244,9 @@ console.log('[gate-physics] 物理规则门禁');
   for (const { f, t } of csCode) {
     for (const b of banned) if (b.re.test(t)) bads.push(`${f} 使用了 ${b.re.source} —— ${b.why}`);
   }
-  // ── 注释剥离器自检（每次运行都跑）──────────────────────────────
-  // 为什么要有：剥离器一旦"砍多了"，就会把**真代码**当注释吞掉 →
-  // P2 从"误报"变成**漏报**（更危险）。所以用 4 个正反例钉住它的行为：
-  const st = [
-    ['var x = Random.Range(0, 1);',        true,  '代码里的调用必须留下'],
-    ['// Random.Range 禁用（注释）',        false, '行注释里的必须剥掉'],
-    ['/* DateTime.Now 不可复现 */ var y=1;', false, '块注释里的必须剥掉'],
-    ['var s = "http://a//b"; var z = Random.Range(0,1);', true, '字符串里的 // 不能吞掉后面的真代码'],
-  ];
-  let stFail = 0;
-  for (const [src, shouldKeep, why] of st) {
-    const got = /Random\s*\.\s*(?:Range|value)|DateTime\s*\.\s*(?:Now|UtcNow)/.test(stripCsComments(src));
-    const ok2 = got === shouldKeep;
-    if (!ok2) { bad(`P2 注释剥离器自检失败（${why}）：输入 ${JSON.stringify(src)} → 期望${shouldKeep ? '保留' : '剥掉'}却相反`); stFail++; }
-  }
-  if (stFail === 0) ok(`P2 注释剥离器自检：${st.length} 个正反例全中（代码保留 / 注释剥掉 / 字符串里的 // 不误吞）`);
+  // ── 注释剥离器自检（每次运行都跑，实现在 lib 里，gate-code 共用）──
+  const stFail = selfTestStripCsComments(bad);
+  if (stFail === 0) ok('P2 注释剥离器自检：4 个正反例全中（代码保留 / 注释剥掉 / 字符串里的 // 不误吞）');
   // 反向注入的显式核对：仅注释的文件**不得**出现在违规清单里
   if (commentOnlyFile) {
     const hit = bads.some((b) => b.includes(commentOnlyFile));

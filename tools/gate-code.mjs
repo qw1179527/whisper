@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripCsComments, selfTestStripCsComments } from './lib/strip-cs-comments.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPTS = path.join(ROOT, 'unity/Assets/Scripts');
@@ -40,7 +41,13 @@ function collect(dir, out = []) {
   }
   return out;
 }
-const files = collect(SCRIPTS).map((f) => ({ f, rel: path.relative(ROOT, f), t: fs.readFileSync(f, 'utf8') }));
+const files = collect(SCRIPTS).map((f) => {
+  const t = fs.readFileSync(f, 'utf8');
+  // `t` = 原文（查**注释内容**用：C3 的 TODO/FIXME、C7 的 <summary>）
+  // `code` = 剥注释后的代码（查**代码行为**用：C1 吞异常、C2 禁用 API、C4 作用域、C6 using）
+  // 用错方向会一个变成"永远绿"、另一个变成"永远红"——别混。
+  return { f, rel: path.relative(ROOT, f), t, code: stripCsComments(t) };
+});
 let injected = null;
 const inj = (name, text) => { if (inject(name)) { files.push({ f: '(inject)', rel: `(注入-${name}).cs`, t: text }); injected = name; } };
 inj('catch', 'class X { void M() { try { A(); } catch { } } }');
@@ -53,9 +60,22 @@ if (injected) console.log(`[gate-code] 注入模式：${injected}（预期判红
 
 console.log('[gate-code] 代码质量门禁');
 
+// ── 注释剥离器自检（C1/C2/C4/C6 都依赖它，故放在最前）──
+// 为什么要有：剥离器一旦"砍多了"，就把**真代码**当注释吞掉 → 这几项从"误报"翻成**漏报**
+// （更危险：不报错、静默变绿）。4 个正反例钉住它，第 4 条专防"修误报反而制造漏报"。
+selfTestStripCsComments(bad) === 0
+  ? ok('注释剥离器自检：4 个正反例全中（代码保留 / 注释剥掉 / 字符串里的 // 不误吞）')
+  : null;
+
 // ── C1 静默吞异常 ──
 {
   const bads = [];
+  // ⚠ C1 **必须用原文 t，不能用剥注释后的 code**（2026-10-05 我自己踩的坑）：
+  //   `catch (Exception) { /* 关闭失败不阻断 */ }` 这种**带注释解释**的 catch 是**合规**的
+  //   （本工程的纪律正是"要么处理、要么写明为什么可以不处理"）。
+  //   用 code 匹配会把注释变空格 → 把它误判成"空 catch 静默吞异常"（实测 UdpV6NetService.cs:202 被误报）。
+  //   方向相反的两个需求：C2/C4/C6 查"有没有调用禁用 API"→ 要剥；
+  //   C1 查"有没有解释"→ **不能剥**。
   for (const { rel, t } of files) {
     const lines = t.split('\n');
     lines.forEach((l, i) => {
@@ -75,9 +95,9 @@ console.log('[gate-code] 代码质量门禁');
     { re: /\bApplication\.Quit\s*\(/, why: '移动端不允许自行退出' },
   ];
   const bads = [];
-  for (const { rel, t } of files) {
+  for (const { rel, code } of files) {
     if (rel.includes('/Tests/')) continue;
-    for (const b of banned) if (b.re.test(t)) bads.push(`${rel} 使用 ${b.re.source} —— ${b.why}`);
+    for (const b of banned) if (b.re.test(code)) bads.push(`${rel} 使用 ${b.re.source} —— ${b.why}`);
   }
   bads.length === 0 ? ok('C2 禁用 API：无 GameObject.Find / SendMessage / 无类型 Resources.Load / Application.Quit') : bads.slice(0, 4).forEach(bad);
 }
@@ -99,9 +119,9 @@ console.log('[gate-code] 代码质量门禁');
 {
   const ALIASES = ['config', 'cfg'];
   const bads = [];
-  for (const { rel, t } of files) {
+  for (const { rel, code } of files) {  // C4 查代码行为 → 用剥注释后的 code
     if (rel.includes('/Tests/')) continue;
-    const lines = t.split('\n');
+    const lines = code.split('\n');
     for (const name of ALIASES) {
       const useRe = new RegExp(`(?<![\\w$.-])${name}(?!\\s*:)(?![\\w$-])`);
       const declRe = new RegExp(`^\\s{0,8}(?:let|const|var|function)\\s+${name}\\b|^\\s{0,8}[\\w$.]+\\s*=\\s*${name}\\b`);
@@ -127,9 +147,9 @@ console.log('[gate-code] 代码质量门禁');
       // reader 字段（`readonly GameConfigReader _cfg;` + `_cfg = cfg;`）。
       // 我前两版分别漏了构造函数形参与 `Type cfg` 形式，误报了 SanitySystem 等 4 个文件。
       const declared = lines.some((l) => declRe.test(l))
-        || new RegExp(`\\(\\s*${name}\\s*[,)]`).test(t)
-        || new RegExp(`(?:[A-Z][\\w<>,\\[\\]\\.]*)\\s+${name}\\b`).test(t)
-        || new RegExp(`[\\w$]+\\s+${name}\\s*[,;)]`).test(t);
+        || new RegExp(`\\(\\s*${name}\\s*[,)]`).test(code)
+        || new RegExp(`(?:[A-Z][\\w<>,\\[\\]\\.]*)\\s+${name}\\b`).test(code)
+        || new RegExp(`[\\w$]+\\s+${name}\\s*[,;)]`).test(code);
       if (!declared) bads.push(`${rel} 使用了 ${name} 但文件内无任何声明/形参（编译期也不会报错时才危险）`);
     }
   }
@@ -166,7 +186,7 @@ console.log('[gate-code] 代码质量门禁');
 {
   const sdkRe = /^\s*using\s+(Photon|Firebase|Unity\.Services|Vivox|Google|Unity\.Netcode|System\.Net\.Sockets)\b/m;
   const bads = [];
-  for (const { rel, t } of files) {
+  for (const { rel, code } of files) {  // C6 查代码行为 → 用剥注释后的 code
     // 【跨平台坑，实测】path.relative 在 Windows 上给的是反斜杠，而下面两条判断都按正斜杠写：
     //   rel.includes('/Tests/') 与 /\/(Net|Audio|Backend)\// 都会**静默失效** ——
     //   前者让测试文件被误扫，后者让 Net/Audio/Backend 的 §13.2 槽位豁免失效
@@ -176,7 +196,7 @@ console.log('[gate-code] 代码质量门禁');
     if (relPosix.includes('/Tests/')) continue;
     const isImplSlot = /\/(Net|Audio|Backend)\//.test(relPosix);   // §13.2：这三个是 SDK 的唯一槽位
     if (isImplSlot) continue;
-    if (sdkRe.test(t)) bads.push(`${rel} 引用了第三方 SDK 命名空间（只允许在 Net/Audio/Backend 槽位内）`);
+    if (sdkRe.test(code)) bads.push(`${rel} 引用了第三方 SDK 命名空间（只允许在 Net/Audio/Backend 槽位内）`);
   }
   bads.length === 0 ? ok('C6 接口纪律：Gameplay/UI/Core 无第三方 SDK using（唯一槽位=Net/Audio/Backend）') : bads.slice(0, 4).forEach(bad);
 }

@@ -138,6 +138,13 @@ namespace Whisper.Gameplay.Level
             public static KitMaterial Default => new KitMaterial { R = 1f, G = 1f, B = 1f, A = 1f, Metallic = 1f, Roughness = 1f };
         }
 
+        /// <summary>
+        /// 一个 glTF 模型（`meshes[]` 的一项 + 它引用的 `materials[]`）。
+        ///
+        /// 为什么自己带 <see cref="Materials"/> 而不是只留索引：GLB 里的材质是**共享表**，
+        /// 而套件加载是逐模型进行的 —— 把解析结果按模型固化下来，
+        /// 调用方（<c>KitMeshLibrary</c>）就不必再回头查全局表，也就不会出现"索引越界才发现表没读完"。
+        /// </summary>
         public sealed class Model
         {
             public string Name;
