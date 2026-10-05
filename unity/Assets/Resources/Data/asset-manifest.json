@@ -220,7 +220,7 @@
         "level"
       ],
       "addressablesGroup": "kits_props",
-      "sha256": "1cf78a74b002e979ac9aea983abc6b0df500336f0a05120d5e56b284b0b4fcff",
+      "sha256": "f7892d713e793fe6c796aada97987f4e832d1dc90c0529f3eea9a8d747b44c77",
       "bytes": 192400,
       "triangles": 3104,
       "generator": "tools/register-kit-glb.mjs（外部 GLB 登记）",
