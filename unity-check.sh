@@ -15,7 +15,7 @@ set -uo pipefail
 cd "$(dirname "$0")"
 
 STEP_NO=0
-declare -a R_NAMES=() R_CODES=()
+declare -a R_NAMES=() R_CODES=() R_ADV=()
 CUR=""
 TOTAL=22
 
@@ -23,7 +23,18 @@ begin() {
   CUR="$1"; STEP_NO=$((STEP_NO + 1))
   printf '\n\033[1m[%s/%s] %s\033[0m\n' "$STEP_NO" "$TOTAL" "$CUR"
 }
-end() { R_NAMES+=("$CUR"); R_CODES+=("${1:-0}"); }
+end() { R_NAMES+=("$CUR"); R_CODES+=("${1:-0}"); R_ADV+=("0"); }
+# ── 咨询性步骤（PDF 条文已全部抛弃 · 用户 2026-10-06）──────────────────────
+# 原文：「**并非有200MB上限**，把 pdf 方案里的所有要求全部抛弃」。
+# 有几步门禁**整道就是为执行 PDF 条文而存在**的（§13.1 asmdef 规则表 / §11 色彩双射 /
+# §13.1·§13.2·§19.1 架构守护 / §19.1 C3 资产准入）。
+# 处理：**照跑、照打印，但不再让整链判红** ——
+#   · 信息不丢（有问题仍然看得见）
+#   · 但过时条文不再能卡住工作
+#   · 这是**可逆**的：想恢复成硬判据，把对应的 adv 改回 end 即可
+# 注意：**只降级"为条文而存在"的那几步**；抓真 bug 的门禁
+# （gate-test 157 断言 / gate-asset-bbox / gate-editor-api / 语法 / 数据镜像）**仍是硬判据**。
+adv() { R_NAMES+=("$CUR"); R_CODES+=("${1:-0}"); R_ADV+=("1"); }
 
 begin "建模门禁（几何 + 资产 · 11 项）"
 node tools/gate-model.mjs; end $?
@@ -41,7 +52,7 @@ begin "功能测试门禁（真编译真跑断言 · 分类计数 · 断言数�
 node tools/gate-test.mjs; end $?
 
 begin "asmdef 与 V9 §13.1 规则表一致"
-node tools/gen-asmdef.mjs --check; end $?
+node tools/gen-asmdef.mjs --check; adv $?
 
 begin "Editor 代码 Unity API 出处（防臆造 API · CI #18 教训）"
 node tools/gate-editor-api.mjs; end $?
@@ -53,7 +64,7 @@ begin "DesignTokens.cs 与 data/design-tokens.json 一致"
 node tools/gen-design-tokens.mjs --check; end $?
 
 begin "架构守护（§13.1/§13.2/§19.1）"
-node tools/arch-guard.mjs; end $?
+node tools/arch-guard.mjs; adv $?
 
 begin "真源镜像一致性（data/ ↔ Assets/Data ↔ Resources）"
 node tools/data-mirror.mjs; end $?
@@ -65,13 +76,13 @@ begin "资产清单准入（C3：产物落地 + 引用/kind 匹配 + 记录齐�
 rc=0
 node tools/validate-assets.mjs || rc=$?
 node tools/gen-kits.mjs --check || rc=$?
-end $rc
+adv $rc
 
 begin "C# 静态一致性检查"
 node tools/cs-lint.mjs; end $?
 
 begin "V9 §11 色彩 Token 对账双射"
-node tools/tokens-map-check.mjs; end $?
+node tools/tokens-map-check.mjs; adv $?
 
 begin "声纹移植等价性（灰盒 JS ↔ C# 移植）"
 node tools/voice-port-vectors.mjs; end $?
@@ -97,17 +108,21 @@ end $rc
 # ── 汇总：红在哪几条，一眼看完（而不是只知道第一条红的）──
 printf '\n\033[1m════════ 门禁链汇总（%s 步全跑完）════════\033[0m\n' "$STEP_NO"
 fail=0
+advisory=0
 for i in "${!R_NAMES[@]}"; do
   if [ "${R_CODES[$i]}" = "0" ]; then
     printf '  \033[32m✓\033[0m %s\n' "${R_NAMES[$i]}"
+  elif [ "${R_ADV[$i]:-0}" = "1" ]; then
+    printf '  \033[33m⚠\033[0m %s  \033[33m(咨询 · PDF 条文已抛弃，不判红)\033[0m\n' "${R_NAMES[$i]}"
+    advisory=$((advisory + 1))
   else
     printf '  \033[31m✗\033[0m %s  \033[31m(exit %s)\033[0m\n' "${R_NAMES[$i]}" "${R_CODES[$i]}"
     fail=$((fail + 1))
   fi
 done
 if [ "$fail" = 0 ]; then
-  printf '\n\033[1;32mUnity 骨架检查完成：%s 步全绿\033[0m\n' "$STEP_NO"
+  printf '\n\033[1;32mUnity 骨架检查完成：%s 步通过 · %s 步咨询\033[0m\n' "$((STEP_NO - advisory))" "$advisory"
 else
-  printf '\n\033[1;31mUnity 骨架检查：通过 %s · 失败 %s（详见上方各步输出）\033[0m\n' "$((STEP_NO - fail))" "$fail"
+  printf '\n\033[1;31mUnity 骨架检查：通过 %s · 失败 %s · 咨询 %s（PDF 条文已抛弃，不判红）\033[0m\n' "$((STEP_NO - fail - advisory))" "$fail" "$advisory"
   exit 1
 fi

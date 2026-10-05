@@ -776,6 +776,20 @@ namespace UnityEngine
         public bool isTrigger { get; set; }
     }
 
+    /// <summary>
+    /// 文档：MeshCollider —— 网格碰撞体。
+    ///
+    /// 为什么需要（P0-2 大厅碰撞体）：货车套件此前**只有 MeshFilter + MeshRenderer**，
+    /// 玩家自由行走时会直接穿过货车。而货车是"移动基地/安全指挥中心"，**玩家要能走进车厢** ——
+    /// 包住整车的实心 BoxCollider 会把车厢内部填实（看着能进、走进去被弹开），比没有碰撞体更糟。
+    /// **非凸网格**才能表达"有外壳、内有空腔"；非凸只在静态物体上允许，货车是停放的、无 Rigidbody，故可行。
+    /// </summary>
+    public class MeshCollider : Collider
+    {
+        public Mesh sharedMesh { get; set; }
+        public bool convex { get; set; }
+    }
+
     /// <summary>文档：RaycastHit — 射线命中信息（门交互拾取）。</summary>
     public struct RaycastHit
     {

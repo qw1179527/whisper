@@ -188,11 +188,14 @@ jobs:
           path: unity/build/Android/*.apk
           if-no-files-found: error
 
-      - name: 校验包体门禁（V9 §13.8：APK ≤200MB）
+      - name: 记录包体（**无上限判据**）
+        # 【已取消 200MB 硬门禁 · 用户 2026-10-06】原文："并非有200MB上限，把 pdf 方案里的所有要求全部抛弃"
+        # 保留这一步是因为**包体数字本身有信息量**（构建产物在变大还是变小），
+        # 但它不再能让构建失败 —— 高画质方向下包体必然上升，拿条文卡死等于堵死画质目标。
         run: |
           set -e
-          f=$(ls unity/build/Android/*.apk | head -1)
+          f=$(ls unity/build/Android/*.apk 2>/dev/null | head -1)
+          if [ -z "$f" ]; then echo "::error::没有 APK 产物"; exit 1; fi
           sz=$(stat -c%s "$f")
-          echo "APK: $f · $sz 字节（$((sz/1048576)) MB）"
-          if [ "$sz" -gt 209715200 ]; then echo "✗ 超过 200MB 包体门禁"; exit 1; fi
-          echo "✓ 包体门禁通过"
+          echo "APK: $f"
+          echo "大小: $sz 字节 = $(awk "BEGIN{printf \"%.1f\", $sz/1048576}") MB（仅记录，不判红）"

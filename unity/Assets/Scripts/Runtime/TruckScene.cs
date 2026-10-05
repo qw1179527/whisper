@@ -152,6 +152,19 @@ namespace Whisper.Runtime
                 mf.sharedMesh = parts[i];
                 var mr = go.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = MaterialForPart(matIdx, kitMats, i);
+
+                // 【P0-2 补 · 大厅碰撞体】此前这里**只有 MeshFilter + MeshRenderer**，
+                // 于是玩家自由行走时会**直接穿过货车** —— 与官方要求
+                // 「大厅的3D模型包含完整的碰撞体，玩家可以在其中自由行走」不符。
+                //
+                // 为什么用**非凸 MeshCollider** 而不是省事的 BoxCollider：
+                // 货车在本作里是"移动基地/安全指挥中心"（《补充说明》§8），**玩家要能走进车厢**。
+                // 一个包住整车的实心 Box 会把车厢内部填实 —— 看着能进、走进去被弹开，
+                // 比没有碰撞体更糟。非凸网格才能表达"有外壳、内有空腔"。
+                // 静态物体允许非凸（本车在 HallScene 里是停放状态、无 Rigidbody），故这条路可行。
+                var mc = go.AddComponent<MeshCollider>();
+                mc.sharedMesh = parts[i];
+                mc.convex = false;
             }
             return true;
         }

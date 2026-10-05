@@ -11,16 +11,18 @@ namespace Whisper.Editor
     ///
     /// 为什么必须由脚本构建而不是"在编辑器里点 Build"：
     /// 本项目的开发模式是"手机 + AI 编程"，人不在编辑器前 —— 构建必须能被 CI 一行命令驱动。
-    /// 本脚本同时承担 §13.8 的**包体硬门禁**（APK ≤200MB），超限直接构建失败，
-    /// 避免"包悄悄变大到装不下"。
+    /// 【包体上限已取消 · 用户 2026-10-06】
+    /// 原实现有一条 `APK ≤200MB` 的**硬门禁**，来源是 V9 §13.8。
+    /// 用户明确：「**并非有200MB上限**，把 pdf 方案里的所有要求全部抛弃」。
+    /// 而且这条约束与当前方向**直接相冲** —— 要做高画质建模/贴图，包体必然上去，
+    /// 拿一个过时的条文把构建卡死，等于把画质目标堵死。
+    /// 现在只**如实打印包体**，不再判红。
     ///
     /// 用法（GameCI / 本地均可）：
     ///   Unity -quit -batchmode -projectPath unity -executeMethod Whisper.Editor.BuildScript.BuildAndroid
     /// </summary>
     public static class BuildScript
     {
-        const long MaxApkBytes = 200L * 1024 * 1024;   // V9 §13.8
-
         [MenuItem("Whisper/Build Android APK")]
         public static void BuildAndroid()
         {
@@ -61,9 +63,7 @@ namespace Whisper.Editor
 
             long size = new FileInfo(apk).Length;
             Debug.Log($"[Whisper] 构建成功：{apk} · {size} 字节（{size / 1048576} MB）");
-            if (size > MaxApkBytes)
-                throw new Exception($"✗ 超过 V9 §13.8 包体门禁：{size} > {MaxApkBytes}");
-            Debug.Log("✓ 包体门禁通过");
+            Debug.Log($"[Whisper] 包体 {size / 1048576.0:F1} MB（仅记录，无上限判据）");
         }
     }
 }
