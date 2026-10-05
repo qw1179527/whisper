@@ -560,6 +560,8 @@ namespace UnityEngine
 
     public partial class GameObject
     {
+        /// <summary>文档：GameObject.GetComponentsInChildren&lt;T&gt;(bool includeInactive) — 取证遍历场景光源用。</summary>
+        public T[] GetComponentsInChildren<T>(bool includeInactive) => new T[0];
         /// <summary>文档：GameObject.activeInHierarchy — 自身与所有祖先都激活。</summary>
         public bool activeInHierarchy => false;
         /// <summary>文档：GameObject.GetComponentInChildren(bool includeInactive = false)。</summary>
@@ -688,6 +690,8 @@ namespace UnityEngine
         public static string streamingAssetsPath => "";
         /// <summary>文档：Application.isMobilePlatform — 移动端才弹系统键盘。</summary>
         public static bool isMobilePlatform => false;
+        /// <summary>文档：Application.isBatchMode — 是否 -batchmode 运行（取证判红时据此决定能否退出）。</summary>
+        public static bool isBatchMode => false;
         /// <summary>文档：Application.persistentDataPath — 跨更新保留的可写目录（点击回执落盘在这里）。</summary>
         public static string persistentDataPath => "/tmp";
     }
@@ -844,6 +848,8 @@ namespace UnityEngine
     /// <summary>文档：Texture2D — CPU 可读写纹理（程序化贴图与取证截图）。</summary>
     public class Texture2D : Texture
     {
+        /// <summary>文档：Texture2D.LoadImage(byte[]) — 从 PNG/JPG 字节读回纹理（像素比对用）。</summary>
+        public bool LoadImage(byte[] data) => true;
         public Texture2D(int width, int height) { }
         /// <summary>文档：Texture2D(int width, int height, TextureFormat textureFormat, bool mipChain)。</summary>
         public Texture2D(int width, int height, TextureFormat textureFormat, bool mipChain) { }

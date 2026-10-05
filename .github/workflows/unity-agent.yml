@@ -36,6 +36,7 @@ on:
         options:
           - render-evidence        # 光照/雾/手电的像素取证（开灯vs关灯必须可分辨）
           - door-evidence          # 门的取证
+          - lobby-evidence         # 大厅取证（P1 的基线与验收依据）
           - kit-visibility         # 套件可见性
           - kit-assets-selftest    # 套件字节资产自检
           - tests-editmode         # Unity Test Framework · EditMode
@@ -220,15 +221,21 @@ jobs:
               export OUT_DIR="$GITHUB_WORKSPACE/_evidence/doors"
               run_xvfb bash tools/door-evidence.sh
               ;;
-            kit-visibility|kit-assets-selftest|shell)
+            lobby-evidence|kit-visibility|kit-assets-selftest|shell)
               # 方法名映射：这三个走通用 -executeMethod 路径
               case "$TASK" in
+                lobby-evidence)      M="Whisper.Editor.LobbyEvidenceCapture.Run" ;;
                 kit-visibility)      M="Whisper.Editor.KitVisibilityCapture.Run" ;;
                 kit-assets-selftest) M="Whisper.Editor.KitByteAssetsSelfTest.Run" ;;
                 shell)               M="$METHOD" ;;
               esac
               if [ -z "$M" ]; then echo "::error::task=shell 必须给 method"; exit 1; fi
               echo "执行方法：$M"
+              # 取证类任务要指定输出目录（否则落到 ../_evidence 之外，上传不到）
+              case "$TASK" in
+                lobby-evidence) EXTRA="$EXTRA -captureDir $GITHUB_WORKSPACE/_evidence/lobby" ;;
+                kit-visibility) EXTRA="$EXTRA -captureDir $GITHUB_WORKSPACE/_evidence/kit-view" ;;
+              esac
               run_xvfb "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
                 -executeMethod "$M" -logFile "$UNITY_LOG" $EXTRA
               rc=$?
