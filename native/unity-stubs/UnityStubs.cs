@@ -185,6 +185,8 @@ namespace UnityEngine
     public static partial class Input
     {
         public static int touchCount => 0;
+        /// <summary>文档：Input.touchSupported — 设备是否支持触摸（点击回执里记录，用于区分"没触摸硬件"与"触摸没到"）。</summary>
+        public static bool touchSupported => true;
         public static Touch GetTouch(int index) => default;
         public static bool GetKeyDown(KeyCode k) => false;
         public static bool GetMouseButtonDown(int b) => false;
@@ -197,6 +199,8 @@ namespace UnityEngine
     /// <summary>屏幕尺寸（像素）。</summary>
     public static class Screen
     {
+        /// <summary>文档：Screen.dpi — 屏幕 DPI（点击回执里记录，用于判断坐标是否被缩放）。</summary>
+        public static float dpi => 160f;
         public static int width => 1920;
         public static int height => 1080;
     }
@@ -630,6 +634,8 @@ namespace UnityEngine
     {
         /// <summary>文档：Input.touches — 本帧全部触摸（Touch[]，可能为空数组）。</summary>
         public static Touch[] touches => null;
+        /// <summary>文档：Input.touchSupported — 设备是否支持触摸（点击回执用它区分"没有触摸硬件"与"触摸没到"）。</summary>
+        public static bool touchSupported => true;
     }
 
     public static partial class Mathf
@@ -684,6 +690,8 @@ namespace UnityEngine
         public static string streamingAssetsPath => "";
         /// <summary>文档：Application.isMobilePlatform — 移动端才弹系统键盘。</summary>
         public static bool isMobilePlatform => false;
+        /// <summary>文档：Application.persistentDataPath — 跨更新保留的可写目录（点击回执落盘在这里）。</summary>
+        public static string persistentDataPath => "/tmp";
     }
 
     public static partial class Time
@@ -692,6 +700,8 @@ namespace UnityEngine
         public static float time => 0f;
         /// <summary>文档：Time.frameCount — 已渲染帧数（触摸去重用它）。</summary>
         public static int frameCount => 0;
+        /// <summary>文档：Time.realtimeSinceStartup — 真实经过秒数（不受 timeScale 影响；点击回执用它记时）。</summary>
+        public static float realtimeSinceStartup => 0f;
     }
 
     public static partial class Resources

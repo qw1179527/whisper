@@ -307,16 +307,21 @@ namespace Whisper.Runtime
         /// <summary>诊断：把游戏**实际收到**的输入打出来（两套输入系统都读）。</summary>
         void LogTouchesOnce()
         {
-            if (_touchLogs >= 60) return;
+            // 【P0-3 改造】原实现只记 60 次、只认 Began、且只 Debug.Log。
+            // 三个问题：① 60 次早早就用完了，真正复现时反而没有记录；
+            //          ② 只认 Began 会漏掉"抬手"——而"按下去没反应"的现场恰恰要看 Ended/Moved；
+            //          ③ Debug.Log 要连 adb 才看得到，而本机没有 PC ⇒ 必须落盘。
+            // 现在：**全相位 + 无上限（由 ClickReceipt 自己滚动截断）+ 落盘**。
+            const int MaxReceiptTouches = 8;   // 单帧最多记几条（多指同时按时防止刷屏）
             // 旧 Input
             int n = Input.touchCount;
             for (int i = 0; i < n && _touchLogs < 60; i++)
             {
                 var t = Input.GetTouch(i);
-                if (t.phase != TouchPhase.Began) continue;
-                _touchLogs++;
-                _lastTouch = "旧Input " + t.position.x.ToString("F0") + "," + t.position.y.ToString("F0");
-                Debug.Log("[Whisper] 旧Input 触摸 " + _lastTouch);
+                if (i >= MaxReceiptTouches) break;
+                _lastTouch = "旧Input " + t.phase + " " + t.position.x.ToString("F0") + "," + t.position.y.ToString("F0");
+                // 全相位落盘（不再只认 Began）—— "按下去没反应"要看得到 Ended/Moved 才定得了位
+                ClickReceipt.Write("touch", "旧 " + t.phase + " id=" + t.fingerId + " @" + t.position.x.ToString("F0") + "," + t.position.y.ToString("F0"));
             }
             // 新 Input System（同样用条件编译包住，理由见 HandleSelfDrawClick 的注释）
 #if ENABLE_INPUT_SYSTEM
@@ -382,13 +387,24 @@ namespace Whisper.Runtime
             if (!clicked && Input.GetMouseButtonDown(0))
             { sp = new Vector2(Input.mousePosition.x, Input.mousePosition.y); clicked = true; via = "旧Mouse"; }
 
-            if (clicked) _lastTouch = via + " " + sp.x.ToString("F0") + "," + sp.y.ToString("F0");
+            if (clicked)
+            {
+                _lastTouch = via + " " + sp.x.ToString("F0") + "," + sp.y.ToString("F0");
+                // 【P0-3 点击回执】记下**走的哪条输入路径**与坐标。
+                // 为什么这条最关键："点击失灵"的三种可能（输入没到 / 到了但没命中 / 命中了但没执行）
+                // 在这条回执上会呈现为完全不同的组合 —— 没有它就只能猜。
+                ClickReceipt.Write("click", via + " @" + sp.x.ToString("F0") + "," + sp.y.ToString("F0"));
+            }
             _inputState = via.Length > 0 ? via : "无输入";
 
             // 【主界面 UI 重构】先让**菜单板 3D 拾取**处理点击（官方：点菜单板进入操作视角）。
             // 它返回 true = 已消费（点在板上 / 按了空格），此时不要再落到旧的竖排按钮上。
             // 注意：空格是在**没有点击**时也要处理的，所以这一句必须在 clicked 判断之前。
-            if (HandleBoardInput(sp, clicked)) return;
+            // 【P0-3 点击回执】板面**是否消费**了这次输入。
+            // 负结果同样要记："点了但没命中任何控件"与"压根没收到点击"是两回事。
+            bool consumed = HandleBoardInput(sp, clicked);
+            ClickReceipt.Write("board", (consumed ? "consumed" : "miss") + " clicked=" + clicked + " @" + sp.x.ToString("F0") + "," + sp.y.ToString("F0"));
+            if (consumed) return;
 
             if (!clicked) return;
             if (_canvas == null) return;
