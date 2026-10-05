@@ -1,4 +1,7 @@
 using System.Collections.Generic;
+using Whisper.Core;                 // Services 定位器在 Whispers.Core（写成同文件内引用会 CS0103）
+using Whisper.Core.Contracts;       // MatchPhase
+using Whisper.Gameplay.Level;        // MiniJson（地图注册表读取用）           // LanSession / RoomReachJudge（零信令直连：可达范围与会话编排）
 using UnityEngine;
 using UnityEngine.UI;
 using Whisper.Net.Direct;

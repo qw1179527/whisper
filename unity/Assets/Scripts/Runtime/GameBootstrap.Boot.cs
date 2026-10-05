@@ -1,4 +1,7 @@
 using UnityEngine;
+using Whisper.Gameplay.Progression;   // Progression / Shop / TaskSystem（等级-商店-任务，恐鬼症对齐）
+using Whisper.Gameplay.Objectives;    // ObjectiveSystem（**局内任务**：合同日志里的可选目标，与每日任务是两套）
+using Whisper.Net.Direct;   // LanSession / LanAddress / RoomCode（零信令直连层）
 using UnityEngine.UI;
 using Whisper.Core;
 using Whisper.Core.Contracts;
