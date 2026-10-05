@@ -95,7 +95,13 @@ while (true) {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), budgetSec * 1000);
     const r = await fetch(zipUrl, { headers: { ...H, Range: `bytes=${have}-${have + want - 1}` }, redirect: 'follow', signal: ac.signal });
-    if (!r.ok && r.status !== 206) { clearTimeout(timer); throw new Error('HTTP ' + r.status); }
+    // 【必修，与 dl-art.mjs 同一个 bug】请求了 Range 就必须收到 206：
+    //   若跳转后的签名 URL 忽略 Range 而返回 200，它给的是**整个文件**，
+    //   当成续传片段写入 = 把开头写到尾部 = 文件损坏（实测在 40MB 的 artifact 上踩过，白跑 1417 秒）。
+    if (have > 0 ? r.status !== 206 : !r.ok) {
+      clearTimeout(timer);
+      throw new Error('HTTP ' + r.status + (have > 0 ? '（请求了 Range 却非 206 → 拒绝，避免写坏）' : ''));
+    }
     const fh = fs.openSync(tmp, 'a');
     let got = 0;
     try {
