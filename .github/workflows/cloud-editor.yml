@@ -40,7 +40,7 @@ on:
         default: 'unity'
 
 permissions:
-  contents: read
+  contents: write        # ★ 自动存档要把改动推回仓库（runner 是临时的，不推就丢）
   issues: write          # 用 issue 评论发网址（第二条通道，防日志取不到）
 
 jobs:
@@ -74,6 +74,17 @@ jobs:
           fi
 
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # 自动存档要能 push
+
+      # Library 缓存：与 unity-android.yml **共用同一 key 前缀** → 两边互相预热。
+      # 不缓存的话，每次云会话都要重新导入全部资产，起步就白等十几分钟。
+      - name: 缓存 Library
+        uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-Android-v2-${{ hashFiles('unity/Assets/**', 'unity/ProjectSettings/**') }}
+          restore-keys: Library-Android-v2-
 
       - name: 装显示栈与工具
         run: |
@@ -237,9 +248,38 @@ jobs:
           set -u
           M=${MINUTES:-180}
           [ "$M" -gt 340 ] && M=340
-          echo "保持 ${M} 分钟…"
+          # ── 自动存档：runner 是【临时】的，作业结束里面的一切都没了。
+          #    不自动推的话，"改了 3 小时、作业到点、全丢"是最容易吃的亏。
+          #    推到**独立会话分支**而不是 main —— 会话里的改动是半成品，
+          #    不该污染主线；等会话结束再由人（或智能体）审阅合并。
+          BRANCH="cloud-editor/session-${GITHUB_RUN_ID}"
+          ##########################################################################
+          # 【关于这台机器上"你自己看不到自己改动"的重要说明】
+          #   Actions runner 上的工作区是**一次性的**：作业结束即销毁。
+          #   所以本步骤每 5 分钟自动 commit + push 到上面那个分支。
+          #   云端编辑器里改完东西，**不需要手动 git 操作** —— 等着自动存档即可；
+          #   想立刻存档就在 Editor 外开个终端跑一次本步骤同款命令（见日志）。
+          ##########################################################################
+          autosave() {
+            cd "$GITHUB_WORKSPACE" || return 0
+            # 只在真的有改动时才提交（空提交会刷屏）
+            if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+              git add -A 2>/dev/null
+              git -c user.email="cloud-editor@users.noreply.github.com" \
+                  -c user.name="cloud-editor (auto)" \
+                  commit -q -m "cloud-editor 自动存档 $(date -u +%Y-%m-%dT%H:%M:%SZ) [run ${GITHUB_RUN_ID}]" 2>/dev/null || return 0
+              if git push -q origin "HEAD:${BRANCH}" 2>/dev/null; then
+                echo "  💾 已存档并推送到 ${BRANCH}（$(git rev-parse --short HEAD)）"
+              else
+                echo "  ⚠ 存档提交成功但推送失败（下次会重试；本地提交仍在工作区）"
+              fi
+            fi
+          }
+
+          echo "保持 ${M} 分钟…（每 5 分钟自动存档到 ${BRANCH}）"
           for i in $(seq 1 "$M"); do
             sleep 60
+            if [ $((i % 5)) -eq 0 ]; then autosave; fi
             if [ $((i % 15)) -eq 0 ]; then
               echo "[$i/${M} 分] 存活检查：Xvfb=$(pgrep -c Xvfb || echo 0) · x11vnc=$(pgrep -c x11vnc || echo 0) · novnc=$(pgrep -c websockify || echo 0) · Unity=$(pgrep -c -f '/opt/unity/Editor/Unity' || echo 0) · 磁盘剩余=$(df -h / | tail -1 | awk '{print $4}')"
               # 隧道断了就重连（长时间会话里这是最常见的故障）
@@ -250,6 +290,30 @@ jobs:
             fi
           done
           echo "到时收工"
+
+      - name: 收尾：最后一次自动存档
+        if: always()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          BRANCH="cloud-editor/session-${GITHUB_RUN_ID}"
+          if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+            git add -A 2>/dev/null
+            git -c user.email="cloud-editor@users.noreply.github.com" \
+                -c user.name="cloud-editor (auto)" \
+                commit -q -m "cloud-editor 收尾存档 $(date -u +%Y-%m-%dT%H:%M:%SZ) [run ${GITHUB_RUN_ID}]" 2>/dev/null || true
+            git push -q origin "HEAD:${BRANCH}" 2>/dev/null && echo "✓ 已推送到 ${BRANCH}" || echo "⚠ 推送失败，改动仅存在于即将销毁的工作区"
+          else
+            echo "无改动"
+          fi
+          {
+            echo "## 本次会话的存档分支"
+            echo ""
+            echo '```'
+            echo "$BRANCH"
+            echo '```'
+            echo ""
+            echo "会话里的一切改动都在这个分支上（每 5 分钟自动存档一次）。"
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: 收尾：导出 Unity 日志（便于排查）
         if: always()
