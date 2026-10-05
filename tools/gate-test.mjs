@@ -211,7 +211,18 @@ if (failed > 0 && !/失败清单/.test(out)) bad('T4 失败但跑手未输出失
   if (!/Resources\.Load<Shader>/.test(lbSrc)) t6.push('LevelBuilder 未通过 Resources.Load<Shader> 取几何着色器');
 
   // ③ 启动前必须建好相机与字体（否则几何建出来也看不见、HUD 不画字）
-  const bootSrc = stripComments(fs.readFileSync(path.join(ROOT, 'unity/Assets/Scripts/Runtime/GameBootstrap.cs'), 'utf8'));
+  // 【按类找，不按文件找 · 2026-10-06】`GameBootstrap` 是 **partial** 类，
+  // 代码分布在 GameBootstrap.cs / .Api.cs / .Lifecycle.cs / .Boot.cs / .Spawn.cs / .Temperature.cs。
+  // 原实现只读 GameBootstrap.cs —— 于是**把方法挪进分部文件就能悄悄绕过 T6**（判据被削弱）。
+  // 现在读**全部**分部并拼接，判据覆盖整个类：既修好了拆分后的误报，也让绕过不再可能。
+  const bootDir = path.join(ROOT, 'unity/Assets/Scripts/Runtime');
+  const bootSrc = stripComments(
+    fs.readdirSync(bootDir)
+      .filter((n) => /^GameBootstrap(\.[A-Za-z]+)?\.cs$/.test(n))
+      .sort()
+      .map((n) => fs.readFileSync(path.join(bootDir, n), 'utf8'))
+      .join('\n'),
+  );
   if (!/new GameObject\(\s*"MainCamera"\s*,\s*typeof\(Camera\)\s*\)/.test(bootSrc))
     t6.push('GameBootstrap 未建相机（Boot 场景无相机 → 什么都渲染不出来）');
   if (!/_status\.font\s*=/.test(bootSrc)) t6.push('GameBootstrap 未给 HUD 设置字体（Text.font 为 null 时 uGUI 不绘制任何文字）');
