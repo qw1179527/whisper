@@ -138,18 +138,24 @@ jobs:
           export UNITY_PROJECT="$GITHUB_WORKSPACE/unity"
           export UNITY_LOG="$GITHUB_WORKSPACE/unity-agent.log"
           mkdir -p "$GITHUB_WORKSPACE/_evidence"
-          XVFB="xvfb-run -a --server-args=-screen 0 1920x1080x24"
+          # ⚠ 不要写成 `XVFB="xvfb-run -a --server-args=-screen 0 1920x1080x24"` 再 `$XVFB ...`：
+          #   不加引号展开会按空格拆词，而 `-screen 0 1920x1080x24` 里**有空格** →
+          #   拆成三个参数后 `0` 被当成要执行的命令，报 `/usr/bin/xvfb-run: 184: 0: not found`。
+          #   （实测踩到过。）用函数传参就不会有这个问题。
+          run_xvfb() {
+            xvfb-run -a --server-args="-screen 0 1920x1080x24" "$@"
+          }
 
           echo "════ 任务：$TASK ════"
 
           case "$TASK" in
             render-evidence)
               export OUT_DIR="$GITHUB_WORKSPACE/_evidence/render-v2"
-              $XVFB bash tools/render-evidence.sh
+              run_xvfb bash tools/render-evidence.sh
               ;;
             door-evidence)
               export OUT_DIR="$GITHUB_WORKSPACE/_evidence/doors"
-              $XVFB bash tools/door-evidence.sh
+              run_xvfb bash tools/door-evidence.sh
               ;;
             kit-visibility|kit-assets-selftest|shell)
               # 方法名映射：这三个走通用 -executeMethod 路径
@@ -160,7 +166,7 @@ jobs:
               esac
               if [ -z "$M" ]; then echo "::error::task=shell 必须给 method"; exit 1; fi
               echo "执行方法：$M"
-              $XVFB "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
+              run_xvfb "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
                 -executeMethod "$M" -logFile "$UNITY_LOG" $EXTRA
               rc=$?
               echo "Unity rc=$rc"
@@ -175,7 +181,7 @@ jobs:
               PLATFORM=$([ "$TASK" = "tests-editmode" ] && echo EditMode || echo PlayMode)
               RESULTS="$GITHUB_WORKSPACE/_evidence/test-results-${PLATFORM}.xml"
               mkdir -p "$(dirname "$RESULTS")"
-              $XVFB "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
+              run_xvfb "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
                 -runTests -testPlatform "$PLATFORM" -testResults "$RESULTS" \
                 -logFile "$UNITY_LOG"
               rc=$?
@@ -189,7 +195,7 @@ jobs:
               [ "$rc" = "0" ] || { echo "::warning::有测试失败（rc=$rc），详见结果 XML"; exit 1; }
               ;;
             build-android)
-              $XVFB "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
+              run_xvfb "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
                 -executeMethod Whisper.Editor.BuildScript.BuildAndroid -logFile "$UNITY_LOG"
               rc=$?
               echo "Unity rc=$rc"
