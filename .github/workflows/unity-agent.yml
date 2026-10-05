@@ -1,0 +1,232 @@
+# unity-agent —— **给智能体用的** Unity 任务流水线（不是给人看的桌面）
+#
+# ## 为什么不走 VNC 桌面（第一版设计错了）
+# 我一开始做了"云上 Unity Editor + noVNC + 手机浏览器操作"。
+# 但那是**给人的接口**，对智能体是最差的接口：我得截图 → 猜坐标 → 点鼠标。
+# 我真正需要的是 **`Unity -batchmode` 命令行**：跑任务 → 产出**文件**（PNG/XML/JSON/APK）→
+# 我直接读（图片用 `read_image`，结构化数据直接解析）。
+#
+# ## 本流水线的形态
+# ```
+# 我：POST /dispatches  { task: "render-evidence" }
+#    → runner 装 Unity → xvfb-run 跑任务 → 上传产物
+# 我：下载产物（用 tools/fast-download.mjs，8 并行）→ 看图 / 解析 → 决定下一步
+# ```
+# **一次性作业，用完即走** —— 没有 6 小时保活、没有隧道、没有密码、没有"连接被拒绝"。
+#
+# ## 两层判据（照抄本项目已总结的教训，不是我的发明）
+# `tools/render-evidence.sh` 头部写着：
+#   「只看退出码不够：**executeMethod 名字写错会"静默成功"**，本项目已有先例」
+# 所以每个取证任务都要求：**Unity 退出码 = 0** 且 **日志里出现对应 sentinel**
+# （`RENDER_EVIDENCE OK` / `DOOR_EVIDENCE OK`）。缺一即红。
+#
+# ## 为什么不能加 -nographics
+# `RenderEvidenceCapture.cs` 注释里明确写了：`Camera.Render()` 在无图形设备下会崩 0xC0000005。
+# 所以这里**起 Xvfb + Mesa 软件渲染**（有图形设备、但走 CPU），而不是 -nographics。
+name: unity-agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: '要跑的任务'
+        required: true
+        type: choice
+        default: render-evidence
+        options:
+          - render-evidence        # 光照/雾/手电的像素取证（开灯vs关灯必须可分辨）
+          - door-evidence          # 门的取证
+          - kit-visibility         # 套件可见性
+          - kit-assets-selftest    # 套件字节资产自检
+          - tests-editmode         # Unity Test Framework · EditMode
+          - tests-playmode         # Unity Test Framework · PlayMode（V12 §T6，一直挂着的那项）
+          - build-android          # 出 APK
+          - shell                  # 跑任意 Editor 方法（下面两个输入）
+      method:
+        description: 'task=shell 时要执行的 Editor 方法（如 Whisper.Editor.KitVisibilityCapture.Run）'
+        required: false
+        default: ''
+      extra:
+        description: '额外命令行参数（原样附加到 Unity 命令后）'
+        required: false
+        default: ''
+
+jobs:
+  agent:
+    name: Unity 任务
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: 释放 runner 磁盘空间
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # ⚠ 五个参数全是承重的：实测改 false 后会 `no space left on device`
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: false
+
+      - uses: actions/checkout@v4
+
+      - name: 装显示栈（软件渲染 GL —— Camera.Render() 需要图形设备）
+        run: |
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            xvfb x11-utils mesa-utils libgl1-mesa-dri libglu1-mesa libvulkan1 mesa-vulkan-drivers xz-utils
+          echo "✓ 显示栈就绪"
+
+      - name: 下载并解压 Unity Linux 编辑器
+        run: |
+          set -e
+          VER=6000.3.25f1; HASH=e1dba0a9aba4
+          BASE="https://download.unity3d.com/download_unity/${HASH}"
+          mkdir -p dl
+          time curl -fL --retry 3 -o dl/editor.tar.xz "${BASE}/LinuxEditorInstaller/Unity-${VER}.tar.xz"
+          S=$(stat -c%s dl/editor.tar.xz)
+          test "$S" -eq 4536554312 || { echo "::error::体积不符 $S"; exit 1; }
+          sudo mkdir -p /opt/unity
+          time sudo tar -xJf dl/editor.tar.xz -C /opt/unity
+          test -x /opt/unity/Editor/Unity || { echo "::error::没有 /opt/unity/Editor/Unity"; exit 1; }
+          echo "✓ $(du -sh /opt/unity | cut -f1)"
+
+      - name: Android Build Support（出包/部分取证需要）
+        if: inputs.task == 'build-android'
+        run: |
+          set -e
+          VER=6000.3.25f1; HASH=e1dba0a9aba4
+          BASE="https://download.unity3d.com/download_unity/${HASH}"
+          for cand in \
+            "${BASE}/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" \
+            "${BASE}/LinuxEditorTargetInstaller/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" \
+            "${BASE}/TargetSupportInstaller/UnitySetup-Android-Support-for-Editor-${VER}.tar.xz" ; do
+            echo "试：$(basename "$cand")"
+            if curl -fL -sS -o dl/android.tar.xz "$cand" 2>/dev/null; then
+              SZ=$(stat -c%s dl/android.tar.xz 2>/dev/null || echo 0)
+              if [ "$SZ" -gt 10000000 ]; then
+                sudo tar -xJf dl/android.tar.xz -C /opt/unity && { echo "✓ Android 模块已装"; exit 0; }
+              fi
+            fi
+          done
+          echo "::error::Android 模块装不上 —— 出包任务无法继续"
+
+      - name: 装 Unity 许可证
+        env:
+          UL: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          set -e
+          LICDIR="$HOME/.local/share/unity3d/Unity"; mkdir -p "$LICDIR"
+          if [ -n "$UL" ]; then
+            printf '%s' "$UL" > "$LICDIR/Unity_lic.ulf"
+            echo "✓ 许可证已写入（$(stat -c%s "$LICDIR/Unity_lic.ulf") 字节）"
+          else
+            echo "::error title=缺许可证::没有 UNITY_LICENSE secret"; exit 1
+          fi
+
+      - name: 执行任务
+        env:
+          TASK: ${{ inputs.task }}
+          METHOD: ${{ inputs.method }}
+          EXTRA: ${{ inputs.extra }}
+        run: |
+          set -uo pipefail
+          export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
+          export UNITY_EXE=/opt/unity/Editor/Unity
+          export UNITY_PROJECT="$GITHUB_WORKSPACE/unity"
+          export UNITY_LOG="$GITHUB_WORKSPACE/unity-agent.log"
+          mkdir -p "$GITHUB_WORKSPACE/_evidence"
+          XVFB="xvfb-run -a --server-args=-screen 0 1920x1080x24"
+
+          echo "════ 任务：$TASK ════"
+
+          case "$TASK" in
+            render-evidence)
+              export OUT_DIR="$GITHUB_WORKSPACE/_evidence/render-v2"
+              $XVFB bash tools/render-evidence.sh
+              ;;
+            door-evidence)
+              export OUT_DIR="$GITHUB_WORKSPACE/_evidence/doors"
+              $XVFB bash tools/door-evidence.sh
+              ;;
+            kit-visibility|kit-assets-selftest|shell)
+              # 方法名映射：这三个走通用 -executeMethod 路径
+              case "$TASK" in
+                kit-visibility)      M="Whisper.Editor.KitVisibilityCapture.Run" ;;
+                kit-assets-selftest) M="Whisper.Editor.KitByteAssetsSelfTest.Run" ;;
+                shell)               M="$METHOD" ;;
+              esac
+              if [ -z "$M" ]; then echo "::error::task=shell 必须给 method"; exit 1; fi
+              echo "执行方法：$M"
+              $XVFB "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
+                -executeMethod "$M" -logFile "$UNITY_LOG" $EXTRA
+              rc=$?
+              echo "Unity rc=$rc"
+              [ "$rc" = "0" ] || { echo "::error::Unity 退出码 $rc"; tail -40 "$UNITY_LOG"; exit 1; }
+              # 两层判据的第二层：方法名写错会"静默成功"，所以必须看到 sentinel
+              if ! grep -aqE '(_OK|SELFTEST OK|CAPTURE OK)' "$UNITY_LOG"; then
+                echo "::warning::退出码 0 但日志无成功标记 —— 方法可能根本没跑到（executeMethod 名字/路径错误会静默成功）"
+                tail -30 "$UNITY_LOG"
+              fi
+              ;;
+            tests-editmode|tests-playmode)
+              PLATFORM=$([ "$TASK" = "tests-editmode" ] && echo EditMode || echo PlayMode)
+              RESULTS="$GITHUB_WORKSPACE/_evidence/test-results-${PLATFORM}.xml"
+              mkdir -p "$(dirname "$RESULTS")"
+              $XVFB "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
+                -runTests -testPlatform "$PLATFORM" -testResults "$RESULTS" \
+                -logFile "$UNITY_LOG"
+              rc=$?
+              echo "Unity rc=$rc"
+              # Unity 测试失败时退出码非 0，但**结果 XML 才是权威**（它含每条用例的成败）
+              if [ -f "$RESULTS" ]; then
+                echo "✓ 结果 XML 已生成（$(stat -c%s "$RESULTS") 字节）"
+              else
+                echo "::error::没有生成测试结果 XML —— 测试根本没跑起来"; tail -40 "$UNITY_LOG"; exit 1
+              fi
+              [ "$rc" = "0" ] || { echo "::warning::有测试失败（rc=$rc），详见结果 XML"; exit 1; }
+              ;;
+            build-android)
+              $XVFB "$UNITY_EXE" -quit -batchmode -projectPath "$UNITY_PROJECT" \
+                -executeMethod Whisper.Editor.BuildScript.BuildAndroid -logFile "$UNITY_LOG"
+              rc=$?
+              echo "Unity rc=$rc"
+              [ "$rc" = "0" ] || { echo "::error::构建失败 rc=$rc"; tail -40 "$UNITY_LOG"; exit 1; }
+              ;;
+            *)
+              echo "::error::未知任务 $TASK"; exit 1 ;;
+          esac
+          echo "════ 任务 $TASK 完成 ════"
+
+      - name: 汇总产物清单
+        if: always()
+        run: |
+          {
+            echo "## unity-agent · ${{ inputs.task }}"
+            echo ""
+            echo "**判据**：Unity 退出码 + 日志 sentinel（两层，缺一即红）"
+            echo ""
+            echo "### 产物"
+            echo '```'
+            find "$GITHUB_WORKSPACE/_evidence" -type f 2>/dev/null | sed "s|$GITHUB_WORKSPACE/||" | head -60 || echo "(无)"
+            echo '```'
+            echo ""
+            echo "### 日志尾部"
+            echo '```'
+            tail -25 "$GITHUB_WORKSPACE/unity-agent.log" 2>/dev/null || echo "(无日志)"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: 上传产物（PNG/XML/APK/日志）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-agent-${{ inputs.task }}-${{ github.run_number }}
+          path: |
+            _evidence/**
+            unity-agent.log
+            unity/build/Android/*.apk
+          if-no-files-found: warn
+          retention-days: 14
