@@ -352,7 +352,6 @@ namespace Whisper.Runtime
             sp = new Vector2(0, 0);
             bool clicked = false;
             via = "";
-            string via = "";
 
             // 路 1/2：新 Input System —— **用条件编译包住**。
             // 为什么：真机编译报 CS0234「UnityEngine 中不存在 InputSystem」——
@@ -400,8 +399,10 @@ namespace Whisper.Runtime
 
         void HandleSelfDrawClick()
         {
-            Vector2 sp = new Vector2(0, 0);
-            bool clicked = ResolveClick(out Vector2 sp, out string via);
+            // sp/via 由 ResolveClick 通过 out 参数填好（原来是内联在本方法里的局部变量）
+            Vector2 sp;
+            string via;
+            bool clicked = ResolveClick(out sp, out via);
 
             if (clicked)
             {
