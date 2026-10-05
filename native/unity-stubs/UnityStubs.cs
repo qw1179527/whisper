@@ -185,8 +185,6 @@ namespace UnityEngine
     public static partial class Input
     {
         public static int touchCount => 0;
-        /// <summary>文档：Input.touchSupported — 设备是否支持触摸（点击回执里记录，用于区分"没触摸硬件"与"触摸没到"）。</summary>
-        public static bool touchSupported => true;
         public static Touch GetTouch(int index) => default;
         public static bool GetKeyDown(KeyCode k) => false;
         public static bool GetMouseButtonDown(int b) => false;

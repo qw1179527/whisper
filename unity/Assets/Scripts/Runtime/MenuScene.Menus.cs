@@ -339,10 +339,19 @@ namespace Whisper.Runtime
         /// <summary>自绘点击判定（不依赖 EventSystem）。
         /// **两套输入系统都读**：本工程装了 com.unity.inputsystem，而 activeInputHandler=0（旧系统）——
         /// 哪套在真正收事件只能实测；两套都读才不会因为"选错一套"而全盘失效（这正是我先前反复失败的原因）。</summary>
-        void HandleSelfDrawClick()
+        /// <summary>
+        /// 判定**本帧有没有点击**，以及走的哪条输入路径。
+        ///
+        /// 为什么单独成方法（2026-10-06）：原先是 HandleSelfDrawClick 内联的一大段，
+        /// 加上 P0-3 的点击回执后该方法超出 gate-code C5 的 120 行上限。
+        /// 抽出来还有一个好处：那套 `#if ENABLE_INPUT_SYSTEM` 的条件编译复杂度被隔离在这里，
+        /// 主流程只剩"拿到点击结果 → 交给板面判定"两件事。
+        /// </summary>
+        bool ResolveClick(out Vector2 sp, out string via)
         {
-            Vector2 sp = new Vector2(0, 0);
+            sp = new Vector2(0, 0);
             bool clicked = false;
+            via = "";
             string via = "";
 
             // 路 1/2：新 Input System —— **用条件编译包住**。
@@ -386,6 +395,13 @@ namespace Whisper.Runtime
             // 路 4：旧 Input —— 鼠标
             if (!clicked && Input.GetMouseButtonDown(0))
             { sp = new Vector2(Input.mousePosition.x, Input.mousePosition.y); clicked = true; via = "旧Mouse"; }
+            return clicked;
+        }
+
+        void HandleSelfDrawClick()
+        {
+            Vector2 sp = new Vector2(0, 0);
+            bool clicked = ResolveClick(out Vector2 sp, out string via);
 
             if (clicked)
             {
