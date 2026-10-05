@@ -1,484 +1,122 @@
-// UnityEngine 最小桩（仅供 native/unity-syntax 的语义检查使用，**不参与任何构建**）
-//
-// 为什么需要它：没有 UnityEngine 时，Unity 类型无法解析 → 表达式被标为错误类型 →
-// Roslyn 会**跳过其内部的成员检查**，于是项目自身的笔误（如 DesignTokens.ColorConcrete）
-// 根本不报错，检查器变成假绿（实测踩过）。给出最小可解析的 API 面后，编译器才能完成语义分析，
-// 从而真正拦住项目代码中的错误。
-//
-// 纪律：这里只放**本项目实际用到**的成员；缺什么就补什么，不要凭空扩面。
-using System;
+#!/usr/bin/env node
+/**
+ * add-missing-unity-stubs.mjs — 补齐 `native/unity-stubs/UnityStubs.cs` 缺失的 Unity API 面
+ *
+ * ## 这个脚本解决什么
+ * `bash tools/unity-syntax-check.sh` 判红时，真实错误几乎全是**桩缺 API 成员**
+ * （CS1061「类型不含该成员」/ CS0117「类型不含该定义」/ CS0023「运算符缺失」/ CS1579「不可枚举」），
+ * 不是游戏源码写错。判据只有一个：**补真实 API 面，让真错误自然降为 0**；
+ * 绝不把错误码塞进检查器的 allowed 集合（那是把门禁改瞎）。
+ *
+ * ## 为什么是「生成一段扩充区」而不是「逐个锚点插入」
+ * 前几版脚本（`add-missing-render-stubs.mjs` 等）按「宿主类里的锚点行」插入成员。
+ * 它们的锚点依赖**另一个版本的桩**（例如要求 `Mathf.Exp` 已存在才能插 `Mathf.Pow`），
+ * 桩一变老就全部失配、直接失败——不可复现。
+ * 本脚本改为：
+ *   ① 把需要扩充的既有类型改成 `partial`（确定性字符串改写，单行类也能改）；
+ *   ② 需要扩值的 `enum`（KeyCode）就地改写成完整声明；
+ *   ③ 文件末尾维护一段**生成区**，内容由本脚本的模板整段重建。
+ * 重跑 = 删掉旧生成区 + 重建 → 结果逐字节一致（幂等），与桩的历史版本无关。
+ *
+ * ## 纪律（每条签名都查过官方文档）
+ * - 每个新增类型上方有 `/// <summary>文档：<类型名> — <用途>。</summary>`。
+ * - 只补**项目实际用到**的成员；实现给 `default`/空体即可（桩只用于编译期语义分析）。
+ * - ⚠ 桩永远无法验证「Unity 真的有这个成员」（CI #18：臆造 `UnityEditor.SplashScreen`）。
+ *   往这里加成员前必须查 https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ ；
+ *   查不到就别加。
+ *
+ * ## 用法
+ *   node tools/add-missing-unity-stubs.mjs           # 重建生成区（幂等）
+ *   node tools/add-missing-unity-stubs.mjs --check   # 只校验：生成区与模板一致、partial/enum 已就位
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-namespace UnityEngine
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const FILE = path.join(ROOT, 'native/unity-stubs/UnityStubs.cs');
+const checkOnly = process.argv.includes('--check');
+
+const MARK_BEGIN = '// @@UNITY-STUBS-EXTENSION-BEGIN@@';
+const MARK_END = '// @@UNITY-STUBS-EXTENSION-END@@';
+
+const fail = (m) => { console.error('[stubs+] ✗ ' + m); process.exit(1); };
+const log = [];
+
+const raw = fs.readFileSync(FILE, 'utf8');
+const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+let lines = raw.split(/\r?\n/);
+const hadTrailingNewline = lines.length > 0 && lines[lines.length - 1] === '';
+if (hadTrailingNewline) lines.pop();
+
+// ── 0. 先摘掉旧的生成区（若存在），保证后面的检查只看「原始桩」 ──────────────
 {
-    public partial struct Vector2
-    {
-        public float x, y;
-        public Vector2(float x, float y) { this.x = x; this.y = y; }
-        public static Vector2 zero => new Vector2(0, 0);
-        public static Vector2 one => new Vector2(1, 1);
-        public float magnitude => (float)Math.Sqrt(x * x + y * y);
-        public float sqrMagnitude => x * x + y * y;
-        public Vector2 normalized => magnitude > 1e-6f ? new Vector2(x / magnitude, y / magnitude) : zero;
-        public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
-        public static Vector2 operator -(Vector2 a, Vector2 b) => new Vector2(a.x - b.x, a.y - b.y);
-        public static Vector2 operator *(Vector2 a, float k) => new Vector2(a.x * k, a.y * k);
-        public static Vector2 operator *(float k, Vector2 a) => new Vector2(a.x * k, a.y * k);
-        public static implicit operator Vector2(Vector3 v) => new Vector2(v.x, v.y);
-    }
-
-    public partial struct Vector3
-    {
-        public float x, y, z;
-        public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
-        public static Vector3 zero => new Vector3(0, 0, 0);
-        public static Vector3 one => new Vector3(1, 1, 1);
-    }
-
-    public partial struct Color
-    {
-        public float r, g, b, a;
-        public Color(float r, float g, float b, float a = 1f) { this.r = r; this.g = g; this.b = b; this.a = a; }
-        public static Color white => new Color(1, 1, 1);
-        public static Color black => new Color(0, 0, 0);
-        public static Color gray => new Color(.5f, .5f, .5f);
-        public static Color operator *(Color c, float k) => new Color(c.r * k, c.g * k, c.b * k, c.a);
-    }
-
-    public struct Color32
-    {
-        public byte r, g, b, a;
-        public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; }
-        public static implicit operator Color(Color32 c) => new Color(c.r / 255f, c.g / 255f, c.b / 255f, c.a / 255f);
-    }
-
-    public struct Quaternion
-    {
-        public static Quaternion Euler(float x, float y, float z) => default;
-        public static Quaternion identity => default;
-        /// <summary>朝向由方向向量决定（文档：Quaternion.LookRotation）。</summary>
-        public static Quaternion LookRotation(Vector3 forward) => default;
-        public static Quaternion LookRotation(Vector3 forward, Vector3 upwards) => default;
-        /// <summary>文档：Quaternion.eulerAngles — 返回以度为单位的欧拉角（0~360 折算）。</summary>
-        public Vector3 eulerAngles => default;
-    }
-
-    public partial class Object
-    {
-        public string name { get; set; }
-        public static void Destroy(Object o) { }
-        public static void DestroyImmediate(Object o) { }
-    }
-
-    public class Component : Object
-    {
-        public Transform transform => null;
-        public GameObject gameObject => null;
-        public T GetComponent<T>() => default;
-        public T GetComponentInParent<T>() => default;
-        public T GetComponentInChildren<T>() => default;
-    }
-
-    public class Behaviour : Component { public bool enabled { get; set; } }
-    public class MonoBehaviour : Behaviour { }
-
-    public partial class Transform : Component, System.Collections.IEnumerable
-    {
-        public Vector3 position { get; set; }
-        public Vector3 localPosition { get; set; }
-        public Vector3 localScale { get; set; }
-        public Quaternion rotation { get; set; }
-        /// <summary>文档：Transform.localRotation — 相对父物体的旋转。</summary>
-        public Quaternion localRotation { get; set; }
-        public void SetParent(Transform parent, bool worldPositionStays) { }
-        /// <summary>文档：Transform.childCount — 子物体数量。</summary>
-        public int childCount => 0;
-    }
-
-    public partial class GameObject : Object
-    {
-        public GameObject() { }
-        public GameObject(string name) { }
-        public GameObject(string name, params Type[] components) { }
-        public Transform transform => null;
-        public T AddComponent<T>() where T : Component => default;
-        public T GetComponent<T>() => default;
-        public void SetActive(bool value) { }
-        public bool activeSelf => false;
-        public string tag { get; set; }
-        public static GameObject CreatePrimitive(PrimitiveType type) => null;
-    }
-
-    public enum PrimitiveType { Sphere, Capsule, Cylinder, Cube, Plane, Quad }
-
-    public partial class Mesh : Object { }
-    public partial class Material : Object
-    {
-        public Material(Shader shader) { }
-        public Color color { get; set; }
-    }
-    public class Shader : Object
-    {
-        public static Shader Find(string name) => null;
-        /// <summary>文档：Shader.SetGlobalFloat — 设置全局 shader 常量（无需材质实例）。</summary>
-        public static void SetGlobalFloat(string name, float value) { }
-        /// <summary>文档：Shader.SetGlobalColor — 设置全局颜色常量。</summary>
-        public static void SetGlobalColor(string name, Color value) { }
-    }
-    public class MeshFilter : Component { public Mesh sharedMesh { get; set; } }
-    public class Renderer : Component
-    {
-        public Material sharedMaterial { get; set; }
-        /// <summary>文档：Renderer.enabled — 关掉即不渲染（MeshRenderer 继承此属性）。</summary>
-        public bool enabled { get; set; }
-    }
-    public class MeshRenderer : Renderer { }
-    public class TextAsset : Object
-    {
-        public string text => null;
-        /// <summary>文档：TextAsset.bytes — 原始字节（`.bytes` 后缀资源读 GLB 用这条）。</summary>
-        public byte[] bytes => null;
-    }
-
-    public static partial class Resources
-    {
-        public static T Load<T>(string path) where T : Object => default;
-        // 真实签名无 `where T : Object` 约束（内置资源含 Font/Material/Texture 等）
-        public static T GetBuiltinResource<T>(string path) where T : Object => default;
-    }
-
-    /// <summary>内置字体（Resources.GetBuiltinResource&lt;Font&gt;("LegacyRuntime.ttf")）。</summary>
-    public class Font : Object
-    {
-        public static Font CreateDynamicFontFromOSFont(string fontname, int size) => null;
-    }
-
-    public enum CameraClearFlags { Skybox = 1, Color = 2, SolidColor = 2, Depth = 3, Nothing = 4 }
-
-    public partial class Camera : Behaviour
-    {
-        public CameraClearFlags clearFlags { get; set; }
-        public Color backgroundColor { get; set; }
-        public float fieldOfView { get; set; }
-        public float nearClipPlane { get; set; }
-        public float farClipPlane { get; set; }
-        public static Camera main => null;
-    }
-
-    public enum LightType { Spot, Directional, Point, Area }
-
-    /// <summary>触屏（真实类型 UnityEngine.Touch）。</summary>
-    public struct Touch
-    {
-        public int fingerId { get; set; }
-        public Vector2 position { get; set; }
-        public Vector2 deltaPosition { get; set; }
-        public TouchPhase phase { get; set; }
-    }
-
-    public enum TouchPhase { Began, Moved, Stationary, Ended, Canceled }
-
-    /// <summary>
-    /// 旧输入系统（PlayerController 用它做动态摇杆）。
-    /// 注：项目当前 PlayerSettings 未显式配置 Active Input Handling，走默认的旧输入系统；
-    /// 若将来切到新 Input System，本类需换成 InputSystem API（届时会有编译错误明确提示，不会静默失效）。
-    /// </summary>
-    public static partial class Input
-    {
-        public static int touchCount => 0;
-        public static Touch GetTouch(int index) => default;
-        public static bool GetKeyDown(KeyCode k) => false;
-        public static bool GetMouseButtonDown(int b) => false;
-        /// <summary>文档：Input.mousePosition — 像素坐标 Vector3（z 未用）。菜单点击判定要用。</summary>
-        public static Vector3 mousePosition => default;
-    }
-
-    public enum KeyCode { None = 0, Escape = 27, Space = 32, Alpha1 = 49, E = 101, H = 104, J = 106 }
-
-    /// <summary>屏幕尺寸（像素）。</summary>
-    public static class Screen
-    {
-        public static int width => 1920;
-        public static int height => 1080;
-    }
-
-    public class Light : Behaviour
-    {
-        public LightType type { get; set; }
-        public float intensity { get; set; }
-        public Color color { get; set; }
-        /// <summary>文档：Light.range — 点光/聚光的衰减半径。</summary>
-        public float range { get; set; }
-        /// <summary>文档：Light.spotAngle — 聚光锥角（度）。</summary>
-        public float spotAngle { get; set; }
-        /// <summary>文档：Light.shadows — 阴影模式（None/Hard/Soft）。</summary>
-        public LightShadows shadows { get; set; }
-        /// <summary>文档：Light.renderMode — Auto/ForcePixel/ForceVertex。</summary>
-        public LightRenderMode renderMode { get; set; }
-    }
-
-    /// <summary>文档：LightShadows 枚举。</summary>
-    public enum LightShadows { None = 0, Hard = 1, Soft = 2 }
-
-    /// <summary>文档：LightRenderMode 枚举（Auto 在灯多时会被降级成顶点光）。</summary>
-    public enum LightRenderMode { Auto = 0, ForcePixel = 1, ForceVertex = 2 }
-
-    public static partial class Application
-    {
-        public static int targetFrameRate { get; set; }
-        public static string unityVersion => "stub";
-        /// <summary>文档：Application.runInBackground — 失焦时是否继续运行。</summary>
-        public static bool runInBackground { get; set; }
-    }
-
-    public static partial class Time
-    {
-        public static float unscaledTime => 0f;
-        public static float unscaledDeltaTime => 0f;
-        public static float deltaTime => 0f;
-    }
-
-    public static class Debug
-    {
-        public static void Log(object msg) { }
-        public static void LogError(object msg) { }
-        public static void LogWarning(object msg) { }
-    }
-
-    public static partial class Mathf
-    {
-        public static float Max(float a, float b) => a > b ? a : b;
-        public static float Min(float a, float b) => a < b ? a : b;
-        public static float Abs(float a) => a < 0 ? -a : a;
-        public static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
-        public static float Floor(float v) => (float)Math.Floor(v);
-        public static float Sqrt(float v) => (float)Math.Sqrt(v);
-        /// <summary>文档：Mathf.Sin(float f) — 参数为弧度，返回 [-1,1]。</summary>
-        public static float Sin(float f) => (float)Math.Sin(f);
-        /// <summary>文档：Mathf.Cos(float f) — 参数为弧度，返回 [-1,1]。</summary>
-        public static float Cos(float f) => (float)Math.Cos(f);
-        /// <summary>文档：Mathf.Atan2(float y, float x) — 返回弧度，常配 Rad2Deg。</summary>
-        public static float Atan2(float y, float x) => (float)Math.Atan2(y, x);
-        /// <summary>文档：Mathf.Rad2Deg — 弧度转度的乘数常量。</summary>
-        public const float Rad2Deg = 57.29578f;
-        /// <summary>文档：Mathf.Deg2Rad — 度转弧度的乘数常量。</summary>
-        public const float Deg2Rad = 0.017453292f;
-        /// <summary>文档：Mathf.Clamp01(float) — 夹到 [0,1]。</summary>
-        public static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
-        /// <summary>文档：Mathf.Lerp(float a, float b, float t) — 未夹紧 t。</summary>
-        public static float Lerp(float a, float b, float t) => a + (b - a) * t;
-    }
-
-    public partial class Canvas : Behaviour { public RenderMode renderMode { get; set; } }
-    public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
-
-    public class CanvasScaler : Behaviour
-    {
-        public enum ScaleMode { ConstantPixelSize, ScaleWithScreenSize, ConstantPhysicalSize }
-        public ScaleMode uiScaleMode { get; set; }
-        public Vector2 referenceResolution { get; set; }
-    }
-
-    public class GraphicRaycaster : Behaviour { }
-
-    public partial class RectTransform : Transform
-    {
-        public Vector2 anchorMin { get; set; }
-        public Vector2 anchorMax { get; set; }
-        public Vector2 offsetMin { get; set; }
-        public Vector2 offsetMax { get; set; }
-        public Vector2 pivot { get; set; }
-        public Vector2 anchoredPosition { get; set; }
-        public Vector2 sizeDelta { get; set; }
-    }
-
-    public enum TextAnchor { UpperLeft, UpperCenter, UpperRight, MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight }
-
-    public class TooltipAttribute : Attribute { public TooltipAttribute(string text) { } }
-    public class DisallowMultipleComponentAttribute : Attribute { }
-    public class SerializeFieldAttribute : Attribute { }
+  const bi = lines.findIndex((l) => l.includes(MARK_BEGIN));
+  const ei = lines.findIndex((l) => l.includes(MARK_END));
+  if (bi >= 0 || ei >= 0) {
+    if (bi < 0 || ei < 0 || ei < bi) fail('生成区标记不成对（只有 BEGIN 或只有 END）');
+    lines.splice(bi, ei - bi + 1);
+    while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+    log.push(`  ✓ 摘掉旧生成区（原 ${ei - bi + 1} 行）`);
+  }
 }
 
-namespace UnityEngine.UI
-{
-    // Canvas 是 Graphic 的祖先属性（CanvasRenderer → Graphic.canvas），按钮要挂到 HUD 的 Canvas 上
-    public class Graphic : Behaviour
-    {
-        public Color color { get; set; }
-        public RectTransform rectTransform => null;
-        public Canvas canvas => null;
-    }
+// ── 1. 把既有类型改成 partial（确定性改写；只动声明前缀）────────────────────
+// 为什么要 partial：成员写进生成区，生成区整段可重建 → 幂等；否则每次补桩都得找锚点。
+// 声明探测必须严格：`Texture` 不能命中 `Texture2D`/`RenderTexture`，`Object` 不能命中 `: Object`，
+// 所以类型名后面必须是 `:` / `{` / `,` / 行尾。
+const declRx = (name, withPartial) => new RegExp(
+  `^(\\s*)public\\s+((?:static\\s+|sealed\\s+|abstract\\s+)*)${withPartial ? 'partial\\s+' : ''}(class|struct)\\s+${name}(?=\\s*(?::|\\{|,|$))`);
 
-    public enum HorizontalWrapMode { Wrap, Overflow }
-    public enum VerticalWrapMode { Truncate, Overflow }
-
-    public class Text : Graphic
-    {
-        public string text { get; set; }
-        public int fontSize { get; set; }
-        public TextAnchor alignment { get; set; }
-        public Font font { get; set; }
-        public HorizontalWrapMode horizontalOverflow { get; set; }
-        public VerticalWrapMode verticalOverflow { get; set; }
-        public bool raycastTarget { get; set; }
-    }
-
-    public partial class Image : Graphic { }
-
-    /// <summary>按钮点击事件（真实类型为 Button.ButtonClickedEvent : UnityEvent）。</summary>
-    public class ButtonClickedEvent { public void AddListener(UnityEngine.Events.UnityAction call) { } }
-
-    public partial class Button : Behaviour
-    {
-        public ButtonClickedEvent onClick => null;
-    }
+function ensurePartial(name) {
+  const withP = declRx(name, true);
+  const hitsP = lines.map((l, i) => (withP.test(l) ? i : -1)).filter((i) => i >= 0);
+  if (hitsP.length === 1) { log.push(`  · ${name} 已是 partial`); return; }
+  if (hitsP.length > 1) fail(`${name} 的 partial 声明命中 ${hitsP.length} 次（期望 ≤1）`);
+  const rx = declRx(name, false);
+  const hits = lines.map((l, i) => (rx.test(l) ? i : -1)).filter((i) => i >= 0);
+  if (hits.length !== 1) fail(`${name} 的声明行命中 ${hits.length} 次（期望 1）`);
+  const i = hits[0];
+  lines[i] = lines[i].replace(rx, (_m, ind, mods, kind) => `${ind}public ${mods}partial ${kind} ${name}`);
+  log.push(`  ✓ ${name} → partial`);
 }
 
-namespace UnityEngine.Events
+const PARTIAL_TYPES = [
+  'Vector2', 'Vector3', 'Color', 'Object', 'Transform', 'GameObject', 'Mesh', 'Material',
+  'Camera', 'Canvas', 'RectTransform', 'Input', 'Mathf', 'Application', 'Time', 'Resources',
+];
+for (const name of PARTIAL_TYPES) ensurePartial(name);
+// UnityEngine.UI 的两个类型（Image / Button）在另一个命名空间，但改写方式相同。
+for (const name of ['Image', 'Button']) ensurePartial(name);
+
+// Transform 要支持 `foreach (Transform child in t)`：真 Unity 里是 `Transform : Component, IEnumerable`。
 {
-    public delegate void UnityAction();
+  const i = lines.findIndex((l) => /^\s*public\s+partial\s+class\s+Transform\s*:\s*Component\s*$/.test(l));
+  if (i < 0) {
+    const j = lines.findIndex((l) => /^\s*public\s+partial\s+class\s+Transform\b.*IEnumerable/.test(l));
+    if (j < 0) fail('未找到 Transform 声明（或 IEnumerable 未接上）');
+    log.push('  · Transform 已实现 IEnumerable');
+  } else {
+    lines[i] = lines[i].replace(/:\s*Component\s*$/, ': Component, System.Collections.IEnumerable');
+    log.push('  ✓ Transform : Component, System.Collections.IEnumerable');
+  }
 }
 
-// ── UnityEditor / SceneManagement 最小桩 ──
-//
-// 为什么补这一块：unity-syntax-check.sh 此前只扫 `unity/Assets/Scripts`，
-// **整个 `unity/Assets/Editor/` 从未被本机检查过**。Editor 代码写错只能等 CI 构建
-// （一次 ~47 分钟）才发现——正是本项目最想避免的"远程才发现"。
-// 现在扫描范围扩到 Assets/Editor，这里补上它用到的 API 面。
-//
-// ⚠️⚠️ 这个桩有一个**结构性缺陷**，务必记住（CI #18 真实事故）：
-//   桩是**我自己写的**。我编造一个不存在的 API（当时写了 `UnityEditor.SplashScreen`，
-//   真 Unity 里其实是 `PlayerSettings.SplashScreen`），桩就替这个错误背书，
-//   于是本机门禁全绿、CI 报 CS0103，白烧一次构建。
-//   → 桩能验证的只有**内部一致性**（调用点与签名自洽），
-//     它**永远无法验证"Unity 真的有这个成员"**。
-//   → 因此这里的每个成员都必须有官方文档出处；出处见每个成员上方的注释。
-//     没有出处的成员要么删掉，要么在注释里显式标 `⚠ 未核实`。
-//   → tools/gate-api-trace.mjs 会检查 `⚠ 未核实` 的残留数量（只警告不判红），
-//     用来防止"编造 API"这类错误悄悄堆积。
-namespace UnityEngine.SceneManagement
+// ── 2. KeyCode 就地扩值（enum 不能 partial）──────────────────────────────────
+// 代码用到 H / J / Alpha1（联机建房/加入 + 地图 1..9）。数值与 ASCII 一致（真 Unity 亦如此）。
 {
-    public struct Scene { public string name => null; public bool IsValid() => true; }
+  const KEYCODE = 'public enum KeyCode { None = 0, Escape = 27, Space = 32, Alpha1 = 49, E = 101, H = 104, J = 106 }';
+  const hits = [];
+  lines.forEach((l, i) => { if (/^\s*public\s+enum\s+KeyCode\b/.test(l)) hits.push(i); });
+  if (hits.length !== 1) fail(`KeyCode 声明行命中 ${hits.length} 次（期望 1）`);
+  const i = hits[0];
+  const indent = lines[i].match(/^\s*/)[0];
+  if (lines[i].trim() === KEYCODE) log.push('  · KeyCode 已是最新');
+  else { lines[i] = indent + KEYCODE; log.push('  ✓ KeyCode 扩值（H/J/Alpha1）'); }
 }
 
-namespace UnityEditor
-{
-    /// <summary>目标平台分组（PlayerSettings 的按平台重载用）。</summary>
-    public enum BuildTargetGroup { Unknown = 0, Standalone = 1, Android = 7, iOS = 4 }
-
-    /// <summary>Unity 6 的按平台目标（取代 BuildTargetGroup 的新式重载）。</summary>
-    public struct NamedBuildTarget
-    {
-        public static NamedBuildTarget Android => default;
-        public static NamedBuildTarget Standalone => default;
-    }
-
-    public enum ScriptingImplementation { Mono2x = 0, IL2CPP = 1, WinRTDotNET = 2, CoreCLR = 3 }
-    public enum ManagedStrippingLevel { Disabled = 0, Low = 1, Medium = 2, High = 3, Minimal = 4 }
-    public enum AndroidArchitecture { None = 0, ARMv7 = 1, ARM64 = 2, X86 = 4, X86_64 = 8, All = unchecked((int)0xFFFFFFFF) }
-    public enum AndroidSdkVersions
-    {
-        AndroidApiLevelAuto = 0, AndroidApiLevel23 = 23, AndroidApiLevel24 = 24, AndroidApiLevel25 = 25,
-        AndroidApiLevel26 = 26, AndroidApiLevel27 = 27, AndroidApiLevel28 = 28, AndroidApiLevel29 = 29,
-        AndroidApiLevel30 = 30, AndroidApiLevel31 = 31, AndroidApiLevel32 = 32, AndroidApiLevel33 = 33,
-        AndroidApiLevel34 = 34, AndroidApiLevel35 = 35, AndroidApiLevel36 = 36,
-    }
-    public enum UIOrientation { Portrait = 0, PortraitUpsideDown = 1, LandscapeRight = 2, LandscapeLeft = 3, AutoRotation = 4 }
-    public enum BuildTarget { NoTarget = -2, StandaloneWindows = 5, Android = 13, iOS = 9 }
-    public enum BuildOptions { None = 0, Development = 1, AutoRunPlayer = 4 }
-    public enum BuildResult { Unknown = 0, Succeeded = 1, Failed = 2, Cancelled = 3 }
-
-    public static class PlayerSettings
-    {
-        public static string companyName { get; set; }
-        public static string productName { get; set; }
-        public static string bundleVersion { get; set; }
-        public static UIOrientation defaultInterfaceOrientation { get; set; }
-        public static bool allowedAutorotateToPortrait { get; set; }
-        public static bool allowedAutorotateToPortraitUpsideDown { get; set; }
-        public static bool allowedAutorotateToLandscapeLeft { get; set; }
-        public static bool allowedAutorotateToLandscapeRight { get; set; }
-        public static bool useAnimatedAutorotation { get; set; }
-
-        public static void SetApplicationIdentifier(NamedBuildTarget target, string identifier) { }
-        public static void SetApplicationIdentifier(BuildTargetGroup targetGroup, string identifier) { }
-        public static string GetApplicationIdentifier(NamedBuildTarget target) => "";
-        public static void SetScriptingBackend(NamedBuildTarget target, ScriptingImplementation impl) { }
-        public static ScriptingImplementation GetScriptingBackend(NamedBuildTarget target) => default;
-        public static void SetManagedStrippingLevel(NamedBuildTarget target, ManagedStrippingLevel level) { }
-        public static ManagedStrippingLevel GetManagedStrippingLevel(NamedBuildTarget target) => default;
-
-        public static class Android
-        {
-            public static AndroidArchitecture targetArchitectures { get; set; }
-            public static int bundleVersionCode { get; set; }
-            public static AndroidSdkVersions minSdkVersion { get; set; }
-            public static AndroidSdkVersions targetSdkVersion { get; set; }
-        }
-    }
-
-    /// <summary>
-    /// 启动画面开关**不再在这里声明**（CI #18 事故）：
-    /// 我曾在这里写 `public static class SplashScreen`，而真 Unity 里它是
-    /// `PlayerSettings.SplashScreen`（嵌套类型），`UnityEditor.SplashScreen` **并不存在**。
-    /// 桩替我的臆造背书 → 本机绿灯、CI CS0103 失败。
-    /// 现在 BuildConfigurator 改用**反射**动态找 `show` 属性，不依赖具体类型名，
-    /// 所以这里也就不该再放一个假类型（放了就会再次掩盖同类错误）。
-    /// </summary>
-
-    public class MenuItemAttribute : Attribute { public MenuItemAttribute(string itemName) { } }
-
-    public class EditorBuildSettingsScene
-    {
-        public EditorBuildSettingsScene(string path, bool enabled) { }
-    }
-
-    public static class EditorBuildSettings
-    {
-        public static EditorBuildSettingsScene[] scenes { get; set; }
-    }
-}
-
-namespace UnityEditor.SceneManagement
-{
-    public enum NewSceneSetup { EmptyScene = 0, DefaultGameObjects = 1 }
-    public enum NewSceneMode { Single = 0, Additive = 1 }
-
-    public static class EditorSceneManager
-    {
-        public static UnityEngine.SceneManagement.Scene NewScene(NewSceneSetup setup, NewSceneMode mode) => default;
-        public static bool SaveScene(UnityEngine.SceneManagement.Scene scene, string dstScenePath) => true;
-    }
-}
-
-namespace UnityEditor.Build.Reporting
-{
-    public class BuildSummary
-    {
-        public UnityEditor.BuildResult result { get; set; }
-        public int totalErrors { get; set; }
-    }
-
-    public class BuildReport { public BuildSummary summary => null; }
-}
-
-namespace UnityEditor
-{
-    public struct BuildPlayerOptions
-    {
-        public string[] scenes { get; set; }
-        public string locationPathName { get; set; }
-        public BuildTarget target { get; set; }
-        public BuildOptions options { get; set; }
-    }
-
-    public static class BuildPipeline
-    {
-        public static UnityEditor.Build.Reporting.BuildReport BuildPlayer(BuildPlayerOptions opts) => null;
-    }
-}
-
-// @@UNITY-STUBS-EXTENSION-BEGIN@@
-// ══════════════════════════════════════════════════════════════════════════════
+// ── 3. 生成区内容（整段由模板重建）───────────────────────────────────────────
+const EXTENSION = `// ══════════════════════════════════════════════════════════════════════════════
 // 扩充桩区 · 开始（由 tools/add-missing-unity-stubs.mjs 生成 —— 手改会被下次重跑覆盖）
 //
 // 出处：每条签名都对着官方文档核过
@@ -1071,4 +709,93 @@ namespace UnityEditor.Build
         public BuildFailedException(string message, Exception innerException) : base(message, innerException) { }
     }
 }
-// @@UNITY-STUBS-EXTENSION-END@@
+${MARK_END}`;
+
+// ── 4. 拼装 ──────────────────────────────────────────────────────────────────
+const extLines = EXTENSION.split('\n');
+const out = lines.concat([''], [MARK_BEGIN], extLines);
+if (hadTrailingNewline) out.push('');
+const text = out.join(eol);
+
+// ── 5. 自检（生成区内容与结构）──────────────────────────────────────────────
+{
+  const count = (rx) => out.filter((l) => rx.test(l)).length;
+  const has1 = (rx) => {
+    const n = count(rx);
+    if (n !== 1) fail(`自检：${rx} 命中 ${n} 次（应为 1）`);
+  };
+  // partial 类型**应该**出现 2 次声明行：原始桩里那次（已改写）+ 生成区里那次 —— 这正是 partial 的用法。
+  const has2 = (rx) => {
+    const n = count(rx);
+    if (n !== 2) fail(`自检：${rx} 命中 ${n} 次（应为 2 = 原始 + 生成区）`);
+  };
+  for (const t of PARTIAL_TYPES) has2(new RegExp(`^\\s*public\\s+(?:static\\s+)?partial\\s+(?:class|struct)\\s+${t}(?=\\s*(?::|\\{|,|$))`));
+  for (const t of ['Image', 'Button']) has2(new RegExp(`^\\s*public\\s+partial\\s+(?:class|struct)\\s+${t}(?=\\s*(?::|\\{|,|$))`));
+  has1(/^\s*public\s+partial\s+class\s+Transform\s*:\s*Component,\s*System\.Collections\.IEnumerable\s*$/);
+  has1(/Alpha1 = 49/);
+  has1(new RegExp(MARK_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  has1(new RegExp(MARK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  // 新增类型各恰好一个声明（防 CS0101 重复定义）
+  for (const t of ['Vector4', 'Ray', 'Rect', 'Bounds', 'Collider', 'RaycastHit', 'Physics', 'Sprite',
+    'Texture', 'Texture2D', 'ImageConversion', 'RenderTexture', 'Graphics', 'QualitySettings',
+    'RenderSettings', 'RectTransformUtility', 'TouchScreenKeyboard', 'RequireComponent',
+    'EditorApplication', 'AssetDatabase', 'EventSystem', 'StandaloneInputModule',
+    'IPostprocessBuild', 'BuildFailedException']) {
+    has1(new RegExp(`^\\s*public\\s+(?:static\\s+|sealed\\s+|abstract\\s+)*(?:class|struct|interface|enum)\\s+${t}(?=\\s*(?::|\\{|,|$))`));
+  }
+  // 关键成员探针（防止模板被误删）
+  for (const probe of [
+    /public static Vector2 Lerp\(Vector2 a, Vector2 b, float t\)/,
+    /public static Vector3 up =>/,
+    /public static Vector3 operator -\(Vector3 a\)/,
+    /public static Color Lerp\(Color a, Color b, float t\)/,
+    /public static T FindObjectOfType<T>\(\) where T : Object/,
+    /public System\.Collections\.IEnumerator GetEnumerator\(\)/,
+    /public Bounds bounds \{ get; set; \}/,
+    /public bool HasProperty\(string name\)/,
+    /public RenderTexture targetTexture \{ get; set; \}/,
+    /public bool allowHDR \{ get; set; \}/,
+    /public DepthTextureMode depthTextureMode \{ get; set; \}/,
+    /public Ray ScreenPointToRay\(Vector3 pos\)/,
+    /public float scaleFactor \{ get; set; \}/,
+    /public Rect rect \{ get; set; \}/,
+    /public static Touch\[\] touches =>/,
+    /public static float MoveTowards\(float current, float target, float maxDelta\)/,
+    /public static int Max\(int a, int b\) =>/,
+    /^\s*public Transform parent \{ get; set; \}/,
+    /public static float DeltaAngle\(float current, float target\)/,
+    /public static float PerlinNoise\(float x, float y\)/,
+    /public static string streamingAssetsPath =>/,
+    /public static int frameCount =>/,
+    /public static Object\[\] LoadAll\(string path\)/,
+    /public bool Contains\(Vector2 point\)/,
+    /public static bool Raycast\(Ray ray, out RaycastHit hitInfo, float maxDistance\)/,
+    /public static Sprite Create\(Texture2D texture, Rect rect, Vector2 pivot, float pixelsPerUnit\)/,
+    /public void SetPixels32\(Color32\[\] colors\)/,
+    /public static byte\[\] EncodeToPNG\(this Texture2D tex\)/,
+    /public static RenderTexture GetTemporary\(int width, int height, int depthBuffer, RenderTextureFormat format\)/,
+    /public static void Blit\(Texture source, RenderTexture dest, Material mat, int pass\)/,
+    /public static bool ScreenPointToLocalPointInRectangle\(RectTransform rect, Vector2 screenPoint, Camera cam, out Vector2 localPoint\)/,
+    /public static TouchScreenKeyboard Open\(string text, TouchScreenKeyboardType keyboardType = TouchScreenKeyboardType\.Default,/,
+    /void OnPostprocessBuild\(BuildTarget target, string path\);/,
+  ]) {
+    const n = out.filter((l) => probe.test(l)).length;
+    if (n !== 1) fail(`自检：成员探针 ${probe} 命中 ${n} 次（应为 1）`);
+  }
+  log.push(`  ✓ 自检通过（${PARTIAL_TYPES.length + 2} 个 partial · KeyCode · ${extLines.length} 行生成区 · 关键成员探针全中）`);
+}
+
+// ── 6. 写出 / 校验 ───────────────────────────────────────────────────────────
+console.log('[stubs+] 补齐 UnityStubs.cs 缺失 API 面' + (checkOnly ? '（--check：不写文件）' : ''));
+for (const l of log) console.log(l);
+
+if (checkOnly) {
+  if (text !== raw) {
+    console.error('[stubs+] ✗ 文件与生成模板不一致（跑 `node tools/add-missing-unity-stubs.mjs` 重建）');
+    process.exit(1);
+  }
+  console.log('  ✓ --check：文件已是生成结果（幂等）');
+} else {
+  if (text === raw) console.log('  · 无需改动（已是生成结果）');
+  else { fs.writeFileSync(FILE, text, 'utf8'); console.log(`  已写回：${raw.length} → ${text.length} 字节`); }
+}
