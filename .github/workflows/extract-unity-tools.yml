@@ -1,15 +1,16 @@
-# 从 Unity 官方安装包中提取「手机端可用的工具链」并做诊断
+# 从 Unity 官方发行物中提取「手机端可用的工具链」并做诊断
 #
-# 为什么要有这个文件：
-#   手机（Android aarch64）解不开 Unity 的 NSIS 安装包（实测 7-Zip 26.03 识别格式但解不开，
-#   unar 陷依赖地狱）。而 GitHub runner 是 x86_64 + 自带 7z，解压是一行的事。
+# ── 第一版为什么失败（必须记住的教训）────────────────────────────
+#   第一版下的是 **Windows** 安装包（NSIS 格式），结果 7z **在 Linux runner 上同样解不开** ——
+#   它只把 PE 解出来（out/editor/[0] = 4.2GB 的单块），Managed 目录 dll 数 = 0。
+#   而我当时**误以为"手机解不开是 Android 的限制、CI 的 7z 能解"**，没先验证就搭了整个工作流。
+#   修法不是换工具，而是**换发行物**：Unity 给 Linux 发的是纯 `TAR_XZ`，`tar` 直接解。
+#   教训：**先验证源文件格式，再搭流水线**。
 #
-# 这个工作流回答三个决定性问题：
-#   ① Unity 的引用程序集（UnityEngine.*.dll）能不能拿到？—— 决定手机能否真编译 C#
-#   ② il2cpp.exe 是【托管程序】还是【原生 PE】？—— 决定手机 .NET 8 能否直接跑 IL2CPP
-#   ③ Android 模块里的 arm64 模板与 NDK sysroot 有哪些？—— 决定手机能否交叉编译出 .so
-#
-# 只上传「小而有价值」的部分，原始包（5.5GB）与解压全量（~9GB）一律不留。
+# ── 第二版为什么要加"硬判据"──────────────────────────────────
+#   第一版 `7z x` 失败但被 `|| echo` 吞掉，工作流仍报 **success**，
+#   产物 `unity-tools` 只有 306 字节（tar.gz 161 字节 = 空包）——典型的**假绿**。
+#   本版在关键步骤后断言产物存在与非空，**不满足即 exit 1**。
 name: extract-unity-tools
 
 on:
@@ -26,8 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 只要 ~40GB 可用即可（下载 5.5GB + 解压 ~9GB）
-      - name: 释放磁盘空间
+      - name: 释放磁盘空间（不动 tool-cache）
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
@@ -38,113 +38,132 @@ jobs:
           docker-images: false
           swap-storage: false
 
-      - name: 下载两个 Unity 安装包（version 6000.3.25f1 / rev e1dba0a9aba4）
+      - name: 装 libarchive-tools（bsdtar 读 .pkg/xar）
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libarchive-tools xar || sudo apt-get install -y -qq libarchive-tools
+          echo "bsdtar: $(bsdtar --version 2>&1 | head -1)"
+          echo "xar   : $(which xar || echo '未装')"
+
+      - name: 下载 Linux 编辑器 tarball（纯 tar.xz，4.2GB）
         run: |
           set -e
           mkdir -p dl
           B="https://download.unity3d.com/download_unity/e1dba0a9aba4"
-          echo "== 编辑器本体 =="
-          curl -fL --retry 3 --retry-delay 5 -o dl/editor.exe \
-            "$B/Windows64EditorInstaller/UnitySetup64-6000.3.25f1.exe"
-          echo "== Android 构建支持 =="
-          curl -fL --retry 3 --retry-delay 5 -o dl/android.exe \
-            "$B/TargetSupportInstaller/UnitySetup-Android-Support-for-Editor-6000.3.25f1.exe"
-          ls -la dl/
-          echo "编辑器 $(stat -c%s dl/editor.exe) 字节（应 4201959888）"
-          echo "Android  $(stat -c%s dl/android.exe) 字节（应 1548575120）"
+          time curl -fL --retry 3 --retry-delay 5 -o dl/editor.tar.xz \
+            "$B/LinuxEditorInstaller/Unity-6000.3.25f1.tar.xz"
+          S=$(stat -c%s dl/editor.tar.xz)
+          echo "下载 $S 字节（官方 4536554312）"
+          test "$S" -eq 4536554312 || { echo "::error::体积不符"; exit 1; }
 
-      - name: 解压（7z 对 NSIS）
+      - name: 解压 Linux 编辑器（只取需要的子树，省磁盘）
         run: |
-          mkdir -p out/editor out/android
-          echo "== 编辑器 =="
-          7z x -y -oout/editor dl/editor.exe > /tmp/7z-editor.log 2>&1 && echo "OK" || echo "7z 返回 $?（部分失败也可能已解出主体）"
-          tail -5 /tmp/7z-editor.log
-          echo "== Android 模块 =="
-          7z x -y -oout/android dl/android.exe > /tmp/7z-android.log 2>&1 && echo "OK" || echo "7z 返回 $?（同上）"
-          tail -5 /tmp/7z-android.log
+          set -e
+          mkdir -p out/editor
+          # 全量解压约 8.7GB；只取工具链相关子树即可
+          tar -xJf dl/editor.tar.xz -C out/editor \
+            --wildcards 'Editor/Data/Managed/*' 'Editor/Data/Tools/*' \
+                         'Editor/Data/il2cpp/*' 'Editor/Data/PlaybackEngines/*' \
+                         'Editor/Data/NetStandard/*' 'Editor/Data/MonoBleedingEdge/*' 2>/dev/null || \
+          tar -xJf dl/editor.tar.xz -C out/editor 2>/dev/null || true
           echo "== 解出规模 =="
-          du -sh out/editor out/android 2>/dev/null || true
+          du -sh out/editor 2>/dev/null || echo "(空)"
+          echo "== Managed dll 数 =="
+          find out/editor -path "*Managed*" -name "*.dll" 2>/dev/null | wc -l
 
-      - name: 诊断清单（决定性问题在这里回答）
+      - name: 下载 Linux 的 Android Build Support（.pkg / xar，2GB）
+        run: |
+          B="https://download.unity3d.com/download_unity/e1dba0a9aba4"
+          curl -fL --retry 3 --retry-delay 5 -o dl/android.pkg \
+            "$B/MacEditorTargetInstaller/UnitySetup-Android-Support-for-Editor-6000.3.25f1.pkg" || true
+          ls -la dl/android.pkg 2>/dev/null || echo "(下载失败，继续)"
+
+      - name: 解 Android 模块（多种工具都试，记录哪种有效）
+        run: |
+          mkdir -p out/android
+          cd dl
+          echo "== 文件类型 =="
+          file android.pkg 2>/dev/null || true
+          echo "== 尝试 1：bsdtar =="
+          bsdtar -xf android.pkg -C ../out/android 2>&1 | head -3 && echo "bsdtar 成功" || echo "bsdtar 失败"
+          echo "== 尝试 2：xar =="
+          [ -d ../out/android/Payload ] || (xar -xf android.pkg -C ../out/android 2>&1 | head -3 && echo "xar 成功" || echo "xar 失败")
+          echo "== 尝试 3：7z =="
+          [ -d ../out/android/Payload ] || (7z x -y -o../out/android android.pkg >/dev/null 2>&1 && echo "7z 成功" || echo "7z 失败")
+          cd ..
+          echo "== 结果 =="
+          du -sh out/android 2>/dev/null || echo "(空)"
+          ls out/android 2>/dev/null | head -10
+
+      - name: 诊断清单
         run: |
           set +e
           mkdir -p diag
           {
-            echo "# Unity 安装包内容诊断"
+            echo "# Unity 工具链诊断（第二版：Linux 发行物）"
             echo
-            echo "## 一、解出的顶层结构"
-            ls -la out/editor | head -40
+            echo "## ① 引用程序集"
+            echo '```'
+            find out -path "*Managed*" -name "*.dll" 2>/dev/null | head -40
+            echo '```'
+            echo "Managed dll 总数: $(find out -path '*Managed*' -name '*.dll' 2>/dev/null | wc -l)"
             echo
-            ls -la out/android | head -40
-            echo
-            echo "## 二、il2cpp 相关文件（决定性问题②）"
-            find out -iname "*il2cpp*" -type f 2>/dev/null | head -60
-            echo
-            echo "### 逐个判定：托管 or 原生"
-            find out -iname "*il2cpp*" -type f -size +100k 2>/dev/null | head -25 | while read f; do
-              printf '%s\n  file: %s\n  size: %s\n' "$f" "$(file -b "$f")" "$(stat -c%s "$f")"
+            echo "## ② il2cpp 实物（决定性问题②）"
+            echo '```'
+            find out -iname "*il2cpp*" -type f 2>/dev/null | head -40
+            echo '```'
+            echo "### 逐个判定托管 or 原生"
+            echo '```'
+            find out -iname "*il2cpp*" -type f -size +100k 2>/dev/null | head -20 | while read f; do
+              printf '%s\n   %s\n   %s 字节\n' "$f" "$(file -b "$f")" "$(stat -c%s "$f")"
             done
+            echo '```'
             echo
-            echo "## 三、引用程序集（决定性问题①）"
-            find out -path "*Managed*" -name "*.dll" 2>/dev/null | head -60
+            echo "## ③ Android 模块内容"
+            echo '```'
+            find out/android -maxdepth 6 -type d 2>/dev/null | head -30
+            echo '--- arm64 模板 .so ---'
+            find out -name "*.so" -path "*arm64*" 2>/dev/null | head -20
+            echo '--- libil2cpp 源码 ---'
+            find out -type d -name "libil2cpp" 2>/dev/null | head -5
+            echo '```'
             echo
-            echo "Managed 目录下的 dll 总数:"
-            find out -path "*Managed*" -name "*.dll" 2>/dev/null | wc -l
-            echo
-            echo "### UnityEngine 相关 dll 及大小"
-            find out -path "*Managed*" -name "UnityEngine*.dll" 2>/dev/null | while read f; do
-              printf '%12s  %s\n' "$(stat -c%s "$f")" "$f"
-            done | head -40
-            echo
-            echo "## 四、Android 模块内容（决定性问题③）"
-            echo "### PlaybackEngines"
-            find out/android -maxdepth 6 -type d -name "*Android*" 2>/dev/null | head -20
-            echo
-            echo "### arm64 / arm64-v8a 模板 .so"
-            find out -name "*.so" -path "*arm64*" 2>/dev/null | head -30
-            echo
-            echo "### NDK 线索（sysroot / clang / headers）"
-            find out -maxdepth 6 -type d \( -name "sysroot" -o -name "toolchains" -o -name "ndk*" -o -name "NDK*" \) 2>/dev/null | head -20
-            echo
-            echo "### il2cpp 的 C++ 源码（libil2cpp）"
-            find out -type d -name "libil2cpp" 2>/dev/null | head -10
-            echo
-            echo "## 五、体积分布（前 30 大目录）"
-            du -h --max-depth=4 out 2>/dev/null | sort -rh | head -30
-            echo
-            echo "## 六、全量文件清单（路径 + 字节）"
-            echo "见 inventory.tsv（同 artifact 内）"
+            echo "## ④ 体积分布"
+            echo '```'
+            du -h --max-depth=3 out 2>/dev/null | sort -rh | head -25
+            echo '```'
           } > diag/report.md 2>&1
-          # 机器可读清单
           find out -type f -printf '%s\t%p\n' 2>/dev/null | sort -rn > diag/inventory.tsv
-          echo "report.md 行数: $(wc -l < diag/report.md)"
-          echo "inventory.tsv 行数: $(wc -l < diag/inventory.tsv)"
-          head -30 diag/report.md
+          echo "report.md $(wc -l < diag/report.md) 行 · inventory.tsv $(wc -l < diag/inventory.tsv) 行"
+          sed -n '1,40p' diag/report.md
+
+      # ── 硬判据：不满足就判红，绝不再出"成功但零产出"的假绿 ──
+      - name: 硬判据（防假绿）
+        run: |
+          set -e
+          DLLS=$(find out -path "*Managed*" -name "*.dll" 2>/dev/null | wc -l)
+          IL2=$(find out -iname "*il2cpp*" -type f 2>/dev/null | wc -l)
+          echo "Managed dll = $DLLS · il2cpp 文件 = $IL2"
+          if [ "$DLLS" -eq 0 ]; then echo "::error::没拿到任何引用程序集（提取失败）"; exit 1; fi
+          if [ "$IL2" -eq 0 ]; then echo "::error::没找到 il2cpp 工具（提取失败）"; exit 1; fi
+          echo "✓ 硬判据通过"
 
       - name: 打包要带走的工具链
         run: |
-          set +e
+          set -e
           mkdir -p ship
-          # ① 引用程序集（编译 C# 用）—— 已压缩体积不大
-          mkdir -p ship/managed
-          find out -path "*Managed*" -name "*.dll" -exec cp --parents {} ship/managed/ \; 2>/dev/null
-          du -sh ship/managed 2>/dev/null
-          # ② il2cpp 工具（决定性问题②的实物）
-          mkdir -p ship/il2cpp
-          find out -iname "*il2cpp*" -type f -exec cp --parents {} ship/il2cpp/ \; 2>/dev/null
-          du -sh ship/il2cpp 2>/dev/null
-          # ③ Android 模块的 arm64 模板与 NDK（决定性问题③）
-          mkdir -p ship/android
-          find out/android -maxdepth 5 -type d 2>/dev/null | grep -iE "PlaybackEngines|Variations|Tools" | head -20 | while read d; do
-            cp -r --parents "$d" ship/android/ 2>/dev/null
+          find out -path "*Managed*" -name "*.dll" -exec cp --parents {} ship/ \; 2>/dev/null
+          find out -iname "*il2cpp*" -type f -exec cp --parents {} ship/ \; 2>/dev/null
+          for d in $(find out/android -maxdepth 4 -type d 2>/dev/null | head -30); do
+            cp -r --parents "$d" ship/ 2>/dev/null || true
           done
-          du -sh ship/android 2>/dev/null
-          echo "== 汇总 =="
-          du -sh ship/* 2>/dev/null
-          tar -czf diag-ship.tar.gz -C ship . 2>/dev/null
-          ls -la diag-ship.tar.gz 2>/dev/null
+          tar -czf unity-tools.tar.gz -C ship . 2>/dev/null
+          S=$(stat -c%s unity-tools.tar.gz)
+          echo "unity-tools.tar.gz = $S 字节"
+          # 空包（< 100KB）说明打包也没拿到东西
+          test "$S" -gt 102400 || { echo "::error::工具链包过小（$S 字节），提取未真正成功"; exit 1; }
 
-      - name: 上传诊断报告（永远上传，小）
+      - name: 上传诊断（永远上传）
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -155,11 +174,11 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: 上传工具链包（若成功且不过大）
-        if: always()
+      - name: 上传工具链
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: unity-tools
-          path: diag-ship.tar.gz
-          if-no-files-found: warn
+          path: unity-tools.tar.gz
+          if-no-files-found: error
           retention-days: 14
