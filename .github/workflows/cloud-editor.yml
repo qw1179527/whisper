@@ -162,16 +162,26 @@ jobs:
           set -e
           # 软件渲染：runner 没有 GPU
           export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
-          # 随机 VNC 密码：隧道网址虽然是随机的，但多一层不吃亏
-          VNCPW=$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 10)
+          # ── VNC 密码：**必须恰好 8 位**（实测踩过的坑）──────────────────────
+          # RFB（VNC）协议的经典 DES 认证**只取密码前 8 个字符**，x11vnc 也照此截断。
+          # 我第一版生成了 10 位 → 服务端只认前 8 位，而网址里传的是全部 10 位
+          # → 浏览器报 `password check failed!`。**不是密码错，是长度超了被截断。**
+          # 所以这里固定 8 位；并且**不再用 `-rfbauth <(storepasswd ...)` 那种进程替换写法**
+          # （太脆：`/dev/stdout` 在子 shell 里指向的是日志，写进去的是垃圾）。
+          VNCPW=$(head -c 16 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 8)
+          # 双保险：长度不对就报错，别让它带着坏密码跑起来
+          if [ "${#VNCPW}" -ne 8 ]; then echo "::error::VNC 密码不是 8 位（${#VNCPW}）"; exit 1; fi
           echo "VNCPW=$VNCPW" >> $GITHUB_ENV
 
           Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset > /tmp/xvfb.log 2>&1 &
           sleep 3
-          x11vnc -display :99 -forever -shared -rfbauth <(x11vnc -storepasswd "$VNCPW" /dev/stdout 2>/dev/null) \
-            -rfbport 5900 > /tmp/x11vnc.log 2>&1 || \
-            x11vnc -display :99 -forever -shared -passwd "$VNCPW" -rfbport 5900 > /tmp/x11vnc.log 2>&1 &
-          sleep 2
+          # 只用 `-passwd` 这个最直接的形态；-forever 保证断开后还能再连
+          x11vnc -display :99 -forever -shared -passwd "$VNCPW" -rfbport 5900 > /tmp/x11vnc.log 2>&1 &
+          sleep 3
+          # 起完立刻自检：端口在听吗？密码长度对吗？（防"看起来起来了实际连不上"）
+          if command -v ss >/dev/null 2>&1; then ss -ltnp 2>/dev/null | grep -q ':5900' && echo "✓ x11vnc 在 5900 监听" || echo "::warning::5900 没在监听"; fi
+          echo "✓ VNC 密码已设为 ${#VNCPW} 位（RFB 上限就是 8）"
+          grep -iE "error|fail|denied" /tmp/x11vnc.log | head -3 || echo "  x11vnc 日志无错误"
           websockify --web=/usr/share/novnc/ 6080 localhost:5900 > /tmp/novnc.log 2>&1 &
           sleep 2
 
