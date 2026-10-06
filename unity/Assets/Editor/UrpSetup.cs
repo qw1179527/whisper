@@ -549,9 +549,12 @@ namespace Whisper.Editor
             var ca    = Ensure<ChromaticAberration>(profile);
 
             // 【辉光】恐怖游戏的核心氛围手段：亮处（手电、荧光棒、鬼眼自发光）向四周溢出。
-            // threshold 偏高（0.9）是为了"只有真亮的东西才发光"，否则整个画面糊成一团。
-            bloom.intensity.value = 0.35f; bloom.intensity.overrideState = true;
-            bloom.threshold.value = 0.90f; bloom.threshold.overrideState = true;
+            // 【2026-10-06 实调】原 threshold 0.90 / intensity 0.35 在**暗场**几乎不触发：
+            // 逐项 ON/OFF 取证实测 **0.000%**（判据下限 0.5%）。
+            // 本作是黑场恐怖游戏，画面里几乎没有 0.9 以上的亮部 ⇒ 等于没有辉光。
+            // 改为 0.75 / 0.55：让自发光（灯带/屏幕/鬼眼）真的溢出，仍不足以糊成一团。
+            bloom.intensity.value = 0.55f; bloom.intensity.overrideState = true;
+            bloom.threshold.value = 0.75f; bloom.threshold.overrideState = true;
             bloom.scatter.value = 0.65f;   bloom.scatter.overrideState = true;
             bloom.highQualityFiltering.value = false; bloom.highQualityFiltering.overrideState = true;  // 移动端省
 

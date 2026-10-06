@@ -135,16 +135,16 @@ namespace Whisper.Gameplay.Level
         /// 而更早的 Unlit 路径同类视角能到 **40.4** ⇒ 这是**迁 PBR/URP 后变暗**，不是设计意图。
         ///
         /// 标定依据（不猜）：目标是"开灯帧 ≥ 20"。PBR 漫反射对光强**近似线性**（色调映射再压一次），
-        /// 故先按 **×2** 抬一档实测 —— 上限是 110，留足余量，不一次抬到可能洗白的程度。
+        /// 故先按 **×2** 抬一档实测（#44 结果：corridor 18.2 仍未达 20，故再 ×1.5） —— 上限是 110，留足余量，不一次抬到可能洗白的程度。
         /// **分区梯度比例保持不变**（安全区仍最亮、高风险区仍最暗）。
         /// </summary>
         public static float BaseIntensityOf(string zone)
         {
             switch (zone)
             {
-                case "safe": return 2.30f;
-                case "high-risk": return 1.10f;
-                default: return 1.70f;
+                case "safe": return 3.45f;
+                case "high-risk": return 1.65f;
+                default: return 2.55f;
             }
         }
 

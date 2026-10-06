@@ -71,7 +71,7 @@ namespace Whisper.Runtime
             lightGo.transform.SetParent(transform, false);
             var light = lightGo.GetComponent<Light>();
             light.type = LightType.Directional;
-            light.intensity = 1.70f;
+            light.intensity = 2.55f;
             light.color = HexToColor(DesignTokens.ColorBone);
             lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
 
