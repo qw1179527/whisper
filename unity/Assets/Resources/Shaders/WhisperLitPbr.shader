@@ -302,7 +302,15 @@ Shader "Whisper/LitPbr"
         // Pass 2 · ShadowCaster —— 投影（原文件自述"没有 ShadowCaster pass"）
         //   手写而不 include 官方 ShadowCasterPass.hlsl：官方那个文件自带 UnityPerMaterial
         //   CBUFFER（_BaseMap/_BaseColor/_Cutoff），与本工程的字段集**重复定义** → 编译失败。
-        //   本 pass 不需要任何材质属性，从根上没有 CBUFFER 冲突。
+        //
+        // ⚠⚠【2026-10-06 修一个我自己引入的真 bug —— 这段 bias 不能省】⚠⚠
+        // 我最初把它写成最朴素的 `TransformObjectToHClip(positionOS.xyz)`，**没有 shadow bias**。
+        // 后果（云端取证 + 同轮 A/B 实测）：`entrance_safe/orbit33` 带阴影 2.93 vs **关阴影 17.92**
+        // （差 15.00，关掉阴影亮度涨 6 倍）⇒ **几何把自己投进了自己的阴影**，主光贡献整片归零，
+        // 再叠雾就成了"全黑"判红。官方 `ShadowCasterPass.hlsl` 里正是这段 `ApplyShadowBias`，
+        // 手写时漏掉 = 把"深度偏移"整件事丢掉。
+        // offset 方向约定：URP 里 `_MainLightPosition.xyz` 是**指向光源**的向量，故此处取负号
+        // （与 URP 内部 `GetShadowPositionHClip` 一致，从而与 Asset 的 shadowDepth/NormalBias 配套）。
         // ══════════════════════════════════════════════════════════════════════
         Pass
         {
@@ -321,13 +329,37 @@ Shader "Whisper/LitPbr"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct Attributes { float4 positionOS : POSITION; };
+            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
             struct Varyings   { float4 positionCS : SV_POSITION; };
+
+            float3 _LightDirection;
+            float3 _LightPosition;
+            float  _ShadowBias;
+
+            float4 GetShadowPositionHClip(float3 positionOS, float3 normalOS)
+            {
+                float3 positionWS = TransformObjectToWorld(positionOS);
+                float3 normalWS = TransformObjectToWorldNormal(normalOS);
+
+                float3 lightDirectionWS = _LightDirection;
+                // 聚光/点光阴影用**光源位置**而非方向：此时 `_LightDirection` 为 0，
+                // 必须改成"从光源指向本点"，否则偏移方向是零向量（= 完全不偏移）。
+                if (_LightPosition.w != 0.0)
+                    lightDirectionWS = _LightPosition.xyz - positionWS;
+
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
+                #if UNITY_REVERSED_Z
+                    positionCS.z = min(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+                #else
+                    positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+                #endif
+                return positionCS;
+            }
 
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.positionCS = GetShadowPositionHClip(IN.positionOS.xyz, IN.normalOS);
                 return OUT;
             }
 

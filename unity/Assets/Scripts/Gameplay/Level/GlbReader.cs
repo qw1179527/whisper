@@ -47,6 +47,18 @@ namespace Whisper.Gameplay.Level
             /// （装配逻辑见到 -1 就照旧用平材质）。
             /// </summary>
             public int MaterialIndex = -1;
+            /// <summary>
+            /// GLB 里引用本 mesh 的**节点名**（null = 该 mesh 无节点或节点无名）。
+            ///
+            /// 【为什么需要它 · 2026-10-06】套件 GLB 的节点名就是**部件语义**：
+            /// `floor` / `ceiling` / `skirt_*`（墙裙）/ `cornice_*`（顶角线）/ `doorjamb_*`（门套）/
+            /// `light_panel`（灯带）/ `pilaster_*`（壁柱）/ `conduit_*`（线管）/ `ceil_beam_*`（顶梁）/
+            /// `window_*`（窗）/ `radiator_*`（暖气片）/ `rack_*`（柜体）。
+            /// 而**材质名只是 `role_*` 粗分组** —— 实测 `role_trim` 一个分组就吞掉 318 个节点
+            /// （墙裙/顶角线/门套/窗套语义完全不同），只按材质名选不出「木地板 vs 金属门框」。
+            /// 装配端按本字段选材质族，把「整块平色」变成真材质（用户点名的「上色」）。
+            /// </summary>
+            public string NodeName;
             /// <summary>顶点数。</summary>
             public int VertexCount => Positions != null ? Positions.Length / 3 : 0;
             /// <summary>面数。</summary>
@@ -170,27 +182,7 @@ namespace Whisper.Gameplay.Level
         {
             model = null;
             reason = null;
-            if (glb == null || glb.Length < 20) { reason = "字节数不足（<20）"; return false; }
-            if (ReadU32(glb, 0) != Magic) { reason = "magic 不是 glTF"; return false; }
-            uint version = ReadU32(glb, 4);
-            if (version != 2) { reason = "只支持 glTF 2.0，实际 " + version; return false; }
-            uint total = ReadU32(glb, 8);
-            if (total != glb.Length) { reason = "头长度 " + total + " 与实际字节 " + glb.Length + " 不一致"; return false; }
-
-            string json = null;
-            byte[] bin = null;
-            int off = 12;
-            while (off + 8 <= glb.Length)
-            {
-                uint len = ReadU32(glb, off);
-                uint type = ReadU32(glb, off + 4);
-                int dataStart = off + 8;
-                if (dataStart + (int)len > glb.Length) { reason = "块越界（off=" + off + " len=" + len + "）"; return false; }
-                if (type == ChunkJson) json = Encoding.UTF8.GetString(glb, dataStart, (int)len);
-                else if (type == ChunkBin) { bin = new byte[len]; Buffer.BlockCopy(glb, dataStart, bin, 0, (int)len); }
-                off = dataStart + (int)len;
-            }
-            if (json == null) { reason = "没有 JSON 块"; return false; }
+            if (!TryReadChunks(glb, out string json, out byte[] bin, out reason)) return false;
 
             Dictionary<string, object> root;
             try { root = MapOf(MiniJson.Parse(json)); }
@@ -213,7 +205,8 @@ namespace Whisper.Gameplay.Level
             // 为什么必须走这层：套件的每个部件在 glTF 里是"顶点在原点、位置靠 node.translation"，
             // 只读顶点会把 4 根柱子/门框全塌到原点 —— 读得出来不等于建得对。
             var nodeWorld = new Dictionary<int, Mat4>();
-            BuildNodeWorlds(nodes, nodeWorld);
+            var nodeNames = new Dictionary<int, string>();   // mesh 下标 → 节点名（部件语义，见 Primitive.NodeName）
+            BuildNodeWorlds(nodes, nodeWorld, nodeNames);
 
             for (int meshIndex = 0; meshIndex < meshes.Count; meshIndex++)
             {
@@ -265,7 +258,13 @@ namespace Whisper.Gameplay.Level
                     if (idxRef != null && !TryReadIndices(accessors, views, bin, IntOf(idxRef), out indices, out reason)) return false;
                     if (indices.Length > 0 && indices.Length % 3 != 0) { reason = "indices 不是 3 的倍数"; return false; }
 
-                    var p = new Primitive { Positions = positions, Normals = normals, Uvs = uvs, Indices = indices, MaterialIndex = materialIndex };
+                    var p = new Primitive
+                    {
+                        Positions = positions, Normals = normals, Uvs = uvs, Indices = indices,
+                        MaterialIndex = materialIndex,
+                        // 节点名（部件语义）——装配端据此选材质族，见 Primitive.NodeName 的说明
+                        NodeName = nodeNames.TryGetValue(meshIndex, out var nodeName) ? nodeName : null,
+                    };
                     m.Primitives.Add(p);
 
                     for (int i = 0; i < positions.Length; i += 3)
@@ -280,6 +279,39 @@ namespace Whisper.Gameplay.Level
 
             if (m.Primitives.Count == 0) { reason = "没有可用的 primitive"; return false; }
             model = m;
+            return true;
+        }
+
+        /// <summary>
+        /// 校验 GLB 头并拆出 JSON 块与 BIN 块。
+        ///
+        /// 为什么单独成方法（2026-10-06）：给 <see cref="Primitive.NodeName"/> 补「节点名」后
+        /// `TryRead` 涨到 122 行，越过 gate-code C5 的 120 行上限。
+        /// 「校验容器格式」与「解析内容」本就是两件事 —— 抽出来让 TryRead 回到可评审长度，
+        /// 也让格式校验规则只有一处可改。
+        /// </summary>
+        static bool TryReadChunks(byte[] glb, out string json, out byte[] bin, out string reason)
+        {
+            json = null; bin = null; reason = null;
+            if (glb == null || glb.Length < 20) { reason = "字节数不足（<20）"; return false; }
+            if (ReadU32(glb, 0) != Magic) { reason = "magic 不是 glTF"; return false; }
+            uint version = ReadU32(glb, 4);
+            if (version != 2) { reason = "只支持 glTF 2.0，实际 " + version; return false; }
+            uint total = ReadU32(glb, 8);
+            if (total != glb.Length) { reason = "头长度 " + total + " 与实际字节 " + glb.Length + " 不一致"; return false; }
+
+            int off = 12;
+            while (off + 8 <= glb.Length)
+            {
+                uint len = ReadU32(glb, off);
+                uint type = ReadU32(glb, off + 4);
+                int dataStart = off + 8;
+                if (dataStart + (int)len > glb.Length) { reason = "块越界（off=" + off + " len=" + len + "）"; return false; }
+                if (type == ChunkJson) json = Encoding.UTF8.GetString(glb, dataStart, (int)len);
+                else if (type == ChunkBin) { bin = new byte[len]; Buffer.BlockCopy(glb, dataStart, bin, 0, (int)len); }
+                off = dataStart + (int)len;
+            }
+            if (json == null) { reason = "没有 JSON 块"; return false; }
             return true;
         }
 
@@ -329,7 +361,7 @@ namespace Whisper.Gameplay.Level
             }
         }
 
-        static void BuildNodeWorlds(List<object> nodes, Dictionary<int, Mat4> outWorld)
+        static void BuildNodeWorlds(List<object> nodes, Dictionary<int, Mat4> outWorld, Dictionary<int, string> outNames)
         {
             if (nodes == null) return;
             var scene = new List<object>();      // 无 scenes 段时按"所有根节点"处理
@@ -347,10 +379,10 @@ namespace Whisper.Gameplay.Level
                 }
                 if (!isChild) scene.Add(i);
             }
-            foreach (var root in scene) Walk(IntOf(root), Mat4.Identity, nodes, outWorld);
+            foreach (var root in scene) Walk(IntOf(root), Mat4.Identity, nodes, outWorld, outNames);
         }
 
-        static void Walk(int index, in Mat4 parent, List<object> nodes, Dictionary<int, Mat4> outWorld)
+        static void Walk(int index, in Mat4 parent, List<object> nodes, Dictionary<int, Mat4> outWorld, Dictionary<int, string> outNames)
         {
             if (index < 0 || index >= nodes.Count) return;
             var n = MapOf(nodes[index]);
@@ -365,9 +397,11 @@ namespace Whisper.Gameplay.Level
             {
                 int mi = IntOf(meshRef);
                 if (!outWorld.ContainsKey(mi)) outWorld[mi] = world;   // 首个引用者即该 mesh 的摆放
+                if (outNames != null && !outNames.ContainsKey(mi))
+                    outNames[mi] = MiniJson.GetOrNull(n, "name") as string;   // 部件名（材质族判据）
             }
             var children = ListOf(MiniJson.GetOrNull(n, "children"));
-            if (children != null) foreach (var c in children) Walk(IntOf(c), world, nodes, outWorld);
+            if (children != null) foreach (var c in children) Walk(IntOf(c), world, nodes, outWorld, outNames);
         }
 
         /// <summary>

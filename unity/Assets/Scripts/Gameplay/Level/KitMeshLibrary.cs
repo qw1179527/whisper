@@ -37,6 +37,8 @@ namespace Whisper.Gameplay.Level
         static readonly Dictionary<string, GlbReader.KitMaterial[]> _matCache = new Dictionary<string, GlbReader.KitMaterial[]>(StringComparer.Ordinal);
         /// <summary>「部件 → 材质下标」缓存（与 <see cref="GetParts"/> **同序**；-1 = 无材质）。</summary>
         static readonly Dictionary<string, int[]> _partMatCache = new Dictionary<string, int[]>(StringComparer.Ordinal);
+        /// <summary>「部件 → 节点名」缓存（与 <see cref="GetParts"/> 同序；元素可为 null）。</summary>
+        static readonly Dictionary<string, string[]> _partNameCache = new Dictionary<string, string[]>(StringComparer.Ordinal);
         static string _rootDir;
 
         /// <summary>Resources 下的套件目录（与 tools/gen-kit-resources.mjs 的落点对应；扩展名为 .bytes）。</summary>
@@ -62,7 +64,7 @@ namespace Whisper.Gameplay.Level
         public static int LoadedCount => _cache.Count;
 
         /// <summary>清缓存（关卡重建 / PlayMode 用例之间隔离）。</summary>
-        public static void Clear() { _cache.Clear(); _matCache.Clear(); _partMatCache.Clear(); LastProblem = null; }
+        public static void Clear() { _cache.Clear(); _matCache.Clear(); _partMatCache.Clear(); _partNameCache.Clear(); LastProblem = null; }
 
         /// <summary>
         /// 取套件的**全部部件网格**（无则返回 null）。同一 id 只构建一次。
@@ -99,6 +101,10 @@ namespace Whisper.Gameplay.Level
             var idx = new int[parts.Length];
             for (int i = 0; i < idx.Length; i++) idx[i] = model.Primitives[i].MaterialIndex;
             _partMatCache[kitId] = idx;
+            // 部件名（节点名）——"按部件选材质"的语义真源，见 GetPartNames 的说明
+            var nm = new string[parts.Length];
+            for (int i = 0; i < nm.Length; i++) nm[i] = model.Primitives[i].NodeName;
+            _partNameCache[kitId] = nm;
             return parts;
         }
 
@@ -169,6 +175,26 @@ namespace Whisper.Gameplay.Level
         {
             var mats = GetMaterials(kitId);
             return mats != null && mats.Length > 0;
+        }
+
+        /// <summary>
+        /// 每个部件的**节点名**（与 <see cref="GetParts"/> 同序）；元素可为 null。
+        ///
+        /// 【为什么需要它 · 2026-10-06】这是"按部件选材质"的**语义真源**：
+        /// GLB 的节点名就是部件身份（`skirt_n` / `light_panel` / `doorjamb_*` / `pilaster_*` / `rack_*`…），
+        /// 而材质名只是 `role_*` 粗分组 —— 装修件、灯具、线脚会被压进同一组，
+        /// 只按材质名选不出"该用木地板还是金属门框"。
+        ///
+        /// 与 <see cref="GetPartMaterials"/> 的分工：
+        ///   · 要**语义**（选材质族、认部位）→ 用本方法；
+        ///   · 要**GLB 给的参数**（金属度/粗糙度）→ 用 GetMaterials + GetPartMaterials。
+        /// </summary>
+        public static string[] GetPartNames(string kitId)
+        {
+            if (string.IsNullOrEmpty(kitId)) return null;
+            if (_partNameCache.TryGetValue(kitId, out var cached)) return cached;
+            if (GetParts(kitId) == null) return null;
+            return _partNameCache.TryGetValue(kitId, out var again) ? again : null;
         }
 
         public static Mesh Get(string kitId)

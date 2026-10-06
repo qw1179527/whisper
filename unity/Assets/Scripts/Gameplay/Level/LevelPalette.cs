@@ -141,6 +141,76 @@ namespace Whisper.Gameplay.Level
         /// </summary>
         public static Rgb DoorFrame(string zone) => Parse(SurfaceOf(zone).frame);
 
+        // ══════════════════════════════════════════════════════════════════════════════
+        // 部件角色（用户 2026-10-06：「不是有个 PBR 着色器吗，可以混合用」）
+        // ══════════════════════════════════════════════════════════════════════════════
+        /// <summary>
+        /// 按**部件节点名**判"这是什么部件"→ 返回角色名（小写常量，见下方 <c>Role*</c>）。
+        ///
+        /// ## 为什么返回**字符串**而不是材质族枚举
+        /// 本文件属于**纯逻辑层** —— `native/csharp-verify` 把 `Gameplay/Level/*.cs` 链接进去
+        /// 做真编译真跑断言（本机唯一跑得起来的那套）。而材质族枚举
+        /// （`ProceduralTextures.MaterialFamily`）住在 `Gameplay/Render`，**依赖 UnityEngine**，
+        /// 不在那个工程里。所以在这里引用它 = CS0234 编译失败（2026-10-06 实测踩到）。
+        /// 返回角色名后：**本文件零依赖**，由 `LevelBuilder`（已经在 Unity 侧）把角色名翻成材质族。
+        ///
+        /// ## 为什么必须用节点名，而不是用 GLB 的材质名
+        /// 实测：GLB 的 `role_trim` 一个分组就吞掉 **318 个节点**（墙裙 / 顶角线 / 门套 / 窗套…），
+        /// `role_detail` 吞 128 个 —— 语义完全不同的部件被压成同一组，
+        /// **只按材质名选不出"该用木地板还是金属门框"**。节点名才是部件身份的真源。
+        ///
+        /// ## 为什么必须换掉"按包围盒猜角色"的旧做法
+        /// 旧实现只有两条判据（是否铺满房间 / 是否高瘦），**其余一律归"天花板"**——
+        /// 于是墙裙、顶角线、门套、灯带、暖气片全被涂成同一个颜色。
+        /// </summary>
+        public static string MaterialRoleOf(string partName)
+        {
+            if (string.IsNullOrEmpty(partName)) return RoleUnknown;
+            if (partName == "floor") return RoleFloor;
+            if (partName.StartsWith("drain_", System.StringComparison.Ordinal)) return RoleDrain;
+            if (partName == "ceiling" || partName.StartsWith("cornice_", System.StringComparison.Ordinal)) return RoleCeiling;
+            if (partName.StartsWith("ceil_beam_", System.StringComparison.Ordinal)) return RoleBeam;
+            if (partName == "light_panel" || partName.StartsWith("lamp_", System.StringComparison.Ordinal)) return RoleLight;
+            if (partName.StartsWith("skirt_", System.StringComparison.Ordinal)) return RoleSkirt;
+            if (partName.StartsWith("pilaster_", System.StringComparison.Ordinal)) return RoleWall;
+            if (partName.StartsWith("conduit_", System.StringComparison.Ordinal)) return RolePipe;
+            if (partName.StartsWith("doorjamb_", System.StringComparison.Ordinal)) return RoleDoorFrame;
+            if (partName.StartsWith("window_", System.StringComparison.Ordinal)) return RoleWindow;
+            if (partName.StartsWith("radiator_", System.StringComparison.Ordinal)) return RoleRadiator;
+            if (partName.StartsWith("rack_", System.StringComparison.Ordinal)) return RoleRack;
+            return RoleUnknown;   // 未识别：由调用方按分区给灰泥/混凝土兜底（不是黑，也不是随机）
+        }
+
+        // 角色常量（与 MaterialRoleOf 一一对应；集中在此便于门禁/测试引用，避免散落的字面量）
+        public const string RoleUnknown   = "unknown";
+        public const string RoleFloor     = "floor";
+        public const string RoleDrain     = "drain";
+        public const string RoleCeiling   = "ceiling";
+        public const string RoleBeam      = "beam";
+        public const string RoleLight     = "light";
+        public const string RoleSkirt     = "skirt";
+        public const string RoleWall      = "wall";
+        public const string RolePipe      = "pipe";
+        public const string RoleDoorFrame = "doorframe";
+        public const string RoleWindow    = "window";
+        public const string RoleRadiator  = "radiator";
+        public const string RoleRack      = "rack";
+
+        /// <summary>
+        /// 该部件是否**自发光**（灯带 / 屏幕 / 激光），返回强度（0 = 不发光）。
+        /// 口径与 <see cref="MaterialRoleOf"/> 同一套语义真源（都只看节点名）。
+        /// 亮度由调用方写进 `_WhisperEmission`（rgb=色 a=强度）——黑场里必须自己亮的部件靠它。
+        /// </summary>
+        public static float EmissionOf(string partName)
+        {
+            if (string.IsNullOrEmpty(partName)) return 0f;
+            if (partName == "light_panel") return 2.2f;        // 顶灯灯带
+            if (partName.StartsWith("lamp_", System.StringComparison.Ordinal)) return 2.2f;
+            if (partName.StartsWith("screen_", System.StringComparison.Ordinal)) return 1.6f;
+            if (partName.StartsWith("laser_", System.StringComparison.Ordinal)) return 3.0f;
+            return 0f;
+        }
+
         /// <summary>光分区基色（V9 §11 色板）。保留：灯光染色与 HUD 仍按分区取基调。</summary>
         public static Rgb ZoneBase(string zone)
         {

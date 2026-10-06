@@ -231,13 +231,53 @@ Shader "Whisper/UnlitColor"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct Attributes { float4 positionOS : POSITION; };
+            struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
             struct Varyings   { float4 positionCS : SV_POSITION; };
+
+            // ⚠⚠【2026-10-06 修一个我自己引入的真 bug —— 这段 bias 不能省】⚠⚠
+            // 我最初按"官方迁移清单要求补 ShadowCaster pass"写成了最朴素的
+            //   `positionCS = TransformObjectToHClip(positionOS.xyz);`
+            // **没有做 shadow bias**。后果（云端取证 + 同轮 A/B 实测，不是推测）：
+            //   `[RENDER][诊断] entrance_safe/orbit33 开灯+默认雾：带阴影 2.93 vs 关阴影 17.92（差 15.00）`
+            //   —— 关掉阴影亮度立刻涨 6 倍 ⇒ **几何把自己投进了自己的阴影里**（自投影噪声），
+            //   主光贡献被整片判成 0，再叠上雾就成了"全黑"判红。
+            //
+            // 官方 URP 的 `ShadowCasterPass.hlsl` 里就有这段 bias（`ApplyShadowBias`），
+            // 它必须与 URP Asset 的 `shadowDepthBias` / `shadowNormalBias` 配套；
+            // 我自己手写时漏掉，等于把"深度偏移"这件事整个丢掉。
+            //
+            // offset 的方向约定（与 URP 内部一致）：主光阴影贴图沿**光照方向**偏移，
+            // 而 `_MainLightPosition.xyz` 在 URP 里是**指向光源**的向量，所以这里取负号，
+            // 得到"从光源往外推一点"的效果。不引入 `ApplyShadowBias` 是为了避免额外的 include
+            // 与 CBUFFER 耦合（多 pass 的 `UnityPerMaterial` 必须完全一致，见 Pass 1 的说明）。
+            float3 _LightDirection;
+            float3 _LightPosition;
+            float  _ShadowBias;
+
+            float4 GetShadowPositionHClip(float3 positionOS, float3 normalOS)
+            {
+                float3 positionWS = TransformObjectToWorld(positionOS);
+                float3 normalWS = TransformObjectToWorldNormal(normalOS);
+
+                float3 lightDirectionWS = _LightDirection;
+                // 聚光/点光阴影用的是**光源位置**而不是方向：此时 `_LightDirection` 为 0，
+                // 必须改成"从光源指向本点"的方向，否则偏移方向是零向量（= 不偏移）。
+                if (_LightPosition.w != 0.0)
+                    lightDirectionWS = _LightPosition.xyz - positionWS;
+
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
+                #if UNITY_REVERSED_Z
+                    positionCS.z = min(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+                #else
+                    positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+                #endif
+                return positionCS;
+            }
 
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.positionCS = GetShadowPositionHClip(IN.positionOS.xyz, IN.normalOS);
                 return OUT;
             }
 

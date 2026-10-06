@@ -99,26 +99,33 @@ namespace Whisper.Gameplay.Level
             var kitParts = KitMeshLibrary.GetParts(r.Kit);
             if (kitParts != null && kitParts.Length > 0)
             {
+                // 部件名（GLB 节点名）= 部件语义的唯一真源，与 kitParts **同序**（见 KitMeshLibrary.GetPartNames）。
+                var partNames = KitMeshLibrary.GetPartNames(r.Kit);
                 for (int i = 0; i < kitParts.Length; i++)
                 {
                     var part = kitParts[i];
                     if (part == null) continue;
-                    var b = part.bounds;
-                    // 部件语义按尺寸判定（确定性、可复核）：
-                    //   水平铺满整房 → 楼板/天花板；高瘦 → 立柱；其余 → 门框等小件
-                    bool spansRoom = b.size.x >= r.SizeX - 0.05f && b.size.z >= r.SizeZ - 0.05f;
-                    bool isTall = b.size.y > 1.5f && b.size.x < 0.6f && b.size.z < 0.6f;
-                    Color color;
-                    if (spansRoom) color = ToColor(LevelPalette.Floor(zone));
-                    else if (isTall) color = ToColor(LevelPalette.Wall(zone));
-                    else color = ToColor(LevelPalette.Ceiling(zone));
+                    string partName = partNames != null && i < partNames.Length ? partNames[i] : null;
+
+                    // ── 【2026-10-06 换掉"按包围盒猜角色"的旧做法】─────────────────────────
+                    // 旧实现按尺寸分类：铺满房间 → 楼板色；高瘦 → 墙色；**其余一律 → 天花板色**。
+                    // 后果：墙裙、顶角线、门套、灯带、暖气片这些**语义完全不同**的部件
+                    // 全被涂成同一个"天花板色"，而且四种表面共用同一份材质参数
+                    // （`_Metallic`/`_Glossiness` 都是默认值）→ 金属不像金属、木不像木。
+                    //
+                    // 现在按**节点名**判角色，再按角色给：
+                    //   · 颜色：仍走分区色表（保留"越危险越脏越暗"的情绪梯度，不推翻既有设计）
+                    //   · 材质族：走 `ProceduralTextures` 的 7 个族（各自带程序化细节/法线/遮蔽贴图+
+                    //     PBR 参数）—— 这是用户说的"PBR 混合用"的落点
+                    Color color = ToColor(ColorForPart(partName, zone, part.bounds, r));
+                    float emission = LevelPalette.EmissionOf(partName);
                     var go = new GameObject($"Kit_{r.Kit}_{i}");
                     go.transform.SetParent(roomGo.transform, false);
                     go.transform.localPosition = Vector3.zero;
                     var mf = go.AddComponent<MeshFilter>();
                     mf.sharedMesh = part;
                     var mr = go.AddComponent<MeshRenderer>();
-                    mr.sharedMaterial = FlatMaterial(color);
+                    mr.sharedMaterial = PartMaterial(partName, zone, color, emission);
                 }
                 kitPlaced = true;
                 KitRooms.Add(r.Id);
@@ -458,6 +465,128 @@ namespace Whisper.Gameplay.Level
             m = new Material(shader) { color = new Color(c.r, c.g, c.b, 1f) };
             _matCache[c] = m;
             return m;
+        }
+
+        // ══════════════════════════════════════════════════════════════════════════════
+        // 按部件角色取色 / 建材质（2026-10-06：用户「PBR 混合用」的落点）
+        // ══════════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 部件角色 → 颜色（仍走分区色表，**保留"越危险越脏越暗"的情绪梯度**）。
+        ///
+        /// 【为什么不用旧实现的"按包围盒分类"】旧做法把墙裙/顶角线/门套/灯带/暖气片
+        /// 一律归成"天花板色"，因为判据只有"是否铺满房间 / 是否高瘦"两条 ——
+        /// 语义完全不同的部件必然被压成同色。现在按**节点名**判，判据与部件身份一一对应。
+        /// </summary>
+        static Rgb ColorForPart(string partName, string zone, Bounds b, Room r)
+        {
+            if (string.IsNullOrEmpty(partName))
+            {
+                // 无名部件：退回旧启发式（铺满 → 地；高瘦 → 墙；其余 → 顶），保证不会突然变色
+                bool spans = b.size.x >= r.SizeX - 0.05f && b.size.z >= r.SizeZ - 0.05f;
+                bool tall = b.size.y > 1.5f && b.size.x < 0.6f && b.size.z < 0.6f;
+                if (spans) return LevelPalette.Floor(zone);
+                return tall ? LevelPalette.Wall(zone) : LevelPalette.Ceiling(zone);
+            }
+            if (partName == "floor" || partName.StartsWith("drain_", StringComparison.Ordinal))
+                return LevelPalette.Floor(zone);
+            if (partName == "ceiling" || partName.StartsWith("cornice_", StringComparison.Ordinal)
+                || partName.StartsWith("ceil_beam_", StringComparison.Ordinal))
+                return LevelPalette.Ceiling(zone);
+            if (partName.StartsWith("doorjamb_", StringComparison.Ordinal))
+                return LevelPalette.DoorFrame(zone);      // 深色金属包边：画面里少数"深色重音"
+            if (partName.StartsWith("rack_", StringComparison.Ordinal)
+                || partName.StartsWith("radiator_", StringComparison.Ordinal)
+                || partName.StartsWith("conduit_", StringComparison.Ordinal))
+                return LevelPalette.Prop(zone);           // 设备/家具：暖木旧金属调，与墙拉开
+            if (partName == "light_panel" || partName.StartsWith("lamp_", StringComparison.Ordinal))
+                return LevelPalette.Ceiling(zone);        // 灯带本体：自发光另走 _WhisperEmission
+            // 墙、墙裙、壁柱、窗套 → 墙色
+            return LevelPalette.Wall(zone);
+        }
+
+        /// <summary>
+        /// 部件角色 + 分区 → **材质**（PBR 参数 + 程序化细节/法线/遮蔽贴图），带缓存。
+        ///
+        /// 【这是"上色不行"的第二层修复】着色器早就切到 PBR 了，但材质只有一种：
+        /// `new Material(PBR){ color = 平面色 }`，`_Metallic`/`_Glossiness` 全是默认值、无贴图。
+        /// 现在按角色取 `ProceduralTextures` 的材质族（灰泥/混凝土/木/金属/锈金属/瓷砖/织物），
+        /// 每族自带细节、法线、遮蔽三张程序化贴图与 PBR 参数 ⇒ 金属、木、瓷砖彼此可区分。
+        ///
+        /// 缓存键 = (角色族, 颜色, 自发光) —— **按角色族而不是按部件名**：
+        /// 同族部件的参数完全相同，按族缓存能把材质数从"每部件一个"压到十几份
+        /// （移动端材质切换是真实开销）。
+        /// </summary>
+        static Material PartMaterial(string partName, string zone, Color color, float emission)
+        {
+            var family = FamilyForRole(LevelPalette.MaterialRoleOf(partName), zone);
+            string key = $"{(int)family}|{color.r:F3},{color.g:F3},{color.b:F3}|{emission:F2}";
+            if (_partMatCache.TryGetValue(key, out var cached) && cached != null) return cached;
+
+            var shader = GeometryShader;
+            if (shader == null) throw new InvalidOperationException(
+                "关卡着色器缺失 —— 部件材质无法建立（见 FlatMaterial 的说明）");
+
+            var m = new Material(shader) { name = $"LevelMat_{family}_{key.GetHashCode():X8}" };
+            // alpha 一律钉 1：顶点色的 A 通道直接当输出透明度，色板里若出现 a=0 会让几何**静默隐形**
+            m.color = new Color(color.r, color.g, color.b, 1f);
+
+            // 材质族（只在 PBR 上有这些属性；UnlitColor 回退时设了也是白设，故逐个 HasProperty 保护）
+            var set = Whisper.Gameplay.Render.ProceduralTextures.Get(family);
+            if (set != null)
+            {
+                if (m.HasProperty("_DetailTex")) m.SetTexture("_DetailTex", set.Detail);
+                if (m.HasProperty("_BumpMap")) m.SetTexture("_BumpMap", set.Normal);
+                if (m.HasProperty("_OcclusionMap")) m.SetTexture("_OcclusionMap", set.Occlusion);
+                if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", set.Metallic);
+                if (m.HasProperty("_Glossiness")) m.SetFloat("_Glossiness", set.Glossiness);
+                if (m.HasProperty("_DetailScale")) m.SetFloat("_DetailScale", set.DetailScale);
+                if (m.HasProperty("_DetailStrength")) m.SetFloat("_DetailStrength", set.DetailStrength);
+                if (m.HasProperty("_DirtAmount")) m.SetFloat("_DirtAmount", set.DirtAmount);
+            }
+            // 自发光：黑场里必须自己亮的部件（灯带/屏幕/激光）。rgb=色（偏暖白，像旧日光灯），a=强度
+            if (emission > 0f && m.HasProperty("_WhisperEmission"))
+                m.SetColor("_WhisperEmission", new Color(1.00f, 0.96f, 0.86f, emission));
+
+            _partMatCache[key] = m;
+            return m;
+        }
+
+        static readonly Dictionary<string, Material> _partMatCache = new Dictionary<string, Material>();
+
+        /// <summary>
+        /// 部件**角色名**（`LevelPalette.MaterialRoleOf` 的输出）→ 材质族。
+        ///
+        /// 【为什么映射放在这里而不是 LevelPalette】**依赖方向**：`LevelPalette` 属于纯逻辑层
+        /// （`native/csharp-verify` 链接它做真编译真跑断言），绝不能引用 `Gameplay/Render`
+        /// （那边的 `MaterialFamily` 依赖 UnityEngine，不在那个工程里 → CS0234，2026-10-06 实测踩到）。
+        /// 所以纯逻辑层只说"这是什么部件"，由 Unity 侧的本文件决定"用什么材质"。
+        ///
+        /// `zone` 参与判断：高风险区（太平间/锅炉房）用混凝土与锈蚀金属，
+        /// 与 `LevelPalette` 的颜色梯度（越危险越脏越暗）保持同一套分区语义。
+        /// </summary>
+        static Whisper.Gameplay.Render.MaterialFamily FamilyForRole(string role, string zone)
+        {
+            bool deep = zone == "high-risk";
+            switch (role)
+            {
+                case LevelPalette.RoleFloor:     return deep ? Whisper.Gameplay.Render.MaterialFamily.Concrete
+                                                            : Whisper.Gameplay.Render.MaterialFamily.Tile;
+                case LevelPalette.RoleDrain:     return Whisper.Gameplay.Render.MaterialFamily.Metal;
+                case LevelPalette.RoleCeiling:   return Whisper.Gameplay.Render.MaterialFamily.Plaster;
+                case LevelPalette.RoleBeam:      return Whisper.Gameplay.Render.MaterialFamily.Concrete;
+                case LevelPalette.RoleLight:     return Whisper.Gameplay.Render.MaterialFamily.Metal;
+                case LevelPalette.RoleSkirt:     return Whisper.Gameplay.Render.MaterialFamily.Wood;
+                case LevelPalette.RoleWall:      return Whisper.Gameplay.Render.MaterialFamily.Plaster;
+                case LevelPalette.RolePipe:      return Whisper.Gameplay.Render.MaterialFamily.Metal;
+                case LevelPalette.RoleDoorFrame: return Whisper.Gameplay.Render.MaterialFamily.Metal;
+                case LevelPalette.RoleWindow:    return Whisper.Gameplay.Render.MaterialFamily.Tile;
+                case LevelPalette.RoleRadiator:  return Whisper.Gameplay.Render.MaterialFamily.Metal;
+                case LevelPalette.RoleRack:      return deep ? Whisper.Gameplay.Render.MaterialFamily.RustMetal
+                                                            : Whisper.Gameplay.Render.MaterialFamily.Metal;
+                default:                         return deep ? Whisper.Gameplay.Render.MaterialFamily.Concrete
+                                                            : Whisper.Gameplay.Render.MaterialFamily.Plaster;
+            }
         }
 
     }
