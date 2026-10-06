@@ -344,26 +344,34 @@ namespace Whisper.Editor
         /// </summary>
         static bool VerifyRendererResources(UniversalRendererData rendererData)
         {
-            var t = rendererData.GetType();
+            // ⚠ 【2026-10-06 实测不一致，值得记下来】
+            // 这里原先只查**内存里传进来的那个对象**，报 "postProcessData 仍为 null"；
+            // 而同一轮取证里 `[RENDER][URP诊断]` 读**盘上的资产**却是 `postProcessData=有`，
+            // 且 7 项后处理 ON/OFF 全部可辨（Bloom 61.975%）。
+            // ⇒ **我验错了对象**：内存实例与已保存资产在 CreateInstance/Rebuild 后可能不是同一份。
+            // 正解：**以盘上的资产为准**（那才是后续所有流程真正会加载的东西）。
+            // 这与"配了 ≠ 生效"同族：**要验的是最终被使用的那个对象**。
+            var asset = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
+            var target = asset != null ? asset : rendererData;
+            var t = target.GetType();
+            object ppd = null;
             var pi = t.GetProperty("postProcessData");
-            object ppd = pi != null ? pi.GetValue(rendererData) : null;
+            if (pi != null) ppd = pi.GetValue(target);
             if (ppd == null)
             {
                 var fi = t.GetField("m_PostProcessData",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (fi != null) ppd = fi.GetValue(rendererData);
+                if (fi != null) ppd = fi.GetValue(target);
             }
             if (ppd != null)
             {
-                Debug.Log("[UrpSetup] ✓ RendererData 资源引用齐备（postProcessData 非 null）");
+                Debug.Log($"[UrpSetup] ✓ RendererData 资源引用齐备（postProcessData 非 null；核对对象=盘上资产）");
                 return true;
             }
-
-            // 响亮报错（进 CI 日志、显眼），但**不中断**：
-            // 后处理降级 ≠ 游戏不能跑；真正的判据在取证的像素级 ON/OFF 对照里。
+            // 响亮报错，但**不中断**：后处理降级 ≠ 游戏不能跑；真正的判据在取证的像素级 ON/OFF 对照里。
             Debug.LogError("[UrpSetup] ✗ RendererData.postProcessData 仍为 null —— "
                 + "URP 会**静默跳过**全部后处理（辉光/暗角/色差/颗粒/调色/色调映射一个都不会生效）。"
-                + "画面仍是完整可玩的，但后处理这一整类效果缺失 —— 取证的『逐项后处理 ON/OFF』会判红。");
+                + "画面仍是完整可玩的，但后处理这一整类缺失 —— 取证的『逐项后处理 ON/OFF』会判红。");
             return false;
         }
 
