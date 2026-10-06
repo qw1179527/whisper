@@ -144,4 +144,33 @@ for (const f of files.filter((x) => /test-results.*\.xml$/i.test(x))) {
   if (m) log(`  📋 ${rel(f)}: 共 ${m[1]} 条 · 失败 ${m[2]} 条 ${m[2] === '0' ? '✓' : '✗'}`);
 }
 log(`全部产物在：${outDir}`);
+
+// ── 自动同步到 `DSH专用/`（用户 2026-10-06 要求："每次看图后都把图同步到DSH专用,我好查看效果"）──
+//
+// 【为什么做进工具，而不是"我记得就拷一下"】
+// 用户看不到我的对话里的图 —— 它们是给我看画面的手段，不是给他的产物。
+// 而"记得拷"这种约定**一定会漏**（本项目反复验证过：结构信息必须由数据/代码保证，
+// 不能靠人记得）。所以做成下载流程的固有一步：**只要取了证，图就自动出现在他能打开的地方。**
+// 命名用 `<task>-<run>`，与 `.agent-out/` 下的目录同名，便于两边对照。
+{
+  const DSH = '/storage/emulated/0/DSH专用';
+  const shots = files.filter((f) => /\.png$/i.test(f));
+  if (shots.length && fs.existsSync(DSH)) {
+    const dest = path.join(DSH, `取证-${task}-${run.run_number}`);
+    try {
+      fs.mkdirSync(dest, { recursive: true });
+      let n = 0;
+      for (const f of shots) {
+        // 扁平化：不同子目录下可能同名，用相对路径把 `/` 换成 `_` 保唯一
+        const flat = rel(f).replace(/\//g, '_');
+        fs.copyFileSync(f, path.join(dest, flat));
+        n++;
+      }
+      log(`已同步 ${n} 张图 → DSH专用/${path.basename(dest)}/`);
+    } catch (e) {
+      // 同步失败**不影响任务本身**（产物已在 .agent-out/），只提示，不中断
+      log(`⚠ 同步到 DSH专用 失败（产物仍在 ${outDir}）：${e.message}`);
+    }
+  }
+}
 if (!argv.includes('--keep')) log('（PNG 我接下来直接 read_image 看）');
