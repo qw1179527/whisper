@@ -728,13 +728,17 @@ namespace Whisper.Editor
             //   "哪个房间一个部件都没有"。
             var roomHits = new System.Collections.Generic.Dictionary<string, int>();
             var roomBounds = new System.Collections.Generic.Dictionary<string, Bounds>();
-            // ⚠ 房间盒的**高度轴是 Y**（房间盒打印用的是 `y[0,SizeY]`），不能用 `SizeZ` 当高。
-            // 我第一版把 `SizeZ` 写进了 y 分量 ⇒ 判定盒在 Y 上只有几米却错位，归属统计不可信。
+            // ⚠ **判定盒必须带上楼层高度偏移**（这次我连错两次，都记下来）：
+            //   ① 房间盒的高度轴是 **Y**，我第一版把 `SizeZ` 写进了 y 分量；
+            //   ② 楼层有 Y 偏移 —— `LevelAssembly` 里 `baseY = r.Floor * FloorHeightM`（3.5m/层）。
+            //      不带偏移的盒只罩得住 0 层 ⇒ 二三层几何全落在盒外 ⇒ 被误报成"该房间没有任何几何"。
+            //      **一个错的诊断比没有诊断更糟**：它会让人去修一个不存在的问题。
             foreach (var rm in level.Rooms)
             {
                 roomHits[rm.Id] = 0;
+                float baseY = rm.Floor * Whisper.Gameplay.Level.LevelGeometry.FloorHeightM;
                 roomBounds[rm.Id] = new Bounds(
-                    new Vector3(rm.CenterX, rm.SizeY * 0.5f, rm.CenterZ),
+                    new Vector3(rm.CenterX, baseY + rm.SizeY * 0.5f, rm.CenterZ),
                     new Vector3(rm.SizeX + 0.6f, rm.SizeY + 0.6f, rm.SizeZ + 0.6f));  // 放宽 0.3m 容差
             }
             for (int i = 0; i < renderers.Length; i++)
