@@ -169,6 +169,33 @@ namespace Whisper.Editor
             // 现在：该做的全做完、管线确认生效，最后才判资源 —— 抛出去时工程状态是完整一致的。
             EnsureSsaoFeature(rendererData);
             bool postFxReady = VerifyRendererResources(rendererData);
+
+            // ── **读盘上资产**核对阴影开关是否真落盘（2026-10-06）────────────────────
+            // 【为什么】阴影三条对照全 0.000%（见 docs/mechanism-gaps.md）。
+            // 第一待查项就是：`m_MainLightShadowsSupported` 到底有没有**落盘**。
+            // 本项目有"设了不等于生效"的先例 ⇒ 必须**读回盘上字段**核对，不能只信设置代码跑过。
+            {
+                var asset = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
+                if (asset != null)
+                {
+                    var t = asset.GetType();
+                    var sb = new System.Text.StringBuilder();
+                    foreach (var fname in new[] { "m_MainLightShadowsSupported", "m_AdditionalLightShadowsSupported",
+                                                  "m_SoftShadowsSupported", "m_ShadowDistance", "m_MainLightShadowmapResolution" })
+                    {
+                        var f = t.GetField(fname, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        sb.Append(fname).Append('=').Append(f != null ? f.GetValue(asset)?.ToString() : "字段不存在").Append(" · ");
+                    }
+                    Debug.Log("[UrpSetup][核对盘上资产] " + sb);
+                    // 主光阴影必须为 true —— 否则阴影链在第一环就断了
+                    var fm = t.GetField("m_MainLightShadowsSupported",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    bool ok = fm != null && fm.GetValue(asset) is bool b && b;
+                    if (!ok)
+                        Debug.LogError("[UrpSetup] ✗ **盘上资产**的 m_MainLightShadowsSupported 不是 true"
+                            + " —— 阴影链在第一环就断了（这解释了三条阴影对照全 0.000%）");
+                }
+            }
             if (!postFxReady) Debug.LogError("[UrpSetup] 后处理不可用（见上一条）—— 其余渲染配置已全部完成并生效");
 
             Debug.Log($"[UrpSetup] ✓ active render pipeline = {active.name} ({active.GetType().FullName})"
