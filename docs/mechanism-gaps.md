@@ -162,6 +162,14 @@
 
 ⇒ 五条排除之后，剩下的是 **URP 的阴影渲染链本身**（shadow pass / shadow map 未被采样）。
 
+## 第 1 项已查（2026-10-06 半夜）：**盘上资产是正确的**
+```
+[UrpSetup][核对盘上资产] m_MainLightShadowsSupported=True · m_AdditionalLightShadowsSupported=False
+  · m_SoftShadowsSupported=True · m_ShadowDistance=20 · m_MainLightShadowmapResolution=1024
+```
+⇒ **不是"设置没落盘"**。阴影链断在更下游（第 2/3/4 项）。
+这条排除了最可能的"设了不等于生效"，方向进一步收窄。
+
 ## 尚未查的方向（下一步）
 1. **URP Asset 的 `m_MainLightShadowsSupported` 是否真落盘** ——
    `UrpSetup` 用 `SerializedObject` 设它；本项目已有先例：**"设了不等于生效"**。
