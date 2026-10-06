@@ -16,13 +16,25 @@
 # 详细获取方式见 https://game.ci/docs/unity/activation
 name: unity-android
 
+# ══════════════════════════════════════════════════════════════════════════════════
+# 【2026-10-06 去掉 push 自动触发】出包是**发布动作**，不是**每次提交的动作**
+# ══════════════════════════════════════════════════════════════════════════════════
+# 实测证据（最近 100 次运行）：
+#   · unity-android 共 81 次，其中 **73 次由 push 自动触发**
+#   · 每次 **33 分钟**（"构建（GameCI）"一步就 1719s = 29 分钟）
+#   · 累计 ~1403 分钟 —— 仓库建于 10-03、今天 10-06，**4 天烧掉免费额度的 70%**
+#   · 与 unity-agent 的 ~505 分钟合计 **~2025 分钟 > 2000** ⇒ **整个仓库拿不到 runner**
+#     （连只 echo 的最小探针作业都是 runner_id=0 / steps=0）
+# ⇒ 我每改一个数值就 push ⇒ 每次重建一遍 APK。这个用法是错的：
+#   · 反馈信号来自 unity-agent 的 sentinel（取证），**不是** APK 构建；
+#   · 出包应在"要测/要发"时**显式派发**。
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'unity/**'
-      - '.github/workflows/unity-android.yml'
+  # push:            ← 2026-10-06 移除。恢复前请先读上面这段实测。
+  #   branches: [main]
+  #   paths:
+  #     - 'unity/**'
+  #     - '.github/workflows/unity-android.yml'
 
 jobs:
   build:
