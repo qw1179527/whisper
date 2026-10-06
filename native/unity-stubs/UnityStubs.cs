@@ -131,6 +131,11 @@ namespace UnityEngine
         public Material sharedMaterial { get; set; }
         /// <summary>文档：Renderer.enabled — 关掉即不渲染（MeshRenderer 继承此属性）。</summary>
         public bool enabled { get; set; }
+        /// <summary>
+        /// 文档：Renderer.bounds — **世界空间**包围盒（含所有子网格）。
+        /// 取证诊断用它量"几何到底落在哪"，这是把"相机是不是在几何内部"从推断变成测量的一步。
+        /// </summary>
+        public Bounds bounds { get; set; }
     }
     public class MeshRenderer : Renderer { }
     public class TextAsset : Object
@@ -511,6 +516,9 @@ namespace UnityEngine
     {
         /// <summary>文档：Vector3.up — 世界 +Y 单位向量（货车安全区沿 Y 上抬用它）。</summary>
         public static Vector3 up => new Vector3(0f, 1f, 0f);
+        /// <summary>文档：Vector3.Min / Vector3.Max — 逐分量取小/大（取证量场景包围盒用它）。</summary>
+        public static Vector3 Min(Vector3 a, Vector3 b) => new Vector3(Math.Min(a.x, b.x), Math.Min(a.y, b.y), Math.Min(a.z, b.z));
+        public static Vector3 Max(Vector3 a, Vector3 b) => new Vector3(Math.Max(a.x, b.x), Math.Max(a.y, b.y), Math.Max(a.z, b.z));
         /// <summary>文档：Vector3.magnitude / Vector3.sqrMagnitude。</summary>
         public float magnitude => (float)Math.Sqrt(x * x + y * y + z * z);
         public float sqrMagnitude => x * x + y * y + z * z;
@@ -622,6 +630,10 @@ namespace UnityEngine
         public bool allowHDR { get; set; }
         /// <summary>文档：Camera.depthTextureMode — SSAO/SSGI 需要 DepthNormals。</summary>
         public DepthTextureMode depthTextureMode { get; set; }
+        /// <summary>文档：Camera.orthographic — 是否正交投影（诊断要用它判断取景方式）。</summary>
+        public bool orthographic { get; set; }
+        /// <summary>文档：Camera.cullingMask — 逐层遮罩（诊断要确认没有把几何层裁掉）。</summary>
+        public int cullingMask { get; set; }
         /// <summary>文档：Camera.Render() — 手工渲染一帧。</summary>
         public void Render() { }
         /// <summary>文档：Camera.WorldToScreenPoint(Vector3) — 世界点 → 屏幕像素。</summary>
@@ -964,7 +976,7 @@ namespace UnityEngine
         /// 【为什么必须一起挂】本工程当前档是 Very Low（`m_CurrentQuality: 5`）；
         /// 只设 `GraphicsSettings.defaultRenderPipeline` 而不设这个，遇到"该档有覆盖"时会回落成 Built-in。
         /// </summary>
-        public static RenderPipelineAsset renderPipeline { get; set; }
+        public static Rendering.RenderPipelineAsset renderPipeline { get; set; }
     }
 
     /// <summary>文档：ShadowQuality — 阴影质量档。</summary>
@@ -1270,6 +1282,16 @@ namespace UnityEditor
         /// <summary>文档：EditorUtility.SetDirty(Object) — 标记资产已修改，等待 SaveAssets 落盘。</summary>
         public static void SetDirty(UnityEngine.Object target) { }
     }
+
+    /// <summary>
+    /// 文档：InitializeOnLoadMethodAttribute — 编辑器加载/脚本重编译后自动执行静态方法。
+    /// 【为什么这个桩很关键】`UrpSetup.EnsureOnEditorLoad` 靠它让**凡是能在 CI 里跑起来的东西**
+    /// （构建 / 取证 / 测试 / 任意 -executeMethod）都看到同一套渲染管线设置。
+    /// 没有这个桩，那行特性会被归入"允许的 Unity 缺失" ⇒ 本机门禁**验不到**拼写错误，
+    /// 而拼错特性名在真机上的表现是"方法根本不执行"（静默失效，最难查的一类）。
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method)]
+    public sealed class InitializeOnLoadMethodAttribute : Attribute { }
 
     /// <summary>
     /// 文档：SerializedObject — 绕过属性访问器直接读写序列化字段。

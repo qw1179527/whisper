@@ -102,3 +102,66 @@
    §5 缺口 #1 给了下一步（先用 Blender 出 front/left/top 三视图定锚点）。另有 **4 件仍是 Z-up**（摆放会侧躺）。
 6. **音效系统整体缺失**（全仓零 `AudioSource`/`AudioClip`；`whisper.Audio` asmdef 下只有 `LocalVoiceService`）。
    跳脸目前**没有音效冲击**——这是"跳脸"完整度的明显缺口。
+
+---
+
+# 附：2026-10-06 下半场（URP 迁移）续记
+
+## 六、URP 现在真的启用了（有云端日志原文）
+
+`unity-agent`/`build-dev-mono` 的 Unity 日志里：
+```
+[UrpSetup] ✓ active render pipeline = WhisperURPAsset
+        (UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset)
+        · MSAA=2 · HDR=True · renderScale=1 · shadowDistance=20 · cascades=2 · additionalLights=4
+[UrpSetup] Volume Profile Assets/DefaultVolumeProfile.asset → 6 个组件：
+        Bloom Vignette ColorAdjustments Tonemapping FilmGrain ChromaticAberration
+```
+⇒ 用户点名的 **辉光 / 色差 / 颗粒 / 氛围 / 色泽 / 暗角** 第一次有了落点；
+阴影（主光阴影 + 软阴影 + ShadowCaster pass）也从"没有"变成"有"。
+
+## 七、三个必须记下的真事故（都发生在同一天）
+
+### ① 「管线已启用」必须是**编辑器级不变量**
+只在 `BuildScript.BuildAndroid()` 里调 `UrpSetup.ConfigureUrp()` 的后果：
+- `unity-android`（走 BuildScript）→ 成功；
+- `unity-agent` 的 **render-evidence**（走 `RenderEvidenceCapture.Run`，**不经过 BuildScript**）
+  → URP 从未启用，而着色器已是 URP 专用 ⇒ Built-in 下**没有任何颜色 pass**
+  ⇒ **整屏纯黑**（30 张图全部退化成统一 9 KB、平均亮度 5.2、开灯/关灯差异 0.000%）。
+⇒ 修法：`[InitializeOnLoadMethod]`，让**凡是能在 CI 里跑起来的东西**看到同一套设置。
+
+### ② 我把雾的 `lerp` 参数写颠倒了（纯迁移事故）
+`lerp(lit, fogColor, fogK)` 在 fogK=0 时返回 **fogColor** ⇒ 雾永远按最大浓度参与。
+后果：`entrance_safe/orbit33` **开灯 2.9 < 关灯 17.6**（开灯反而更暗），被判"全黑"。
+**本机门禁拦不住它** —— 门禁只能验"uniform 声明齐不齐、契约对不对"，
+**验不了数学式对不对**。这条只有「看图 + 读像素」能发现。
+⇒ 又一次印证本项目的失败模式：「门禁全绿但结果是错的」。
+
+### ③ 手电的判据差距来自"灯的配置"，不是"判据太严"
+迁 URP 后手电亮度差从 0.000% 掉到 0.643%（阈值 1%）。
+根因两层：URP 附加光走**物理距离衰减**（Built-in 那版是手写 `1/(1+0.15d²)`）；
+且取证手电没设 `range/spotAngle`（Unity 默认 10m/30°，锥太窄，取景点是走廊 → 全屏均值被摊薄）。
+⇒ 修法是**把手电调成产品该有的样子**（range 18 / spotAngle 55 / **ForcePixel** / 强度 5.0），
+**不是把阈值调低**。`ForcePixel` 尤其重要：`Auto` 在灯多时会被降级成顶点光，
+那会让「手电不亮」变成**偶发**现象 —— 最难查的一类 bug。
+
+## 八、判据自身跟着 URP 一起修（否则防线会静默失效）
+`RenderEvidenceCapture` 的着色器契约检查原本只认 Built-in 写法，迁 URP 后：
+- 代码块正则 `CGPROGRAM/ENDCG` → `(CG|HLSL)PROGRAM/END(CG|HLSL)`。
+  原版在 URP 着色器上**一个块都找不到**，直接放弃 uniform 核对 ⇒ **白白丢掉这道防线**。
+- 全局量标识符正则由词边界改成"前后不能是标识符字符"。
+  原版会把辅助函数 `WhisperFogK` 里的子串误判成裸 `_WhisperFog`（误报）。
+- `_Color` 判据允许 `[MainColor]` 特性前缀（URP 官方迁移清单第 10 步的要求），
+  与 `tools/gate-test.mjs` 的 T6 **保持同一口径** —— 两处不一致会出现
+  "本机门禁过、云端取证红"这种自相矛盾状态。
+
+## 九、`build-dev-mono` 从未成功过（既有问题，非本轮引入）
+```
+#1 cancelled  2d9c587
+#2 failure    758db8c
+#3 failure    e704ace   ← 本轮
+```
+失败步骤是「校验产物形态（必须真的是 Mono）」：`unity/build/Android/whisper-dev-mono.apk` 不存在，
+而日志显示那次构建实际走的是 **IL2CPP** 的 Bee 管线（`Prj/IL2CPP/...`）。
+⇒ 待查：`WHISPER_DEV_MONO=1` 是否真的传到了 `BuildConfigurator`，以及产物落点是否一致。
+**不在当前关键路径上**（取证与出货包都不走它），但它挡住了"手机端 Mono 热插拔"这条路。

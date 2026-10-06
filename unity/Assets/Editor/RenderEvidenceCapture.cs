@@ -288,6 +288,52 @@ namespace Whisper.Editor
             var lb = _levelGo.AddComponent<Whisper.Gameplay.Level.LevelBuilder>();
             lb.Build(level, knownKits);
             Debug.Log($"[RENDER] 场景建好：套件房间 {lb.KitRooms.Count} 个 · 道具 {lb.PropObjects.Count} · 套件问题={Whisper.Gameplay.Level.LevelBuilder.KitProblem ?? "无"}");
+            DumpSceneBounds(level);
+        }
+
+        /// <summary>
+        /// 【2026-10-06 新增 · 把推断变成测量】
+        ///
+        /// 为什么需要它：`entrance_safe/orbit33` 出现「**开灯 2.9 &lt; 关灯 17.6**」这种自相矛盾的判红
+        /// （开灯反而更暗）。我先后猜过雾 lerp 写反、阴影全黑、相机在几何内部三种原因，
+        /// 但离线复算与实测对不上 —— 说明还有没建模的因素。
+        /// **继续猜就是浪费 CI**，所以直接把场景的客观几何打进日志：
+        ///   · 每个房间**套件部件的世界包围盒**（不是房间盒）→ 看几何到底落在哪；
+        ///   · 相机位置/朝向/远近裁剪面 → 看取景点是否真的在房间外；
+        ///   · 相机与各房间中心的距离 → 判断"雾是否已经吃满"（雾起止 8→40m）。
+        ///
+        /// 判据口径：只看 **Kit_ 前缀**（套件部件）与房间中心，不看程序化墙体（那批是本轮之外的议题）。
+        /// </summary>
+        static void DumpSceneBounds(Whisper.Gameplay.Level.LevelData level)
+        {
+            // 套件部件的整体包围盒（按房间分组，只打印前 4 个房间以免日志爆掉）
+            var renderers = _levelGo.GetComponentsInChildren<MeshRenderer>(true);
+            int kitCount = 0;
+            var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            var max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+            var perRoomFirst = new System.Collections.Generic.Dictionary<string, string>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                var r = renderers[i];
+                if (r == null || r.name == null || !r.name.StartsWith("Kit_", StringComparison.Ordinal)) continue;
+                kitCount++;
+                var b = r.bounds;
+                min = Vector3.Min(min, b.min);
+                max = Vector3.Max(max, b.max);
+                // 房间归属：沿父链找带房间名的对象（LevelBuilder 把房间对象命名为房间 id）
+                string room = "?";
+                var t = r.transform.parent;
+                while (t != null) { if (t.name != null && level.Rooms.Exists(x => x.Id == t.name)) { room = t.name; break; } t = t.parent; }
+                if (!perRoomFirst.ContainsKey(room) && perRoomFirst.Count < 6)
+                    perRoomFirst[room] = $"min({b.min.x:0.00},{b.min.y:0.00},{b.min.z:0.00}) max({b.max.x:0.00},{b.max.y:0.00},{b.max.z:0.00})";
+            }
+            Debug.Log($"[RENDER][几何] 套件部件 {kitCount} 个 · 场景包围盒 min({min.x:0.00},{min.y:0.00},{min.z:0.00}) max({max.x:0.00},{max.y:0.00},{max.z:0.00})");
+            foreach (var kv in perRoomFirst) Debug.Log($"[RENDER][几何]   房间 {kv.Key}: {kv.Value}");
+            for (int i = 0; i < level.Rooms.Count && i < 6; i++)
+            {
+                var rm = level.Rooms[i];
+                Debug.Log($"[RENDER][几何]   房间盒 {rm.Id}: x[{rm.MinX:0.0},{rm.MaxX:0.0}] y[0,{rm.SizeY:0.0}] z[{rm.MinZ:0.0},{rm.MaxZ:0.0}] 中心({rm.CenterX:0.0},{rm.CenterZ:0.0})");
+            }
         }
 
         /// <summary>
@@ -448,6 +494,18 @@ namespace Whisper.Editor
             var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32);
             var prevRt = cam.targetTexture;
             cam.targetTexture = rt;
+            // 【诊断】把**实测**相机位姿打进日志：位置/朝向/远近裁剪面。
+            // 为什么必须实测：`entrance_safe/orbit33` 的「开灯比关灯暗」我先后猜了雾、阴影、
+            // 相机在几何内部三种原因，离线复算与实测都对不上 —— 再猜就是浪费 CI。
+            // 这三个数能直接判掉"相机跑到几何里面/裁剪面把几何切掉"这一整类假设。
+            {
+                var p = cam.transform.position;
+                var f = cam.transform.forward;
+                Debug.Log($"[RENDER][相机] 取景前实测 pos({p.x:0.00},{p.y:0.00},{p.z:0.00}) "
+                    + $"forward({f.x:0.00},{f.y:0.00},{f.z:0.00}) fov={cam.fieldOfView:0} "
+                    + $"near={cam.nearClipPlane:0.000} far={cam.farClipPlane:0} "
+                    + $"正交={cam.orthographic} 裁剪mask={cam.cullingMask} 深度模式={cam.depthTextureMode}");
+            }
             cam.Render();
             var tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
             RenderTexture.active = rt;
