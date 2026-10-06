@@ -344,53 +344,61 @@ namespace Whisper.Editor
         /// </summary>
         static bool VerifyRendererResources(UniversalRendererData rendererData)
         {
-            // ⚠ 【2026-10-06 实测不一致，值得记下来】
-            // 这里原先只查**内存里传进来的那个对象**，报 "postProcessData 仍为 null"；
-            // 而同一轮取证里 `[RENDER][URP诊断]` 读**盘上的资产**却是 `postProcessData=有`，
-            // 且 7 项后处理 ON/OFF 全部可辨（Bloom 61.975%）。
-            // ⇒ **我验错了对象**：内存实例与已保存资产在 CreateInstance/Rebuild 后可能不是同一份。
-            // 正解：**以盘上的资产为准**（那才是后续所有流程真正会加载的东西）。
-            // 这与"配了 ≠ 生效"同族：**要验的是最终被使用的那个对象**。
-            // 先试**从 URP Asset 的渲染器列表里取**（那是管线真正会用的那份）；
-            // 取不到再退回按路径加载。原先只按路径加载 ⇒ 可能核对到另一个实例。
+            // ══════════════════════════════════════════════════════════════════════════════
+            // 【2026-10-06 第三次修这条 —— 前两次我都"猜"了对象/成员名，都错】
+            //   第一次：核验**内存里传进来的实例**
+            //   第二次：核验**按路径 LoadAssetAtPath 的实例**
+            // 两次都报 null，而同轮 `[RENDER][URP诊断]` 用**另一条反射路径**读到 `postProcessData=有`，
+            // 且 7 项后处理 ON/OFF 全部可辨。⇒ 问题在**我的读取方式**，不在产品。
+            //
+            // ⇒ 正解：**用与那条已验证可行的诊断完全相同的读法**（`rendererDataList` 属性 →
+            //   元素 → `GetProperty("postProcessData") ?? GetField("postProcessData")`），
+            //   并在读不到时**把实际成员名打出来**，不再猜。
+            // ══════════════════════════════════════════════════════════════════════════════
             object target = null;
             try
             {
-                var urpAsset = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
+                var urpAsset = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath)
+                               ?? GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
                 if (urpAsset != null)
                 {
-                    var f = urpAsset.GetType().GetField("m_RendererDataList",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    var arr = f != null ? f.GetValue(urpAsset) as Array : null;
-                    if (arr != null)
-                        foreach (var x in arr) if (x != null) { target = x; break; }
+                    var listProp = urpAsset.GetType().GetProperty("rendererDataList");
+                    if (listProp != null)
+                    {
+                        var arr = listProp.GetValue(urpAsset) as System.Collections.IEnumerable;
+                        if (arr != null) foreach (var x in arr) { target = x; break; }
+                    }
                 }
             }
-            catch { /* 取不到就走下面的回退 */ }
+            catch { }
+            if (target == null) target = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
+            if (target == null) target = rendererData;
             if (target == null)
             {
-                var asset = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
-                target = asset != null ? asset : (object)rendererData;
+                Debug.LogWarning("[UrpSetup] 核验时拿不到 RendererData（三路都为空）—— 跳过资源核验");
+                return false;
             }
-            var t = target.GetType();
-            object ppd = null;
-            var pi = t.GetProperty("postProcessData");
-            if (pi != null) ppd = pi.GetValue(target);
-            if (ppd == null)
+
+            var dt = target.GetType();
+            System.Reflection.MemberInfo member = dt.GetProperty("postProcessData") ?? (System.Reflection.MemberInfo)dt.GetField("postProcessData");
+            object ppdValue = null;
+            if (member is System.Reflection.PropertyInfo mpi) ppdValue = mpi.GetValue(target);
+            else if (member is System.Reflection.FieldInfo mfi) ppdValue = mfi.GetValue(target);
+            if (ppdValue != null)
             {
-                var fi = t.GetField("m_PostProcessData",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (fi != null) ppd = fi.GetValue(target);
-            }
-            if (ppd != null)
-            {
-                Debug.Log($"[UrpSetup] ✓ RendererData 资源引用齐备（postProcessData 非 null；核对对象=盘上资产）");
+                Debug.Log("[UrpSetup] ✓ RendererData 资源引用齐备（postProcessData 非 null；"
+                    + "读取方式与 [RENDER][URP诊断] 完全一致）");
                 return true;
             }
-            // 响亮报错，但**不中断**：后处理降级 ≠ 游戏不能跑；真正的判据在取证的像素级 ON/OFF 对照里。
-            Debug.LogError("[UrpSetup] ✗ RendererData.postProcessData 仍为 null —— "
-                + "URP 会**静默跳过**全部后处理（辉光/暗角/色差/颗粒/调色/色调映射一个都不会生效）。"
-                + "画面仍是完整可玩的，但后处理这一整类缺失 —— 取证的『逐项后处理 ON/OFF』会判红。");
+
+            // 读不到 ⇒ 把实际成员名打出来，供下一次直接定位（不再猜）
+            var names = new System.Text.StringBuilder();
+            foreach (var f in dt.GetFields(System.Reflection.BindingFlags.NonPublic
+                | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                if (f.Name.ToLowerInvariant().Contains("post")) names.Append(f.Name).Append(' ');
+            Debug.LogError("[UrpSetup] ✗ postProcessData 读到 null（member=" + (member?.Name ?? "未找到")
+                + "；类型里含 'post' 的字段：" + (names.Length > 0 ? names.ToString() : "无")
+                + "）—— 若产品侧后处理 ON/OFF 仍可辨，则问题在本核验的读取方式，不在产品");
             return false;
         }
 
