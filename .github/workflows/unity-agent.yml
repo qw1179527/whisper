@@ -131,6 +131,9 @@ jobs:
           time sudo tar -xJf dl/editor.tar.xz -C /opt/unity
           test -x /opt/unity/Editor/Unity || { echo "::error::没有 /opt/unity/Editor/Unity"; exit 1; }
           echo "✓ $(du -sh /opt/unity | cut -f1)"
+          # 【自证】把缓存源的状态打出来：Post 阶段没保存时，这行能区分
+          #   "没有东西可存" 与 "有东西但 Post 没执行" —— 我先前正是卡在这个区分上
+          ls -la dl/editor.tar.xz || echo "⚠ 缓存源不存在：dl/editor.tar.xz"
 
       - name: Android Build Support（出包/部分取证需要）
         if: inputs.task == 'build-android'
