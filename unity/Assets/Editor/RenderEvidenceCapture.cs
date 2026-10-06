@@ -713,6 +713,10 @@ namespace Whisper.Editor
             var lb = _levelGo.AddComponent<Whisper.Gameplay.Level.LevelBuilder>();
             lb.Build(level, knownKits);
             _productLightCount = lb.SceneLights != null ? lb.SceneLights.Lights.Count : 0;
+            // 【A/B 对照的前提：只有一个变量】冻结房间灯的闪烁 ——
+            // 否则"手电开 vs 关"两次渲染落在不同帧、灯亮度差 ±14%，测的是合成结果。
+            // 实测证据：`corridor_main/alongX` 的关手电帧天花板灯亮、开手电帧暗（看图可见）。
+            if (lb.SceneLights != null) lb.SceneLights.FreezeForEvidence();
             Debug.Log($"[RENDER] 场景建好：套件房间 {lb.KitRooms.Count} 个 · 道具 {lb.PropObjects.Count} · 套件问题={Whisper.Gameplay.Level.LevelBuilder.KitProblem ?? "无"}");
             DumpSceneBounds(level);
 

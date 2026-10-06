@@ -210,6 +210,30 @@ namespace Whisper.Gameplay.Level
             return n;
         }
 
+        /// <summary>
+        /// **取证冻结**：置 true 后不再施加闪烁（强度固定为 base × On）。
+        ///
+        /// 【为什么必须有】2026-10-06 实测：`corridor_main/alongX` 的"手电开 vs 关"对照里，
+        /// **关手电那一张的天花板灯是亮的、开手电那一张是暗的**（看 PNG 一目了然）。
+        /// 根因：闪烁由 `Update()` 每帧按 `_t` 重算（`k = 1 - 0.28*(0.5-0.5*s)`，±14%），
+        /// 而 A/B 两次渲染**落在不同帧** ⇒ **对照里混进了第二个变量**。
+        /// ⇒ 做 A/B 取证前必须冻结闪烁，否则"手电判据"测的是手电 + 闪烁的合成结果。
+        /// 这是**对照设计缺陷**，不是产品缺陷 —— 产品要闪，取证要静。
+        /// </summary>
+        public bool FrozenForEvidence;
+
+        /// <summary>冻结闪烁并把全部灯固定在满强度（取证 A/B 用）。</summary>
+        public void FreezeForEvidence()
+        {
+            FrozenForEvidence = true;
+            for (int i = 0; i < Lights.Count; i++)
+            {
+                var rl = Lights[i];
+                rl.On = 1f; rl.Target = 1f;
+                if (rl.Light != null) rl.Light.intensity = rl.BaseIntensity;
+            }
+        }
+
         /// <summary>开关平滑 + 确定性闪烁（只动正在变的灯与闪烁灯）。</summary>
         void Update()
         {
@@ -227,7 +251,7 @@ namespace Whisper.Gameplay.Level
                 // 闪烁：两个不同频率的 sin 相乘 → 不规则但完全确定（不用 Random，跨端一致）。
                 // 用 System.Math.Sin 而不是 Mathf.Sin：后者不在 native/unity-stubs 里。
                 float k = 1f;
-                if (rl.Flicker && rl.On > 0.01f)
+                if (rl.Flicker && rl.On > 0.01f && !FrozenForEvidence)
                 {
                     float s = (float)(Math.Sin(_t * 13.7f + rl.Phase) * Math.Sin(_t * 7.3f + rl.Phase * 1.7f));
                     k = 1f - FlickerDepth * (0.5f - 0.5f * s);   // s=1 → 1.0；s=-1 → 0.72
