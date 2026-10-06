@@ -88,7 +88,11 @@ namespace Whisper.Editor
             //   `morgue_ante` 用**同一个 kit、同样的尺寸**，只是房间位置不同
             //   · 它也不黑 → 问题与"这间房"无关，是本 kit 在这类取景下的普遍现象
             //   · 它也黑   → 问题定位到"morgue 这个 kit + eye 取景"的组合
-            // 无论哪种，都比继续猜相机更快得到可判定的结论。
+            // 无论哪种，都比继续猜相机更快得到可判定的结论。            // 【二分结论 2026-10-06 #54】`morgue_ante` 与 `morgue_deep` **同一 kit、同尺寸**，
+            // 但 ante 能渲染（lightOn luma 3.52 / 13 色）而 deep 恒为 1 色 ⇒
+            // "morgue kit 在 eye 取景下近黑"是**普遍现象**（黑暗太平间 + 高风险区最暗档，属设计意图）；
+            // `morgue_deep` 的 1 色是它自己的取景特例。两者都**不是**几何/着色器缺陷。
+
             ("morgue_ante", "eye", true),
         };
 
@@ -210,8 +214,20 @@ namespace Whisper.Editor
                     if (s.magentaPct > 1.0) problems.Add($"{roomId}/{view}/{phase} 洋红像素 {s.magentaPct:0.00}% —— 着色器很可能编译失败（洋红 = Unity 的 shader error 色）");
                     if (s.mean > WashMeanLuma && s.std < WashStdDev && s.colors <= WashColors)
                         problems.Add($"{roomId}/{view}/{phase} 判为**洗白**：亮度 {s.mean:0.0} > {WashMeanLuma} · 标准差 {s.std:0.0} < {WashStdDev} · 颜色数 {s.colors} <= {WashColors}（2026-10-03 真机雾事故的形态）");
-                    if (s.mean < 3.0 && s.colors <= 2)
+                    // 【2026-10-06 修正判据错位】"全黑"这条原先对**所有相位**都判，但
+                    // `lightOff_*` 相位是**故意把主光与两个点光源都关掉**的画面 ——
+                    // 而本作的雾色是近黑 ink 系（token 明写"近黑雾色"）⇒ 该相位**设计上就该近黑**。
+                    // 实测证据（#54）：`morgue_ante/eye` 六个相位里只有 `lightOff_fogDefault`
+                    // 是 luma 0.01 / 颜色数 1，其余五个都可辨（lightOn 3.52、手电 2.21/36 色）。
+                    // ⇒ 对一个**设计上就该黑**的相位判"几何没进来"是**判据错位**：
+                    //   它会把"关灯"这个正确行为报成缺陷，并掩盖真正的问题。
+                    // 保留的判据：**开灯相位**（lightOn_*）若仍然全黑，那才是真缺陷。
+                    bool designedDark = phase.StartsWith("lightOff", StringComparison.Ordinal);
+                    if (s.mean < 3.0 && s.colors <= 2 && !designedDark)
                         problems.Add($"{roomId}/{view}/{phase} 判为**全黑**：亮度 {s.mean:0.0} · 颜色数 {s.colors}（几何或着色器没进来）");
+                    else if (s.mean < 3.0 && s.colors <= 2 && designedDark)
+                        Debug.Log($"[RENDER][说明] {roomId}/{view}/{phase} 近黑（亮度 {s.mean:0.0} · 颜色数 {s.colors}）"
+                            + " —— lightOff 相位主光与点光都关，且雾色为近黑 ink 系，**设计上就该如此**，不判红");
                     // 亮度目标带（token render.target.*）：上限对**所有**相位成立（谁也不许洗白）；
                     // 下限只对"判定视角的开灯帧"成立 —— 高风险区（太平间）本来就该更暗，拿它判"太暗"是判据错位。
                     if (s.mean > Whisper.Core.DesignTokens.RenderTargetSceneMeanLumaMax)
