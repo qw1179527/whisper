@@ -170,7 +170,7 @@ log(`全部产物在：${outDir}`);
         fs.copyFileSync(f, path.join(dest, flat));
         n++;
       }
-      log(`已同步 ${n} 张图 → DSH专用/${path.basename(dest)}/`);
+      log(`已同步 ${n} 张图 → DSH专用/取证/${path.basename(dest)}/`);
     } catch (e) {
       // 同步失败**不影响任务本身**（产物已在 .agent-out/），只提示，不中断
       log(`⚠ 同步到 DSH专用 失败（产物仍在 ${outDir}）：${e.message}`);
