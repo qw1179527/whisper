@@ -49,8 +49,12 @@ export const LAYOUTS = {
         doors: [{ id: 'd_east', wall: 'east', at: 1.5 }] },
 
       // ── 客厅走廊（主干，东西向）：西接玄关、北接厨房、东接车库 ──
+      // kit 必须是**变体 id**（= `gen-kits.mjs --mode variants` 按「房间类」出的那一个）。
+      // 写通用名 `hall_main` 会拿到 18×3 的壳 → 摆进 7×3 的客厅就是**悬挑 11m / 缺口 2m**，
+      // 而且 `gen-kits.mjs` 的适配检查会在 variants 模式下**硬失败**（22 个变体一个都出不来）。
+      // 变体 id 规则见 gen-kits.mjs:477 `isCanonical ? cls.kit : \`${cls.kit}_${cls.roomId}\``。
       { id: 'hall_main', x0: 4, x1: 11, z0: 0, z1: 3, h: 3.0, floor: 0,
-        kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
+        kit: 'hall_main_hall_main', zone: 'pressure', evidence: false, props: [],
         doors: [
           { id: 'd_west', wall: 'west', at: 1.5 },
           { id: 'd_n_kitchen', wall: 'north', at: 5.5 },
@@ -59,7 +63,7 @@ export const LAYOUTS = {
 
       // ── 厨房：南门对齐 hall_main 的北门（共享墙 z=3，中心 x=5.5）──
       { id: 'kitchen', x0: 4, x1: 7, z0: 3, z1: 6, h: 3.0, floor: 0,
-        kit: 'hospital_ward', zone: 'pressure', evidence: true,
+        kit: 'hospital_ward_kitchen', zone: 'pressure', evidence: true,
         props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 0, pref: 'nw' }],
         doors: [
           { id: 'd_south', wall: 'south', at: 5.5 },
@@ -69,19 +73,19 @@ export const LAYOUTS = {
 
       // ── 卫生间与卧室（南北排布）：两者共享墙 z=6，中心 x=8.5 对齐 ──
       { id: 'bath', x0: 7, x1: 10, z0: 3, z1: 6, h: 3.0, floor: 0,
-        kit: 'hospital_ward', zone: 'pressure', evidence: false, props: [],
+        kit: 'hospital_ward_bath', zone: 'pressure', evidence: false, props: [],
         doors: [
           { id: 'd_west', wall: 'west', at: 4.5 },
           { id: 'd_north', wall: 'north', at: 8.5 },
         ] },
       { id: 'bedroom', x0: 7, x1: 10, z0: 6, z1: 10, h: 3.0, floor: 0,
-        kit: 'hospital_ward', zone: 'pressure', evidence: true,
+        kit: 'hospital_ward_bedroom', zone: 'pressure', evidence: true,
         props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 0, pref: 'nw' }],
         doors: [{ id: 'd_south', wall: 'south', at: 8.5 }] },
 
       // ── 车库（深处）：西门对齐 hall_main 的东墙（x=11，中心 z=1.5）──
       { id: 'garage', x0: 11, x1: 15, z0: 0, z1: 4, h: 3.2, floor: 0,
-        kit: 'morgue', zone: 'high-risk', evidence: false, props: [],
+        kit: 'morgue_garage', zone: 'high-risk', evidence: false, props: [],
         doors: [{ id: 'd_west', wall: 'west', at: 1.5 }] },
     ],
     links: [
@@ -126,20 +130,20 @@ export const LAYOUTS = {
         doors: [{ id: 'd_east', wall: 'east', at: 2.5 }] },
 
       { id: 'corridor_f0', x0: 4, x1: 12, z0: 1, z1: 4, h: 3.0, floor: 0,
-        kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
+        kit: 'hall_main_corridor_f0', zone: 'pressure', evidence: false, props: [],
         doors: [
           { id: 'd_west', wall: 'west', at: 2.5 },     // ↔ entrance/d_east（共享 x=4）
           { id: 'd_n_kitchen', wall: 'north', at: 5.5 } // ↔ kitchen_f0/d_south（共享 z=4）
         ] },
 
       { id: 'kitchen_f0', x0: 4, x1: 12, z0: 4, z1: 8, h: 3.0, floor: 0,
-        kit: 'hospital_ward', zone: 'pressure', evidence: true,
+        kit: 'hospital_ward_kitchen_f0', zone: 'pressure', evidence: true,
         props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 0, pref: 'nw' }],
         doors: [{ id: 'd_south', wall: 'south', at: 5.5 }] },
 
       // ══ 二层（走廊带与一层同位）══
       { id: 'corridor_f1', x0: 4, x1: 12, z0: 1, z1: 4, h: 3.0, floor: 1,
-        kit: 'hall_main_corridor_main_f1', zone: 'pressure', evidence: false, props: [],
+        kit: 'hall_main_corridor_f1', zone: 'pressure', evidence: false, props: [],
         doors: [
           { id: 'd_n1', wall: 'north', at: 5.0 },     // ↔ corridor2_f1
           { id: 'd_n2', wall: 'north', at: 7.0 },     // ↔ master_f1
@@ -147,16 +151,16 @@ export const LAYOUTS = {
         ] },
 
       { id: 'corridor2_f1', x0: 4, x1: 6, z0: 4, z1: 8, h: 3.0, floor: 1,
-        kit: 'hall_main_corridor_link', zone: 'pressure', evidence: false, props: [],
+        kit: 'hall_main_corridor2_f1', zone: 'pressure', evidence: false, props: [],
         doors: [{ id: 'd_south', wall: 'south', at: 5.0 }] },
 
       { id: 'master_f1', x0: 6, x1: 8, z0: 4, z1: 8, h: 3.0, floor: 1,
-        kit: 'hospital_ward', zone: 'pressure', evidence: true,
+        kit: 'hospital_ward_master_f1', zone: 'pressure', evidence: true,
         props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 0, pref: 'nw' }],
         doors: [{ id: 'd_south', wall: 'south', at: 7.0 }] },
 
       { id: 'attic_f1', x0: 8, x1: 12, z0: 4, z1: 8, h: 3.0, floor: 1,
-        kit: 'morgue', zone: 'high-risk', evidence: true,
+        kit: 'morgue_attic_f1', zone: 'high-risk', evidence: true,
         props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 270, pref: 'ne' }],
         doors: [{ id: 'd_south', wall: 'south', at: 10.0 }] },
     ],

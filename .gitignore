@@ -30,3 +30,10 @@ Thumbs.db
 # Unity 许可证：绝不提交（本机自用；云上用 Codespaces secret）
 Unity_lic.ulf
 *.ulf
+
+# ── 凭据：绝不提交 ──
+# .gh-token 是 CI 令牌（触发 unity-agent.yml 拉渲染取证用）。它是**唯一**能让我
+# "自己看见画面"的凭据，一旦进 git 就等于公开泄露 —— 故此处硬隔离。
+# 用法：`set -a; . ./.gh-token.env; set +a` 或直接 `GH_TOKEN=$(cat .gh-token) node tools/agent-task.mjs ...`
+.gh-token
+.gh-token.env

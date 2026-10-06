@@ -20,7 +20,13 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  */
 const BOXES = [
   // ── ① 入口区（安全教学）：贴主干西墙，门对开于 x=4 ──
-  { id: 'entrance_safe', x0: 0, x1: 4, z0: 0, z1: 3, h: 3.5, floor: 0, kit: 'hall_main_entrance_safe', zone: 'safe', evidence: false,
+  // 【2026-10-06 层高 3.5 → 3.0】`hall_main_entrance_safe` 这个套件的**标称尺寸就是 4×3**
+  // （见 data/asset-manifest.json 的 footprint [4,3]，它从 PC 侧沿用下来）。这里原本写 3.5，
+  // 于是这间房与 bleasdale/tanglewood 的同尺寸玄关**落进了两个不同的等效类**：
+  // 生成器给 3.0 那类定的 id 是 `hall_main_entrance_safe`，给 3.5 这类的 id 推导成
+  // `hall_main_entrance` —— 两边名字对不上，套件适配检查因此判红（实测 25/28）。
+  // 层高取 3.0 后三张图的玄关共用**同一个**套件，命名与既成 id 全部对齐。
+  { id: 'entrance_safe', x0: 0, x1: 4, z0: 0, z1: 3, h: 3.0, floor: 0, kit: 'hall_main_entrance_safe', zone: 'safe', evidence: false,
     props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 180, pref: 'nw' }],
     doors: [{ id: 'd_east', wall: 'east', at: 1.5 }] },
 

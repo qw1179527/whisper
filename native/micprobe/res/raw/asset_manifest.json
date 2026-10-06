@@ -13,7 +13,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "b3431e25e1862e6a55b7078b85bebbee350ae2e825747a227670cbd26d7ac3db",
+      "sha256": "3fe409681f851b4f81c485503ffd16b7e1c5e36a445142a5165f4b32de09406b",
       "bytes": 44880,
       "triangles": 348,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -24,6 +24,44 @@
       "resPath": "Kits/hall_main.glb"
     },
     {
+      "id": "hall_main_corridor_f0",
+      "kind": "room",
+      "file": "kits/hall_main_corridor_f0.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "ed4815cbe3f6615f1b4a893a609547c70cef253ae5dbe96ac39c2b20aa017d8b",
+      "bytes": 41936,
+      "triangles": 324,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        8,
+        3
+      ],
+      "resPath": "Kits/hall_main_corridor_f0.glb"
+    },
+    {
+      "id": "hall_main_corridor_f1",
+      "kind": "room",
+      "file": "kits/hall_main_corridor_f1.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "a1fc896a47b043b7ddb3f7f3dcabb443403fb61c0fd95d57c134e617bd6d3967",
+      "bytes": 47948,
+      "triangles": 372,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        8,
+        3
+      ],
+      "resPath": "Kits/hall_main_corridor_f1.glb"
+    },
+    {
       "id": "hall_main_corridor_link",
       "kind": "room",
       "file": "kits/hall_main_corridor_link.glb",
@@ -32,7 +70,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "7a5d3a9aab3c3e57d9a4d1474203e7da5a30bb627be5769ed2397b57559d1f54",
+      "sha256": "33202c8c7c6aa9b58ba2652fe3fd0f717bb9511018b81c0530e472c56fde3f7b",
       "bytes": 26756,
       "triangles": 204,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -51,7 +89,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "0fc574cd23263440a916649ac69786a4194752a43a716605ed6f004947533602",
+      "sha256": "c9de99cb37dd786a25151d5e81934f8ad6833825d9e2c79f15816372c5c03bb1",
       "bytes": 51000,
       "triangles": 396,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -70,7 +108,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "b8274d3df531e7db0b41357dee868eae5fc496892d4b2f09ed2c60469aa01997",
+      "sha256": "3b680d320eaddaf1a4674f67aa0ed4f8861d09928278cc6e7417869d0aa08b99",
       "bytes": 64592,
       "triangles": 504,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -81,6 +119,25 @@
       "resPath": "Kits/hall_main_corridor_ward.glb"
     },
     {
+      "id": "hall_main_corridor2_f1",
+      "kind": "room",
+      "file": "kits/hall_main_corridor2_f1.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "6f603bee5c97d23a0cfd84555738b4f778ea9a940447dca07390aebef5ac00fc",
+      "bytes": 29812,
+      "triangles": 228,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        2,
+        4
+      ],
+      "resPath": "Kits/hall_main_corridor2_f1.glb"
+    },
+    {
       "id": "hall_main_entrance_safe",
       "kind": "room",
       "file": "kits/hall_main_entrance_safe.glb",
@@ -89,7 +146,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "bbf9d4a1e8024f5106288ae2e25a5507afe14e3cb1a60f4da9e054f9687f9d6a",
+      "sha256": "dc459a290f90610bbe6c2a4817bcf88c9ccd6bc96f6244a6b2e139d14014ddf9",
       "bytes": 29768,
       "triangles": 228,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -100,6 +157,25 @@
       "resPath": "Kits/hall_main_entrance_safe.glb"
     },
     {
+      "id": "hall_main_hall_main",
+      "kind": "room",
+      "file": "kits/hall_main_hall_main.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "e8890c590ae05597a28dbb20cb6bfc8e9efd0d032c8bd49922eec685d3cb1f8f",
+      "bytes": 48008,
+      "triangles": 372,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        7,
+        3
+      ],
+      "resPath": "Kits/hall_main_hall_main.glb"
+    },
+    {
       "id": "hall_main_lobby",
       "kind": "room",
       "file": "kits/hall_main_lobby.glb",
@@ -108,7 +184,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "9d9714b3b5108697e8a32a579a5f01a4a622326b4a51c6c9b8ff5483ad5773d2",
+      "sha256": "4f0c1cf49af14e7382ce3151f16d32d5c3d33261aa9dd9a03a598d457c513db4",
       "bytes": 25224,
       "triangles": 192,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -127,7 +203,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "4254e40c78a31494906c2e4fc2681029ac2c58616c09a9facf7f648904680056",
+      "sha256": "b39f6e882fc3599b4075ae1a26594508dc63e0ed656f3a2761f57b9dc767c126",
       "bytes": 43348,
       "triangles": 336,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -138,6 +214,101 @@
       "resPath": "Kits/hospital_ward.glb"
     },
     {
+      "id": "hospital_ward_bath",
+      "kind": "room",
+      "file": "kits/hospital_ward_bath.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "89572b6babfc93a11b39850683eac02e305c205ba855ad99fc6b540c0a2060f8",
+      "bytes": 49464,
+      "triangles": 384,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        3,
+        3
+      ],
+      "resPath": "Kits/hospital_ward_bath.glb"
+    },
+    {
+      "id": "hospital_ward_bedroom",
+      "kind": "room",
+      "file": "kits/hospital_ward_bedroom.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "952990539e2719dea055fd0e781bcbcbaf901e815d641bffa0dc8e6e0ff70eb3",
+      "bytes": 43348,
+      "triangles": 336,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        3,
+        4
+      ],
+      "resPath": "Kits/hospital_ward_bedroom.glb"
+    },
+    {
+      "id": "hospital_ward_kitchen",
+      "kind": "room",
+      "file": "kits/hospital_ward_kitchen.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "3757abfb0c4cfb1855ffbc3a0ab47f8349b86c8e65513f1f3fe9d4981ca9814e",
+      "bytes": 49464,
+      "triangles": 384,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        3,
+        3
+      ],
+      "resPath": "Kits/hospital_ward_kitchen.glb"
+    },
+    {
+      "id": "hospital_ward_kitchen_f0",
+      "kind": "room",
+      "file": "kits/hospital_ward_kitchen_f0.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "d6f471fc8984288158a1440632352b5b3172a5652bd5a52a2462c7b6c15fbfaa",
+      "bytes": 43336,
+      "triangles": 336,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        8,
+        4
+      ],
+      "resPath": "Kits/hospital_ward_kitchen_f0.glb"
+    },
+    {
+      "id": "hospital_ward_master_f1",
+      "kind": "room",
+      "file": "kits/hospital_ward_master_f1.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "7bee87911e8b023ef72a42a35daffcb8ab5de017ada5a9c7bde7d335dc6c4ac9",
+      "bytes": 43352,
+      "triangles": 336,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        2,
+        4
+      ],
+      "resPath": "Kits/hospital_ward_master_f1.glb"
+    },
+    {
       "id": "morgue",
       "kind": "room",
       "file": "kits/morgue.glb",
@@ -146,7 +317,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "fbe553e3f49c5d48b302e6c88558bfa3112725fcee94d89dad47fc4138cdee7e",
+      "sha256": "0e9f9ae0fa16df13070d9196913e55ef71924c3621324cd0306d8b0ac7ac2899",
       "bytes": 50608,
       "triangles": 396,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -157,6 +328,25 @@
       "resPath": "Kits/morgue.glb"
     },
     {
+      "id": "morgue_attic_f1",
+      "kind": "room",
+      "file": "kits/morgue_attic_f1.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "83b3434d53363980b3b4f337c16ed9705908de0f33fedeabb368d37039dc0043",
+      "bytes": 50556,
+      "triangles": 396,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        4,
+        4
+      ],
+      "resPath": "Kits/morgue_attic_f1.glb"
+    },
+    {
       "id": "morgue_boiler",
       "kind": "room",
       "file": "kits/morgue_boiler.glb",
@@ -165,7 +355,7 @@
         "asylum"
       ],
       "addressablesGroup": "kits_rooms",
-      "sha256": "5a19f6c0bbd2fef1b1a81a9893a34815f051397e2d8505de85e7ece46f5bca79",
+      "sha256": "d120d9f2acde450534d8f5f959e319f2a34dceeba1533b925028f2bf1985e1df",
       "bytes": 50572,
       "triangles": 396,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -176,6 +366,25 @@
       "resPath": "Kits/morgue_boiler.glb"
     },
     {
+      "id": "morgue_garage",
+      "kind": "room",
+      "file": "kits/morgue_garage.glb",
+      "tags": [
+        "level",
+        "asylum"
+      ],
+      "addressablesGroup": "kits_rooms",
+      "sha256": "d4cc2ee5564bceaefd4de4eae37cd473e8cd2e29bb38935a5e8c01b5ca416a3c",
+      "bytes": 53644,
+      "triangles": 420,
+      "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
+      "footprint": [
+        4,
+        4
+      ],
+      "resPath": "Kits/morgue_garage.glb"
+    },
+    {
       "id": "bed_b",
       "kind": "prop",
       "file": "props/bed_b.glb",
@@ -183,8 +392,8 @@
         "prop"
       ],
       "addressablesGroup": "kits_props",
-      "sha256": "9d99f3f27963de3ea2c4ab3f88de60be953b72d94d923966fdf88a954769a2b6",
-      "bytes": 25908,
+      "sha256": "e4b03d6c0d8fe4a0d77b14c397b670f745e2dc126cbade4010197f48de369593",
+      "bytes": 25892,
       "triangles": 232,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
       "footprint": [
@@ -202,7 +411,7 @@
         "evidence"
       ],
       "addressablesGroup": "kits_props",
-      "sha256": "d056d7275ad004d92205a95c1a1d22f2db89ff483848111231c41103237bea36",
+      "sha256": "8cdfccdcb433502b2645dbb37452cd5f6a3d04fadf47cf59b786887a22858934",
       "bytes": 15916,
       "triangles": 120,
       "generator": "tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）",
@@ -211,24 +420,6 @@
         0.5
       ],
       "resPath": "Kits/cabinet_a.glb"
-    },
-    {
-      "id": "truck_eurocargo",
-      "kind": "prop",
-      "file": "kits/truck_eurocargo.glb",
-      "tags": [
-        "level"
-      ],
-      "addressablesGroup": "kits_props",
-      "sha256": "f7892d713e793fe6c796aada97987f4e832d1dc90c0529f3eea9a8d747b44c77",
-      "bytes": 192400,
-      "triangles": 3104,
-      "generator": "tools/register-kit-glb.mjs（外部 GLB 登记）",
-      "resPath": "Kits/truck_eurocargo.glb",
-      "footprint": [
-        2.7,
-        9.153
-      ]
     }
   ],
   "contentPipeline": {
@@ -245,14 +436,25 @@
   "footprintNote": "footprint=[宽(x),深(z)]，单位米：0 度放置时的占地尺寸；道具按 rot 旋转后参与碰撞/门洞判定。",
   "verticesByKit": {
     "hall_main": 696,
+    "hall_main_corridor_f0": 648,
+    "hall_main_corridor_f1": 744,
     "hall_main_corridor_link": 408,
     "hall_main_corridor_main_f1": 792,
     "hall_main_corridor_ward": 1008,
+    "hall_main_corridor2_f1": 456,
     "hall_main_entrance_safe": 456,
+    "hall_main_hall_main": 744,
     "hall_main_lobby": 384,
     "hospital_ward": 672,
+    "hospital_ward_bath": 768,
+    "hospital_ward_bedroom": 672,
+    "hospital_ward_kitchen": 768,
+    "hospital_ward_kitchen_f0": 672,
+    "hospital_ward_master_f1": 672,
     "morgue": 792,
+    "morgue_attic_f1": 792,
     "morgue_boiler": 792,
+    "morgue_garage": 840,
     "bed_b": 432,
     "cabinet_a": 240
   }

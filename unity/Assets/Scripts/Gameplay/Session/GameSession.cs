@@ -25,6 +25,10 @@ namespace Whisper.Gameplay.Session
         public float ElapsedSeconds;
         public int Fragments;
         public string Breakdown;
+        /// <summary>死因：null/空 = 没死或活着撤离。见 <see cref="GameSession.DeathCauseCaught"/> 等常量。</summary>
+        public string DeathCause;
+        /// <summary>致死的那只怪的 id（仅 <see cref="GameSession.DeathCauseCaught"/> 时非空）。</summary>
+        public string KilledBy;
     }
 
     /// <summary>
@@ -101,6 +105,28 @@ namespace Whisper.Gameplay.Session
         public bool SeenByPlayer { get; set; }
         public int SurvivingAllies { get; set; }
         public SessionOutcome Outcome { get; private set; }
+
+        // ── 被鬼抓到致死（用户 2026-10-06 要求：「被鬼猎杀到的话会有跳脸」）──
+        /// <summary>死因：被追击中的鬼抓到。</summary>
+        public const string DeathCauseCaught = "caught";
+        /// <summary>死因：理智归零后崩溃。</summary>
+        public const string DeathCauseSanity = "sanity";
+
+        /// <summary>
+        /// 玩家被抓到（致死）时触发。参数 = 那只怪的 id。
+        ///
+        /// ## 为什么是事件而不是直接调视图
+        /// 本类**不依赖 UnityEngine**（文件头写明：因此本机跑手能真跑完一整局）。
+        /// 跳脸是 Unity 侧的表现层，由 <c>GameBootstrap</c> 订阅本事件去播 —— 这与
+        /// <c>ItemSystem.OnLog</c> 是同一个模式。若在这里直接引用 <c>JumpscareView</c>，
+        /// 纯逻辑层就被拖进引擎依赖，本机 157 条断言的编译前提会一起塌掉。
+        /// </summary>
+        public event Action<string> PlayerKilled;
+
+        /// <summary>本局是否已被抓到致死（HUD/取证可读）。</summary>
+        public bool PlayerCaught { get; private set; }
+        /// <summary>最近一次致死判定时的实测距离（米）——取证用，证明判据真的按距离走。</summary>
+        public float LastCaughtDistanceM { get; private set; } = -1f;
 
         readonly List<Stimulus> _pending = new List<Stimulus>();
 
@@ -280,8 +306,29 @@ namespace Whisper.Gameplay.Session
                 }
                 var r = brain.Step(tick, false, null);
                 // 接触判定：保护期内不判（V9 §7）
-                if (Director.ContactEnabled && Distance(r.Position.X, r.Position.Z, PlayerX, PlayerZ) < 1.0f)
+                float contactDist = Distance(r.Position.X, r.Position.Z, PlayerX, PlayerZ);
+                if (Director.ContactEnabled && contactDist < 1.0f)
                 {
+                    // 【两条接触语义必须分开 · 2026-10-06】
+                    //   ① 追击期被抓到 → **即死**（用户要求「被鬼猎杀到会有跳脸」；这也是恐鬼症官方行为）
+                    //   ② 其余状态（巡逻/调查/回巢）擦身而过 → 只扣理智
+                    // 为什么不能合并成一条：monsterBehavior.contactNote 记录了刻意的设计取舍 ——
+                    // 「碰到就结束对局会让『没说话也被抓』变成必然」，那会让本作的核心机制（声音管理）
+                    // 失去意义。分开之后两条设计同时成立。
+                    bool lethal = Cfg.Bool("death.caught.requiresChase", true)
+                        ? string.Equals(r.State, "chase", StringComparison.Ordinal)
+                        : true;
+                    float killDist = Cfg.Float("death.caught.killDistanceM", 1.0f);
+                    if (lethal && contactDist <= killDist)
+                    {
+                        LastCaughtDistanceM = contactDist;
+                        PlayerCaught = true;
+                        EventLog.Add($"被 {Hud.MonsterLabel(brain.Id)} 抓到（距离 {contactDist:0.00}m ≤ {killDist:0.00}m）：跳脸");
+                        var handler = PlayerKilled;
+                        if (handler != null) handler(brain.Id);
+                        EndMatch(false, ExtractionKind.None, DeathCauseCaught, brain.Id);
+                        return;   // 对局已结束，本帧不再推进（避免死后还继续算理智/撤离）
+                    }
                     Sanity.MonsterContact();
                     EventLog.Add($"被 {Hud.MonsterLabel(brain.Id)} 接触：理智 −{Cfg.Float("monsterBehavior.contactSanityLoss", 35f):0}");
                 }
@@ -295,7 +342,7 @@ namespace Whisper.Gameplay.Session
             Director.ApplyTo(Sanity, Monsters.Count > 0 ? Monsters[0] : null);
             Hud.Update(Sanity, Items.BatterySeconds, Items.EvidenceCount, Director.ElapsedSeconds);
             Hud.SetStageText(StageLabel());
-            if (Sanity.Value <= 0f && !Sanity.Collapsed) EndMatch(false, ExtractionKind.None);
+            if (Sanity.Value <= 0f && !Sanity.Collapsed) EndMatch(false, ExtractionKind.None, DeathCauseSanity, null);
         }
 
         void ApplyEvent(ScheduledEvent e)
@@ -330,6 +377,14 @@ namespace Whisper.Gameplay.Session
 
         /// <summary>结束一局并结算。</summary>
         public SessionOutcome EndMatch(bool survived, ExtractionKind kind)
+            => EndMatch(survived, kind, null, null);
+
+        /// <summary>
+        /// 结束一局并结算（带死因）。
+        /// `deathCause` / `killedBy` 让结算页与取证能说清「为什么结束」——
+        /// 此前只有一句"未能撤离"，抓到致死与理智崩溃在结果里**无法区分**。
+        /// </summary>
+        public SessionOutcome EndMatch(bool survived, ExtractionKind kind, string deathCause, string killedBy)
         {
             int evidenceTotal = 0;
             foreach (var r in Level.Rooms) if (r.EvidencePoint) evidenceTotal++;
@@ -348,9 +403,13 @@ namespace Whisper.Gameplay.Session
                 EvidenceCollected = r2.Evidence, EvidenceTotal = evidenceTotal,
                 SurvivingAllies = SurvivingAllies, ElapsedSeconds = r2.ElapsedSeconds,
                 Fragments = r2.Fragments, Breakdown = r2.Breakdown,
+                DeathCause = survived ? null : deathCause,
+                KilledBy = killedBy,
             };
             Director.EndMatch();
             if (survived) EventLog.Add($"撤离成功（{r2.ExtractionLabel}）：残响碎片 {r2.Fragments}");
+            else if (string.Equals(deathCause, DeathCauseCaught, StringComparison.Ordinal))
+                EventLog.Add("对局结束：被鬼抓到");
             else EventLog.Add("对局结束：未能撤离");
             return Outcome;
         }

@@ -262,7 +262,14 @@ namespace Whisper.Runtime
                 if (Level != null && _cfg != null)
                 {
                     Session = new Whisper.Gameplay.Session.GameSession(Level, _cfg, MatchSeed);
-                    lines.AppendLine("玩法层：已接线（GameSession 实例化）· 房间 " + Level.Rooms.Count);
+                    // ── 跳脸接线（2026-10-06）────────────────────────────────────────
+                    // 【为什么必须显式订阅】`JumpscareView` 与 `OnPlayerKilled` 早就存在，
+                    // 但全仓**零调用者** —— 跳脸永远不会播。这正是本项目记录在案的失效模式
+                    // （工具/系统做完却没人引用：几何层、内容管线、怪物实例化、10 个大厅道具）。
+                    // 纯逻辑层（GameSession）不能引用 Unity 视图，所以走事件；订阅放在这里，
+                    // 因为它是**组合根**：只有它同时知道 Session 与 JumpscareView。
+                    Session.PlayerKilled += OnPlayerCaught;
+                    lines.AppendLine("跳脸接线：GameSession.PlayerKilled → JumpscareView ✓（被追击杀到即播）");
                 }
                 else
                 {

@@ -1,6 +1,6 @@
 {
   "levelId": "asylum_v1",
-  "_note": "V9 §19.2 疗养院（单层 + 地下太平间；入口区安全教学 / 住院区 5 证据点主压力区 / 地下太平间深处撤离点）。",
+  "_note": "V9 §19.2 疗养院（三层：一层 + 地下太平间 + 二/三层；入口区安全教学 / 住院区 5 证据点主压力区 / 二层门诊大厅 / 三层锅炉房 / 地下太平间深处撤离点）。",
   "_layout": "坐标单位米，XZ 平面；房间 pos=[最小角点x,最小角点z] + size=[宽,高,深]（x1=pos[0]+宽，z1=pos[1]+深，与 LevelData/LevelGeometry 契约一致），rotY 全 0（轴对齐）。走廊以 doorA/doorB 引用具体门（房间id/门id），两端门必须贴同一条共享墙且开口对齐——由 tools/validate-levels.mjs 强制校验。**本文件由 tools/gen-asylum-v1.mjs 从布局表生成，手改会被覆盖。**",
   "_zones": {
     "entrance": [
@@ -14,11 +14,15 @@
       "ward_02",
       "ward_03",
       "ward_04",
-      "ward_05"
+      "ward_05",
+      "corridor_main_f1",
+      "corridor_main_f2"
     ],
     "deep": [
       "morgue_deep",
-      "morgue_ante"
+      "morgue_ante",
+      "lobby",
+      "boiler"
     ]
   },
   "rooms": [
@@ -30,18 +34,19 @@
       ],
       "size": [
         4,
-        3.5,
+        3,
         3
       ],
       "rotY": 0,
       "floor": 0,
-      "kit": "hall_main",
+      "kit": "hall_main_entrance_safe",
       "doors": [
         {
           "id": "d_east",
           "wall": "east",
           "offsetM": 0.5,
           "widthM": 2,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -80,6 +85,7 @@
           "wall": "west",
           "offsetM": 0.5,
           "widthM": 2,
+          "type": "swing",
           "locked": false
         },
         {
@@ -87,6 +93,7 @@
           "wall": "north",
           "offsetM": 16,
           "widthM": 2,
+          "type": "swing",
           "locked": false
         },
         {
@@ -94,6 +101,7 @@
           "wall": "north",
           "offsetM": 0,
           "widthM": 2,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -121,6 +129,7 @@
           "wall": "south",
           "offsetM": 0,
           "widthM": 2,
+          "type": "swing",
           "locked": false
         },
         {
@@ -128,6 +137,7 @@
           "wall": "north",
           "offsetM": 0.1,
           "widthM": 1.8,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -155,6 +165,7 @@
           "wall": "south",
           "offsetM": 0.1,
           "widthM": 1.8,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -186,13 +197,14 @@
       ],
       "rotY": 0,
       "floor": 0,
-      "kit": "hall_main",
+      "kit": "hall_main_corridor_link",
       "doors": [
         {
           "id": "d_south",
           "wall": "south",
           "offsetM": 0,
           "widthM": 2,
+          "type": "swing",
           "locked": false
         },
         {
@@ -200,6 +212,7 @@
           "wall": "north",
           "offsetM": 0,
           "widthM": 2,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -220,13 +233,14 @@
       ],
       "rotY": 0,
       "floor": 0,
-      "kit": "hall_main",
+      "kit": "hall_main_corridor_ward",
       "doors": [
         {
           "id": "d_south",
           "wall": "south",
           "offsetM": 0,
           "widthM": 2,
+          "type": "swing",
           "locked": false
         },
         {
@@ -234,6 +248,7 @@
           "wall": "north",
           "offsetM": 0.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         },
         {
@@ -241,6 +256,7 @@
           "wall": "north",
           "offsetM": 3.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         },
         {
@@ -248,6 +264,7 @@
           "wall": "north",
           "offsetM": 6.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         },
         {
@@ -255,6 +272,7 @@
           "wall": "north",
           "offsetM": 9.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         },
         {
@@ -262,6 +280,7 @@
           "wall": "north",
           "offsetM": 12.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -289,6 +308,7 @@
           "wall": "south",
           "offsetM": 0.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -327,6 +347,7 @@
           "wall": "south",
           "offsetM": 0.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -365,6 +386,7 @@
           "wall": "south",
           "offsetM": 0.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -403,6 +425,7 @@
           "wall": "south",
           "offsetM": 0.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -441,6 +464,7 @@
           "wall": "south",
           "offsetM": 0.7,
           "widthM": 1.6,
+          "type": "swing",
           "locked": false
         }
       ],
@@ -458,6 +482,134 @@
       ],
       "evidencePoint": true,
       "lightZone": "pressure"
+    },
+    {
+      "id": "corridor_main_f1",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        22,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 1,
+      "kit": "hall_main_corridor_main_f1",
+      "doors": [
+        {
+          "id": "d_east",
+          "wall": "east",
+          "offsetM": 0.9,
+          "widthM": 1.2,
+          "type": "elevator",
+          "locked": false
+        },
+        {
+          "id": "d_n_lobby",
+          "wall": "north",
+          "offsetM": 19,
+          "widthM": 2,
+          "type": "double",
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "corridor_main_f2",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        22,
+        3,
+        3
+      ],
+      "rotY": 0,
+      "floor": 2,
+      "kit": "hall_main_corridor_main_f1",
+      "doors": [
+        {
+          "id": "d_east",
+          "wall": "east",
+          "offsetM": 0.9,
+          "widthM": 1.2,
+          "type": "elevator",
+          "locked": false
+        },
+        {
+          "id": "d_n_boiler",
+          "wall": "north",
+          "offsetM": 19,
+          "widthM": 2,
+          "type": "double",
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure"
+    },
+    {
+      "id": "lobby",
+      "pos": [
+        19,
+        3
+      ],
+      "size": [
+        3,
+        3.5,
+        8
+      ],
+      "rotY": 0,
+      "floor": 1,
+      "kit": "hall_main_lobby",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 0,
+          "widthM": 2,
+          "type": "double",
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": true,
+      "lightZone": "safe"
+    },
+    {
+      "id": "boiler",
+      "pos": [
+        19,
+        3
+      ],
+      "size": [
+        3,
+        3.5,
+        8
+      ],
+      "rotY": 0,
+      "floor": 2,
+      "kit": "morgue_boiler",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 0,
+          "widthM": 2,
+          "type": "fire",
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": true,
+      "lightZone": "high-risk"
     }
   ],
   "corridors": [
@@ -530,6 +682,42 @@
       "doorA": "corridor_ward/d_n5",
       "doorB": "ward_05/d_south",
       "width": 1.6
+    },
+    {
+      "from": "corridor_main_f1",
+      "to": "lobby",
+      "doorA": "corridor_main_f1/d_n_lobby",
+      "doorB": "lobby/d_south",
+      "width": 2
+    },
+    {
+      "from": "corridor_main_f2",
+      "to": "boiler",
+      "doorA": "corridor_main_f2/d_n_boiler",
+      "doorB": "boiler/d_south",
+      "width": 2
+    }
+  ],
+  "shafts": [
+    {
+      "id": "lift_core",
+      "kind": "lift",
+      "minX": 17,
+      "minZ": 0,
+      "maxX": 19,
+      "maxZ": 3,
+      "fromFloor": 0,
+      "toFloor": 2
+    },
+    {
+      "id": "stair_core",
+      "kind": "stair",
+      "minX": 19,
+      "minZ": 0,
+      "maxX": 22,
+      "maxZ": 3,
+      "fromFloor": 0,
+      "toFloor": 2
     }
   ],
   "events": [

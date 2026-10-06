@@ -145,6 +145,45 @@ namespace Whisper.Runtime
             _jumpscare.Play();
         }
 
+        /// <summary>
+        /// 被鬼**抓到致死**时的表现层入口（订阅 <c>GameSession.PlayerKilled</c>）。
+        ///
+        /// ## 与 <see cref="OnPlayerKilled"/> 的分工
+        /// 那个是"直接命令播跳脸"（联机/脚本/测试用）；本方法是**玩法层判定之后的落点**：
+        /// 它只做表现层的事 —— 定红眼/白眼、按配置校准跳脸的时长与距离。
+        ///
+        /// ## 为什么红眼要按怪查配置
+        /// 首版 <c>JumpscareView.RedEyes</c> 注释写的是"随机取"。但"哪只鬼红眼"是可调的
+        /// 美术取舍 → 进 `death.caught.redEyeWhenKilledBy`，而不是在代码里写 if。
+        /// 这样换配色不用改逻辑，也符合本仓"数值不落代码"的纪律。
+        /// </summary>
+        void OnPlayerCaught(string monsterId)
+        {
+            if (_jumpscare == null)
+            {
+                // 不静默：被判死却没有跳脸，必须留下可查的痕迹（本项目"静默失效"教训）
+                Debug.LogWarning("[Whisper] 玩家被抓到，但 JumpscareView 未构建 —— 跳脸不会播放");
+                return;
+            }
+            bool red = false;
+            if (_cfg != null)
+            {
+                var arr = _cfg.Get("death.caught.redEyeWhenKilledBy", null) as System.Collections.IList;
+                if (arr != null)
+                {
+                    for (int i = 0; i < arr.Count; i++)
+                    {
+                        if (string.Equals(arr[i] as string, monsterId, System.StringComparison.Ordinal)) { red = true; break; }
+                    }
+                }
+                _jumpscare.DurationSec = _cfg.Float("death.caught.jumpscareDurationSec", _jumpscare.DurationSec);
+                _jumpscare.StartDistM = _cfg.Float("death.caught.jumpscareStartDistM", _jumpscare.StartDistM);
+                _jumpscare.EndDistM = _cfg.Float("death.caught.jumpscareEndDistM", _jumpscare.EndDistM);
+            }
+            OnPlayerKilled(red);
+            Debug.Log($"[Whisper] 被 {monsterId} 抓到（距离 {Session?.LastCaughtDistanceM:0.00}m）→ 跳脸 · 红眼={red}");
+        }
+
         /// <summary>HUD/自检用：主界面与跳脸状态。</summary>
         public string DescribeMenuAndScare()
             => (_menu != null ? _menu.Describe() : "主界面：未构建") + " · "

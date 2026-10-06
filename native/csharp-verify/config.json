@@ -601,7 +601,18 @@
       "speedScale": 0.4,
       "whisperInterferenceCooldownSec": 30
     },
-    "allDeadEvidenceLoss": 0.5
+    "allDeadEvidenceLoss": 0.5,
+    "caught": {
+      "_note": "被鬼抓到的致死判定（用户 2026-10-06 要求：「被鬼猎杀到的话会有跳脸」）。",
+      "_whySeparateFromContact": "与 monsterBehavior 的「接触惩罚」是两回事，不要合并：巡逻/游荡期碰到只扣理智（那是刻意设计，见 monsterBehavior.contactNote），只有追击期被抓到才即死。这样「没说话也可能擦身而过」与「被猎杀抓到就死」才能同时成立。",
+      "killDistanceM": 1.0,
+      "requiresChase": true,
+      "redEyeWhenKilledBy": ["whisperer"],
+      "_redEyeNote": "跳脸用红眼还是白眼：按**致死的那只怪**定，而不是随机。低语者（语音猎手/核心压迫）→ 红眼；其余 → 白眼。做成配置而不是代码里的 if：这是可调的美术取舍，不是逻辑。",
+      "jumpscareDurationSec": 0.55,
+      "jumpscareStartDistM": 6.0,
+      "jumpscareEndDistM": 0.2
+    }
   },
   "player": {
     "walkSpeedMps": 2.1,

@@ -78,6 +78,23 @@ const emitDir = argOf('--emit');
 const MODE = argOf('--mode') ?? process.env.WHISPER_KIT_MODE ?? 'variants';
 if (!['canonical', 'variants'].includes(MODE)) { console.error(`[kits] 未知 --mode：${MODE}`); process.exit(2); }
 
+/**
+ * `--only <id>[,<id>…]`：只生成指定的套件。
+ *
+ * ## 为什么需要它（本机实测，2026-10-06）
+ * 本机 Blender 跑在 proot 里，**一次生成太多套件会被 SIGKILL**（`vpid 1: terminated with signal 9`）。
+ * 这不是内存不足（实测 MemAvailable 4.5 GB，22 个套件合计几百面），
+ * 而是启动器头部注释写明的 **proot seccomp 与 Blender Python 初始化的冲突**：
+ * 同一进程里初始化到某个量级就被杀，且**不报错、只给 signal 9**。
+ * 「重跑就好」不是修法（那是碰运气）；把工作**切成小批**才是。
+ *
+ * 用法：`node tools/gen-kits.mjs --mode variants --only hall_main_hall_main,hall_main_corridor_f0`
+ * 说明：`--only` **只影响"调 Blender 生成"这一步**；几何自检 / 房间适配 / 清单回写仍按**全量**计划算 ——
+ * 否则分批生成会把清单写成"只有这几件"，把别处引用到的套件静默抹掉。
+ */
+const onlyIds = (argOf('--only') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const onlySet = onlyIds.length ? new Set(onlyIds) : null;
+
 // ════════════════════════════════════════════════════════════════════════════
 // ① 几何常量（与 LevelBuilder / LevelGeometry 同口径 —— 三处必须一致）
 // ════════════════════════════════════════════════════════════════════════════
@@ -152,6 +169,35 @@ const ROOMS = readRooms();
 /** 每个套件 id 的「标称房间」：canonical 模式下该 id 就按这间房的尺寸出壳。
  *  为什么要显式写：hall_main 被 4 种尺寸用，必须挑一个并把其余**如实登记为未适配**。 */
 const CANONICAL_ROOM = { hall_main: 'corridor_main', morgue: 'morgue_deep', hospital_ward: 'ward_01' };
+
+/**
+ * 「等效类 → 套件 id」的**显式登记**，优先于按房间 id 推导的名字。
+ *
+ * ## 为什么需要它（2026-10-06 实测踩到）
+ * 变体 id 的默认规则是「代表房间沿用基础 id、其余用 `${base}_${roomId}`」。这条规则在
+ * **两个不同地图的同尺寸房间属于同一个等效类**时会失效：
+ * `tanglewood_v1/entrance` 与 `bleasdale_v1/entrance` 都是 4×3（门位也相同）→ 同一个 classKey，
+ * 但 `roomId` 是 `entrance` → 推导出 `hall_main_entrance`；而三张图的 DSL 里写的、
+ * 清单里已有的都是 **`hall_main_entrance_safe`**（既成 id，改它要动清单/镜像/门禁）。
+ *
+ * ⇒ 把「已经存在的 id」显式登记下来，而不是让命名规则去猜。
+ * 键 = `基础套件/代表房间id`（代表房间由 gen-kits 自己选，选取规则见下方 variantIdFor）。
+ */
+const KIT_ID_OVERRIDES = {
+  'hall_main/entrance_safe': 'hall_main_entrance_safe',
+};
+
+/**
+ * 变体 id：给一个等效类定名。
+ * 优先级：① 显式登记表 → ② 代表房间沿用基础 id → ③ `${base}_${代表房间id}`。
+ * 「代表房间」= 该等效类按**固定顺序**（读入顺序）遇到的第一个房间 —— 顺序固定，
+ * 所以同一份输入永远得到同一个名字（确定性是本文件的基本要求）。
+ */
+function variantIdFor(baseKit, cls) {
+  const override = KIT_ID_OVERRIDES[`${baseKit}/${cls.roomId}`];
+  if (override) return override;
+  return cls.roomId === CANONICAL_ROOM[baseKit] ? baseKit : `${baseKit}_${cls.roomId}`;
+}
 
 /** 房间类键：尺寸 + 架构 + **会影响线脚的门洞布局**（例如太平间只给东西墙做墙裙，
  *  南北墙门位不同的两间房因此仍可共用一个套件）。 */
@@ -473,8 +519,7 @@ function buildPlan() {
       classes.get(k).roomIds.push(r.id);
     }
     for (const [k, { cls, roomIds }] of classes) {
-      const isCanonical = cls.roomId === CANONICAL_ROOM[cls.kit];
-      const id = isCanonical ? cls.kit : `${cls.kit}_${cls.roomId}`;
+      const id = variantIdFor(cls.kit, cls);
       const meta = KIT_META[cls.kit];
       plan.push({
         id, kit: cls.kit, kind: meta.kind,
@@ -677,6 +722,15 @@ const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
 const SRC_ROOT = path.join(ROOT, 'unity', manifest.sourceRoot ?? 'Assets/ThirdParty/CC0');
 const plan = buildPlan();
 
+// ── `--list`：只打印计划（每行一个 `id<TAB>file`）后退出 ──
+// 为什么需要：本机 Blender 会被 proot SIGKILL（见 onlySet 注释），生成必须**分批**；
+// 而分批的前提是能先拿到**权威的**计划 id 清单 —— 不能靠人从适配输出里抄（那会漏/会漂）。
+// 也让 CI 与 shell 脚本能用同一条命令自查"计划里到底有哪些套件"。
+if (hasFlag('--list')) {
+  for (const k of plan) console.log(`${k.id}\t${k.file}`);
+  process.exit(0);
+}
+
 // ── 几何自检（每次运行都跑；--lint-only 时到此为止）──
 console.log(`[kits] 几何自检 · 模式 ${MODE} · ${plan.length} 个套件`);
 let lintFails = 0;
@@ -721,14 +775,22 @@ if (checkOnly) {
 
 // ── 生成 ──
 const outRoot = emitDir ? path.resolve(ROOT, emitDir) : SRC_ROOT;
-const kitsForBlender = plan.map((k) => toBlenderKit(k, path.join(outRoot, k.file)));
+// `--only`：只把被选中的套件交给 Blender（见 onlySet 的注释：仅为绕开 proot SIGKILL，不改变计划口径）
+const toGenerate = onlySet ? plan.filter((k) => onlySet.has(k.id)) : plan;
+if (onlySet)
+{
+  const missing = [...onlySet].filter((id) => !plan.some((k) => k.id === id));
+  if (missing.length) { console.error(`[kits] --only 里有计划中不存在的套件：${missing.join(', ')}`); process.exit(2); }
+}
+const kitsForBlender = toGenerate.map((k) => toBlenderKit(k, path.join(outRoot, k.file)));
 const script = blenderScript(kitsForBlender);
 const scriptPath = path.join(ROOT, 'tmp/dbg/gen-kits.py');
 fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
 fs.writeFileSync(scriptPath, script, 'utf8');
 
 const blender = findBlender();
-console.log(`[kits] 用 Blender 生成 ${plan.length} 个套件 → ${path.relative(ROOT, outRoot) || '.'}（${blender}）`);
+console.log(`[kits] 用 Blender 生成 ${toGenerate.length} 个套件 → ${path.relative(ROOT, outRoot) || '.'}（${blender}）`
+  + (onlySet ? `（--only 分批：计划共 ${plan.length} 个）` : ''));
 let report = {};
 try {
   const out = execFileSync(blender, ['-b', '--factory-startup', '--python', scriptPath], {
@@ -745,8 +807,28 @@ try {
 }
 
 // ── 汇总（sha256 / bytes / 三角面），回写清单 ──
+// `--only` 分批时：**未在本次生成范围内**的套件沿用清单里已有的记录（不重算、不报错）——
+// 但产物文件必须仍在，否则说明有人删了资产却留着清单条目，那要判红。
+const prevById = new Map((manifest.kits ?? []).map((k) => [k.id, k]));
 const result = [];
+let keptFromManifest = 0;
+const notYetGenerated = [];
 for (const k of plan) {
+  if (onlySet && !onlySet.has(k.id)) {
+    const prev = prevById.get(k.id);
+    const pf = path.join(SRC_ROOT, k.file);
+    // 三种情况要分清（本项目最贵的教训就是"把不同的事混成一件"）：
+    //   ① 清单有记录 + 产物在 → 沿用（正常的分批状态）
+    //   ② 清单无记录 + 产物在 → 沿用不了记录，但产物是真的 → 登记为"待补记录"、**不中断**
+    //   ③ 清单无记录 + 产物不在 → **分批过程中的正常状态**（这一批还没轮到它）
+    //      → 也登记为"待补"，**绝不中断**。中断会让这一批已经生成好的文件白做
+    //        （实测踩过：首批 4 个生成成功，却因后面的 id 还没记录而整批退出，清单一行没写）。
+    // 关键不变量：**写进清单的每一条都必须在磁盘上真的存在** —— 这由下面 mkEntry 里的
+    // `fs.existsSync` 保证，所以"待补"不会变成"清单谎报有资产"。
+    if (prev && fs.existsSync(pf)) { result.push(prev); keptFromManifest++; continue; }
+    notYetGenerated.push(k.id);
+    continue;
+  }
   const f = path.join(outRoot, k.file);
   if (!fs.existsSync(f)) { console.error(`[kits] ✗ 未生成：${k.file}`); process.exit(1); }
   const buf = fs.readFileSync(f);
@@ -766,6 +848,12 @@ for (const k of plan) {
     generator: 'tools/gen-kits.mjs（Blender 脚本化生成 · 按房间类参数化 · 确定性体块）',
   });
   console.log(`  ✓ ${k.id.padEnd(26)} ${String(r.verts ?? '?').padStart(5)} 顶点 · ${String(r.tris ?? '?').padStart(4)} 面 · ${(buf.length / 1024).toFixed(1)} KB · footprint ${k.footprint[0]}×${k.footprint[1]} · sha ${sha.slice(0, 12)}`);
+}
+if (keptFromManifest) console.log(`  · 本次沿用清单既有记录 ${keptFromManifest} 个（--only 分批）`);
+if (notYetGenerated.length) {
+  // 如实登记 + 明确后续动作，而不是静默丢条目（丢条目 = 那些房间在运行时静默退回程序化体块）
+  console.log(`  ⚠ 以下 ${notYetGenerated.length} 个套件产物已在磁盘、但本次未纳入清单（请再跑一次完整生成补齐记录）：`);
+  console.log(`      ${notYetGenerated.join(', ')}`);
 }
 
 if (emitDir) {

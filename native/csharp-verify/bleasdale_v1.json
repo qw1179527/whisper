@@ -26,7 +26,7 @@
       ],
       "size": [
         4,
-        3.5,
+        3,
         3
       ],
       "rotY": 0,
@@ -68,7 +68,7 @@
       ],
       "rotY": 0,
       "floor": 0,
-      "kit": "hall_main",
+      "kit": "hall_main_corridor_f0",
       "doors": [
         {
           "id": "d_west",
@@ -100,7 +100,7 @@
       ],
       "rotY": 0,
       "floor": 0,
-      "kit": "hospital_ward",
+      "kit": "hospital_ward_kitchen_f0",
       "doors": [
         {
           "id": "d_south",
@@ -137,7 +137,7 @@
       ],
       "rotY": 0,
       "floor": 1,
-      "kit": "hall_main_corridor_main_f1",
+      "kit": "hall_main_corridor_f1",
       "doors": [
         {
           "id": "d_n1",
@@ -175,7 +175,7 @@
       ],
       "rotY": 0,
       "floor": 1,
-      "kit": "hall_main_corridor_link",
+      "kit": "hall_main_corridor2_f1",
       "doors": [
         {
           "id": "d_south",
@@ -201,7 +201,7 @@
       ],
       "rotY": 0,
       "floor": 1,
-      "kit": "hospital_ward",
+      "kit": "hospital_ward_master_f1",
       "doors": [
         {
           "id": "d_south",
@@ -238,7 +238,7 @@
       ],
       "rotY": 0,
       "floor": 1,
-      "kit": "morgue",
+      "kit": "morgue_attic_f1",
       "doors": [
         {
           "id": "d_south",

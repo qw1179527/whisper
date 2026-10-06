@@ -84,8 +84,17 @@ static class Program
         if (level != null)
         {
             Check("levelId = asylum_v1", () => level.LevelId == "asylum_v1");
-            // 布局重写后为 11 房间（10 任务房 + 地下太平间前室）；V9 §19.2 的「10 房间」指任务房
-            Check("房间 11 个（10 任务房 + 太平间前室）", () => level.Rooms.Count == 11);
+            // 【2026-10-06 修：写死的房间数改成"结构不变量"】
+            // 原断言是 `Rooms.Count == 11` + 注释"布局重写后为 11 房间"。这属于**把一次快照当判据**：
+            // 关卡由 tools/gen-asylum-v1.mjs 生成，布局表一改（本次补上 lobby/boiler/两层走廊 →
+            // 生成器输出 15 房间，且与清单里早已存在的 hall_main_lobby / morgue_boiler 套件对上）
+            // 断言就红，而它红的原因是"数字过期"，不是"东西坏了"。
+            // 改成判结构：① 至少 10 间任务房 ② 每间房都有唯一 id ③ 每间房尺寸为正。
+            // 这样"房间被误删/重名/零尺寸"仍然抓得住，而合法的布局演不会再误报。
+            Check("房间数 ≥10 且 id 唯一、尺寸为正（结构不变量，不写死总数）", () =>
+                level.Rooms.Count >= 10
+                && level.Rooms.Select(r => r.Id).Distinct().Count() == level.Rooms.Count
+                && level.Rooms.All(r => r.SizeX > 0 && r.SizeZ > 0));
             Check("D1 修复：每个房间都有布局坐标（pos）", () => level.Rooms.All(r => r.SizeX > 0 && Math.Abs(r.PosX) + Math.Abs(r.PosZ) >= 0));
             Check("D1 修复：每扇门都有 id", () => level.Rooms.All(r => r.Doors.All(d => !string.IsNullOrWhiteSpace(d.Id))));
             Check("D1 修复：每条走廊都引用两端的具体门", () => level.Corridors.All(c => !string.IsNullOrWhiteSpace(c.DoorA) && !string.IsNullOrWhiteSpace(c.DoorB)));
@@ -96,11 +105,27 @@ static class Program
                 // ward_01：pos=[4,6] 是**最小角点**，宽 3 → 南墙 z=6、x∈[4,7]；门宽 1.6 居中 → 门洞中心 x=5.5
                 return Math.Abs(x - 5.5f) < 1e-3 && Math.Abs(z - 6f) < 1e-3;
             });
-            Check("证据点 5 个（住院区）", () => level.Rooms.Count(r => r.EvidencePoint) == 5);
-            Check("光区分布 safe=1 / pressure=8 / high-risk=2", () =>
-                level.Rooms.Count(r => r.LightZone == "safe") == 1
-                && level.Rooms.Count(r => r.LightZone == "pressure") == 8
-                && level.Rooms.Count(r => r.LightZone == "high-risk") == 2);
+            // 【2026-10-06 修：证据点数量同样不能写死】
+            // 原断言 `== 5` 绑的是"住院区 5 间病房"。本次布局补齐后增加 lobby/boiler 两个证据点 → 7。
+            // 真正该守的两件事：① 证据点存在且数量 ≤ 房间数 ② **每个证据点都在可走格上**
+            //   （后者才是"能不能真的拿到证据"的判据 —— 点落在墙里/家具里就等于拿不到）。
+            Check("证据点存在、数量合理、且每个都落在可走格上", () =>
+            {
+                var eps = level.Rooms.Where(r => r.EvidencePoint).ToList();
+                if (eps.Count < 3 || eps.Count > level.Rooms.Count) return false;
+                var g = Whisper.Gameplay.Level.LevelGeometry.Compile(level);
+                return eps.All(r => g.Passable(r.CenterX, r.CenterZ));
+            });
+            // 光区分布：同样是快照式断言 → 改判"三档齐备 + 安全区只占少数"。
+            // 为什么不是 `safe == 1`：原断言把"安全区唯一"当成不变量，但**它不是**——
+            // 布局补齐后大厅（lobby，一层）也是 safe：它本来就该是"楼上的安全集结点"。
+            // 真正的设计约束是"安全区是少数、不能到处都安全"（否则理智系统失去压力来源），
+            // 所以判据改成"安全区数量 < 总数的 1/3 且三档都存在"。
+            Check("光区三档齐备且安全区只占少数（结构不变量）", () =>
+                level.Rooms.Any(r => r.LightZone == "safe")
+                && level.Rooms.Any(r => r.LightZone == "pressure")
+                && level.Rooms.Any(r => r.LightZone == "high-risk")
+                && level.Rooms.Count(r => r.LightZone == "safe") * 3 < level.Rooms.Count);
             Check("V9 §7 撤离双点（标准 / 深处）不同房间", () =>
                 level.Extraction != null && level.Extraction.Standard != level.Extraction.Deep);
             Check("动态事件 2~3 个（V9 §19.2）", () => level.Events.Count >= 2 && level.Events.Count <= 3);
@@ -304,7 +329,9 @@ static class Program
         Check("真实关卡 asylum_v1.json 在深度守卫下仍可解析（回归锚点）", () =>
         {
             var root = MiniJson.AsMap(MiniJson.Parse(levelJson));
-            return MiniJson.AsList(MiniJson.Get(root, "rooms")).Count == 11;
+            // 回归锚点的本意是"深度守卫别把真实关卡挡在外面"，不是"房间数永远是 11"。
+            // 判据改成"能解析出 rooms 且非空"，与上面的结构不变量互补。
+            return MiniJson.AsList(MiniJson.Get(root, "rooms")).Count >= 10;
         });
         Check("深度上限取值合理：MaxDepth 明显高于真实关卡深度", () => MiniJson.MaxDepth >= 32);
 
@@ -408,8 +435,77 @@ static class Program
             throw new InvalidOperationException("配置表未载入：按配置真值驱动的断言会静默退化");
         Console.WriteLine($"      [前置] sanity.max={Whisper.Gameplay.Config.GameConfig.GetFloat("sanity.max", -1f)} · 事件池={((Whisper.Gameplay.Config.GameConfig.Get("level.eventPool") as System.Collections.Generic.List<object>)?.Count ?? 0)} · 怪物={((Whisper.Gameplay.Config.GameConfig.Get("monsters") as System.Collections.Generic.Dictionary<string, object>)?.Count ?? 0)}");
 
-        Console.WriteLine("\n[3.14] 端到端集成：真跑一整局（把各系统接起来跑，而不只是各自断言）");
+        Console.WriteLine("\n[3.15] 被鬼抓到致死 + 跳脸触发（用户 2026-10-06 要求）");
+        // 这三条守的是**同一个真实缺陷链**：`JumpscareView` 与 `OnPlayerKilled` 早就存在，
+        // 但全仓零调用者、且没有任何"鬼抓到玩家"的判定 —— 跳脸永远不会播。
+        // 判据必须验到"事件真的发出来 + 死因真的标对 + 巡逻期**不**致死（保住原有设计）"。
+        Check("追击期被鬼近身 → PlayerKilled 事件触发 + 死因=caught + 记名凶手", () =>
         {
+            var cfg = cfgReader();
+            var lv = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
+            var s = new Whisper.Gameplay.Session.GameSession(lv, cfg, 5);
+            string killedBy = null; int fired = 0;
+            s.PlayerKilled += (id) => { fired++; killedBy = id; };
+            var brain = s.Monsters[0];
+            // 【为什么先空跑一段】开局有**保护期**（V9 §7，配置 20s），期间 `Director.ContactEnabled`
+            // 为 false —— 接触判定整条不执行。第一版没暖场，600 tick（10s）全落在保护期里，
+            // 于是"事件没触发"被误读成逻辑错。这是判据没对齐真实时序，不是产品缺陷。
+            for (int i = 0; i < 1500 && !s.Outcome.Ended; i++) s.Tick(1f / 60f);
+            if (s.Outcome.Ended) return false;   // 暖场期不该已经结束对局
+            // 制造确定性的"抓到"：**按产品的真实入追条件**来（不是硬塞状态）。
+            // `GameSession.Tick` 的入追条件是三者同时成立：保护期已过 + `SeenByPlayer` + 距离 ≤12m。
+            // 玩家每帧贴到鬼身上 → 三个条件必然满足 → 产品逻辑自己把它推进 chase → 接触判定生效。
+            // 【为什么不能只 `brain.Enter("chase")`】`MonsterBrain.Step` 里有"失联 12 秒 → 回巡逻"
+            // （V9 §7），硬塞的状态会在几秒后自己掉回 return（实测：状态读到 `return`，事件 0 次）。
+            // 也就是说"硬塞状态"测的不是产品路径 —— 判据必须走产品自己的迁移。
+            for (int i = 0; i < 300 && fired == 0; i++)
+            {
+                s.PlayerX = brain.Position.X; s.PlayerZ = brain.Position.Z;
+                s.SeenByPlayer = true;
+                s.Tick(1f / 60f);
+            }
+            if (fired != 1) { Console.WriteLine($"      [抓到] 事件触发 {fired} 次 · 鬼状态 {brain.State} · 距离 {s.LastCaughtDistanceM:0.00} · 对局结束={s.Outcome.Ended}"); return false; }
+            var o = s.Outcome;
+            return o.Ended && !o.Survived
+                && o.DeathCause == Whisper.Gameplay.Session.GameSession.DeathCauseCaught
+                && o.KilledBy == killedBy
+                && s.LastCaughtDistanceM >= 0f
+                && s.LastCaughtDistanceM <= cfg.Float("death.caught.killDistanceM", 1.0f);
+        });
+        Check("巡逻期接触**不**致死，只扣理智（保住 monsterBehavior.contactNote 的刻意设计）", () =>
+        {
+            var cfg = cfgReader();
+            var lv = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
+            var s = new Whisper.Gameplay.Session.GameSession(lv, cfg, 5);
+            int fired = 0;
+            s.PlayerKilled += (id) => fired++;
+            for (int i = 0; i < 1500 && !s.Outcome.Ended; i++) s.Tick(1f / 60f);   // 越过保护期
+            var brain = s.Monsters[0];
+            float before = s.Sanity.Value;
+            for (int i = 0; i < 120; i++)
+            {
+                // 每帧压回非追击（排除中途因"看见"转追击），玩家始终贴住鬼
+                brain.Enter("investigate");
+                s.PlayerX = brain.Position.X; s.PlayerZ = brain.Position.Z;
+                s.Tick(1f / 60f);
+                if (s.Outcome.Ended) break;
+            }
+            // 结论：不该有致死事件；且理智应当因接触而下降（证明"接触"确实被判定过，
+            // 否则这条断言会因为"压根没接触"而假绿）。
+            if (fired != 0) Console.WriteLine($"      [巡逻接触] 意外致死 {fired} 次");
+            if (!(s.Sanity.Value < before)) Console.WriteLine($"      [巡逻接触] 理智未下降（{before:0.#} → {s.Sanity.Value:0.#}）→ 无接触，断言无意义");
+            return fired == 0 && s.Sanity.Value < before;
+        });
+        Check("killDistanceM 来自配置真源（不是代码里的魔数）", () =>
+        {
+            var cfg = cfgReader();
+            float k = cfg.Float("death.caught.killDistanceM", -1f);
+            return k > 0f && k <= 2.0f
+                && cfg.Bool("death.caught.requiresChase", false)
+                && cfg.Float("death.caught.jumpscareDurationSec", -1f) > 0f;
+        });
+
+        Console.WriteLine("\n[3.14] 端到端集成：真跑一整局（把各系统接起来跑，而不只是各自断言）");        {
             var cfg0 = cfgReader();
             var lv0 = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
             var s0 = new Whisper.Gameplay.Session.GameSession(lv0, cfg0, 1);
@@ -427,7 +523,7 @@ static class Program
                 && s1.Sanity.Value > 0f
                 && s1.Monsters.Count == 3;
         });
-        Check("完整闭环：走到 5 个证据点 → 到撤离点 → 存活结算（碎片 = 5×200+150+100 = 1250）", () =>
+        Check("完整闭环：走遍全部证据点 → 到撤离点 → 存活结算（碎片按公式核对）", () =>
         {
             var cfg = cfgReader();
             var level = Whisper.Gameplay.Level.LevelLoader.Load(levelJson, kits);
@@ -444,7 +540,15 @@ static class Program
             s2.SurvivingAllies = 1;
             s2.Tick(1f / 60f);
             var o = s2.Outcome;
-            return o.Ended && o.Survived && o.EvidenceCollected == 5 && o.Fragments == 1250
+            // 【2026-10-06 修：碎片期望值按公式推导，不写死 1250】
+            // 移植自灰盒的公式是 `evidence*200 + 150 + (elapsed<600s ? 100 : 0)`
+            // （见 Settlement.cs 头部注释），原断言写死"5 个证据 → 1250"，
+            // 于是证据点从 5 变 7（布局补齐）后期望值过期。改成**按收集到的证据数算期望**——
+            // 这样它验的仍然是"结算公式对"，而不是"证据点恰好是 5 个"。
+            int expected = o.EvidenceCollected * 200 + 150 + (o.ElapsedSeconds < 600f ? 100 : 0);
+            if (o.Fragments != expected)
+                Console.WriteLine($"      [闭环] 证据 {o.EvidenceCollected} · 期望碎片 {expected} · 实得 {o.Fragments}");
+            return o.Ended && o.Survived && o.EvidenceCollected == s2.Items.EvidenceTotal && o.Fragments == expected
                 && o.Extraction == Whisper.Gameplay.Extraction.ExtractionKind.Standard;
         });
         Check("声纹闭环：喊叫 → 低语者听见（刺激→可听性→日志三段都真的跑通）", () =>
@@ -784,6 +888,22 @@ static class Program
             var detail = new List<string>();
             bool HasDoor(string a, string b) => level.Corridors.Exists(c =>
                 (c.From == a && c.To == b) || (c.From == b && c.To == a));
+            // 【2026-10-06 修：门洞允许的可穿格数必须**由门宽推导**，不能写死 3】
+            // 原实现是 `int allow = door ? 3 : 0;`，注释写"门宽约 1.6~2.0m → 0.5m 格下约 3~4 格"——
+            // 它把上界写成了下界。实测：entrance_safe 的东墙只有 3m，门宽 2.0m（关卡的走廊宽度就是 2.0），
+            // 于是 6 个采样里 4 个落在门洞里 → 4 > 3 判红。但那是**完全正确的几何**（2.0m 的门就是 4 格）。
+            // 改成按该连接声明的门宽反算上限：ceil(width/grid)+1（+1 容忍采样点正好压在门边）。
+            // 这样"墙上该有墙"仍然抓得住（无门时 allow=0，哪怕只开 1 格也判红）。
+            const float GridM = 0.5f;
+            float DoorWidthM(string a, string b)
+            {
+                foreach (var c in level.Corridors)
+                {
+                    bool hit = (c.From == a && c.To == b) || (c.From == b && c.To == a);
+                    if (hit) return c.Width > 0f ? c.Width : 1.6f;
+                }
+                return 0f;
+            }
             const float Eps = 0.12f;   // 跨边采样的偏移（远小于格 0.5m，足以落在相邻格内）
 
             for (int i = 0; i < level.Rooms.Count; i++)
@@ -807,8 +927,8 @@ static class Program
                             float z = lo + (k + 0.5f) * (hi - lo) / steps;
                             if (geo.Passable(xa - Eps, z) && geo.Passable(xa + Eps, z)) open++;
                         }
-                        int allow = door ? 3 : 0;   // 门宽约 1.6~2.0m → 0.5m 格下约 3~4 格
-                        if (open > allow) { bad++; detail.Add($"{A.Id}|{B.Id} 东西相邻 {steps} 采样中 {open} 处可穿（门={door}）"); }
+                        int allow = door ? (int)Math.Ceiling(DoorWidthM(A.Id, B.Id) / GridM) + 1 : 0;
+                        if (open > allow) { bad++; detail.Add($"{A.Id}|{B.Id} 东西相邻 {steps} 采样中 {open} 处可穿（门={door}·允许≤{allow}）"); }
                     }
                     // 南北相邻：共享边 z = 常量
                     float za = float.NaN;
@@ -824,8 +944,8 @@ static class Program
                             float x = lo + (k + 0.5f) * (hi - lo) / steps;
                             if (geo.Passable(x, za - Eps) && geo.Passable(x, za + Eps)) open++;
                         }
-                        int allow = door ? 3 : 0;
-                        if (open > allow) { bad++; detail.Add($"{A.Id}/{B.Id} 南北相邻 {steps} 采样中 {open} 处可穿（门={door}）"); }
+                        int allow = door ? (int)Math.Ceiling(DoorWidthM(A.Id, B.Id) / GridM) + 1 : 0;
+                        if (open > allow) { bad++; detail.Add($"{A.Id}/{B.Id} 南北相邻 {steps} 采样中 {open} 处可穿（门={door}·允许≤{allow}）"); }
                     }
                 }
             if (bad > 0) Console.WriteLine($"      [内墙] {string.Join(" · ", detail.GetRange(0, Math.Min(3, detail.Count)))}");
