@@ -142,6 +142,11 @@ namespace UnityEngine
     public class MeshFilter : Component { public Mesh sharedMesh { get; set; } }
     public class Renderer : Component
     {
+        /// <summary>文档：Renderer.shadowCastingMode / receiveShadows —— 阴影投射与接收开关。
+        /// 【为什么补】产品代码全用默认值，而"默认值没人验过"正是本项目的典型盲区。</summary>
+        public UnityEngine.Rendering.ShadowCastingMode shadowCastingMode { get; set; }
+        public bool receiveShadows { get; set; }
+
         public Material sharedMaterial { get; set; }
         /// <summary>文档：Renderer.enabled — 关掉即不渲染（MeshRenderer 继承此属性）。</summary>
         public bool enabled { get; set; }
@@ -1097,6 +1102,9 @@ namespace UnityEngine.UI
 
 namespace UnityEngine.Rendering
 {
+    /// <summary>文档：ShadowCastingMode — 渲染器的阴影投射模式。</summary>
+    public enum ShadowCastingMode { Off = 0, On = 1, TwoSided = 2, ShadowsOnly = 3 }
+
     /// <summary>文档：Rendering.AmbientMode — 环境光模式（大厅用 Flat + 单色天光）。</summary>
     public enum AmbientMode { Skybox = 0, Trilight = 1, Flat = 3, Custom = 4 }
 

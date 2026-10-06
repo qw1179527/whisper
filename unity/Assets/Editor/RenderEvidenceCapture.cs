@@ -662,6 +662,34 @@ namespace Whisper.Editor
             // ⇒ 正确做法不是继续调主光，而是**先把房间灯关掉**，让主光成为唯一光源，
             //   这样"主光有没有阴影"才成为一个**能判定的问题**。
             // （这也解释了为什么"阴影分辨率"两轮都是 0.000%：自变量根本没参与画面。）
+            // ── 【先量"投射/接收标志"的实际值】────────────────────────────────────────
+            // 【为什么】三条对照（分辨率 / 全灯下主光 / 仅主光下主光）**全是 0.000%**
+            // ⇒ 阴影链从未进入画面。产品代码里**没有任何一处**显式设 `shadowCastingMode` /
+            //   `receiveShadows`（全用默认值），而 Kit 部件是 **GLB 导入**的 MeshRenderer ——
+            //   这两件事叠加是本项目反复出现的形态："默认值没人验过"。
+            // ⇒ 先把**实际值**打出来，再决定改什么（不猜）。
+            {
+                int casters = 0, receivers = 0, total = 0;
+                var seenModes = new System.Collections.Generic.HashSet<string>();
+                var allR = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+                for (int i = 0; i < allR.Length; i++)
+                {
+                    var r = allR[i];
+                    if (r == null) continue;
+                    total++;
+                    if (r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.Off) casters++;
+                    if (r.receiveShadows) receivers++;
+                    if (seenModes.Count < 4) seenModes.Add(r.shadowCastingMode.ToString());
+                }
+                Debug.Log($"[RENDER][阴影标志] {total} 个渲染器：投射 {casters} · 接收 {receivers}"
+                    + $" · 出现的 castingMode {string.Join("/", seenModes)}");
+                if (casters == 0)
+                    problems.Add($"【阴影判据不成立】{total} 个渲染器**没有一个投射阴影**（shadowCastingMode 全为 Off）"
+                        + " —— 这解释了三条阴影对照为何全 0.000%");
+                if (receivers == 0)
+                    problems.Add($"【阴影判据不成立】{total} 个渲染器**没有一个接收阴影**（receiveShadows 全为 false）");
+            }
+
             var keepShadowsOuter = mainLight != null ? mainLight.shadows : LightShadows.Soft;
             var frozen = _levelGo != null
                 ? _levelGo.GetComponentInChildren<Whisper.Gameplay.Level.LightRig>(true) : null;
