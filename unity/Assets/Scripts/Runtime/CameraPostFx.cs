@@ -73,6 +73,72 @@ namespace Whisper.Runtime
             // ⚠ 成员名独立判空：反射写错名只在运行时暴露，所以每一处都把原因留下来
             if (!TrySet(data, "renderPostProcessing", true)) return;
             if (needDepth) TrySet(data, "requiresDepthTexture", true);
+            EnableAntiAliasing(data);
+        }
+
+        /// <summary>
+        /// 相机级抗锯齿 = **FXAA**。
+        ///
+        /// 【为什么是 FXAA】官方原文（`docs/reference-urp17-setup.md` §7.1）：
+        /// &gt; "Note: **For anti-aliasing on mobile platforms, Unity recommends that you use FXAA.**"
+        ///
+        /// 本工程另开了管线级 MSAA 2x（`UrpSetup`），两者**互补而非重复**：
+        ///   · MSAA 只处理**几何边缘**，官方明说它"does not fix shader aliasing issues"；
+        ///   · FXAA 是后处理，处理的是**最终画面的锯齿**，顺带覆盖自发光小面积高对比边缘
+        ///     （灯带/屏幕/鬼眼）——那正是本作黑场里最显眼的一类走样。
+        ///
+        /// 为什么用反射写：`Whisper.Runtime.asmdef` 不引用 URP 程序集（见类头说明），
+        /// 直接写 `AntialiasingMode` 会 CS0234。
+        ///
+        /// 为什么单独成方法：这是一个**独立可验的交付项**（② 要求"每一项都要有 ON/OFF 像素证据"），
+        /// 单独成方法便于取证脚本对它做 ON/OFF 对照，而不是混在"相机初始化"里说不清。
+        /// </summary>
+        static void EnableAntiAliasing(Component data)
+        {
+            var p = data.GetType().GetProperty("antialiasing",
+                BindingFlags.Public | BindingFlags.Instance);
+            if (p == null || !p.CanWrite)
+            {
+                Debug.LogWarning("[Whisper] URP 相机数据上没有可写的 antialiasing —— 相机级抗锯齿未启用");
+                return;
+            }
+            // 枚举值由**名字**解析：不硬编码整数（枚举底层值随版本可能变）
+            var modeType = p.PropertyType;
+            object fxaa = null;
+            foreach (var name in new[] { "FastApproximateAntialiasing", "FXAA", "FastApproximate" })
+            {
+                try { fxaa = System.Enum.Parse(modeType, name); break; } catch { }
+            }
+            if (fxaa == null)
+            {
+                Debug.LogWarning($"[Whisper] {modeType.Name} 里找不到 FXAA 成员（候选名都试过）—— 相机级抗锯齿未启用");
+                return;
+            }
+            p.SetValue(data, fxaa);
+
+            // 质量档（可写）：官方有 Low/Medium/High；先取 Medium（质量与开销的中间档）
+            var q = data.GetType().GetProperty("antialiasingQuality", BindingFlags.Public | BindingFlags.Instance);
+            if (q != null && q.CanWrite)
+            {
+                object med = null;
+                try { med = System.Enum.Parse(q.PropertyType, "Medium"); } catch { }
+                if (med != null) q.SetValue(data, med);
+            }
+        }
+
+        /// <summary>
+        /// 读回相机的抗锯齿模式名（取证：证明 FXAA 真的被设上了，而不是"我调过函数"）。
+        /// 返回 null = 拿不到（URP 缺失或成员改名）。
+        /// </summary>
+        public static string AntiAliasingModeName(Camera cam)
+        {
+            if (cam == null) return null;
+            var data = GetOrAddCameraData(cam);
+            if (data == null) return null;
+            var p = data.GetType().GetProperty("antialiasing", BindingFlags.Public | BindingFlags.Instance);
+            if (p == null) return null;
+            var v = p.GetValue(data);
+            return v != null ? v.ToString() : "null";
         }
 
         /// <summary>本类是否已把某个相机接进后处理（取证/自检可读）。</summary>

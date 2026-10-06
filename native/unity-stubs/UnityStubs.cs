@@ -1325,6 +1325,8 @@ namespace UnityEditor
         public static bool IsValidFolder(string path) => false;
         public static string CreateFolder(string parentFolder, string newFolderName) => "";
         public static T LoadAssetAtPath<T>(string assetPath) where T : UnityEngine.Object => null;
+        /// <summary>文档：AssetDatabase.LoadAssetAtPath(string, Type) — **非泛型重载**（按运行时类型取资产）。</summary>
+        public static UnityEngine.Object LoadAssetAtPath(string assetPath, System.Type type) => null;
         public static void CreateAsset(UnityEngine.Object asset, string path) { }
         public static string GetAssetPath(UnityEngine.Object asset) => "";
         public static void AddObjectToAsset(UnityEngine.Object objectToAdd, UnityEngine.Object assetObject) { }

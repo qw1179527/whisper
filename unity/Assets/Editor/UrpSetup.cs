@@ -150,6 +150,13 @@ namespace Whisper.Editor
                 throw new InvalidOperationException(
                     $"[UrpSetup] 生效的管线类型不是 URP，而是 {active.GetType().FullName}");
 
+            // ── ⑤ 资源完备性判决（**必须放在全部配置完成之后**）──────────────────────
+            // 原先这条判在 EnsureRendererResources 里，而那一步跑在 AssignRendererData **之前** ⇒
+            // 一抛异常，刚建好的 URP Asset 就没挂上管线 ⇒ currentRenderPipeline=null ⇒ 渲染全废。
+            // 「一个资源没填上」被放大成「管线全废」= 判据位置错，不是判据太严。
+            // 现在：该做的全做完、管线确认生效，最后才判资源 —— 抛出去时工程状态是完整一致的。
+            VerifyRendererResources(rendererData);
+
             Debug.Log($"[UrpSetup] ✓ active render pipeline = {active.name} ({active.GetType().FullName})"
                 + $" · MSAA={urp.msaaSampleCount} · HDR={urp.supportsHDR} · renderScale={urp.renderScale}"
                 + $" · shadowDistance={urp.shadowDistance} · cascades={urp.shadowCascadeCount}"
@@ -186,41 +193,124 @@ namespace Whisper.Editor
         static void EnsureRendererResources(UniversalRendererData rendererData)
         {
             if (rendererData == null) return;
+
+            // ── ① 先试官方 ResourceReloader（最正确的那条路）──────────────────────────
             const string urpPackagePath = "Packages/com.unity.render-pipelines.universal";
+            if (TryResourceReload(rendererData, urpPackagePath))
+            {
+                Debug.Log("[UrpSetup] ✓ 渲染器资源引用已由 ResourceReloader 补齐");
+                return;
+            }
+
+            // ── ② 回退：**直接加载已落盘的资源资产**（PostProcessData 在 URP 包里是个 .asset）──
+            // 【2026-10-06 为什么必须有这条回退】第一版只走 ①，而 `ResourceReloader` 是
+            // `UnityEditor.Rendering` 下的 **internal** 类型（core 包），我用
+            // `asm.GetType(name)` 只搜**公开**类型 ⇒ 找不到 ⇒ 我那时的实现**throw** ⇒
+            // **把刚建好的 URP Asset 一起废掉**（后面 AssignRendererData 没执行）⇒
+            // `currentRenderPipeline = null` ⇒ 全盘崩（31 项判红，URP Asset=无）。
+            //
+            // ⚠ 教训：**判决点不能放在"会让后续步骤全失效"的位置**。
+            //    抛异常本身没错，但抛在建了一半的状态上，就是把"一个资源没填上"放大成"管线全废"。
+            //    ⇒ 先尽力补齐（含回退路径），最后才判；且判之前不要把工程置于半成品状态。
+            bool hung = false;
             try
             {
-                System.Type reloader = null;
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                var ppdType = FindTypeAny("UnityEngine.Rendering.Universal.PostProcessData");
+                if (ppdType != null)
                 {
-                    reloader = asm.GetType("UnityEditor.Rendering.ResourceReloader", false);
-                    if (reloader != null) break;
-                }
-                if (reloader == null)
-                {
-                    Debug.LogWarning("[UrpSetup] 找不到 ResourceReloader —— 无法补渲染器资源引用；"
-                        + "postProcessData 若为 null，URP 会**静默跳过**后处理（效果全不生效且无报错）");
-                }
-                else
-                {
-                    var m = reloader.GetMethod("TryReloadAllNullIn",
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
-                        | System.Reflection.BindingFlags.Static);
-                    if (m == null) Debug.LogWarning("[UrpSetup] ResourceReloader.TryReloadAllNullIn 不存在（版本漂移？）");
-                    else
+                    // URP 包内的标准路径（官方文档/包结构；找不到就继续往下试别的）
+                    foreach (var p in new[]
                     {
-                        m.Invoke(null, new object[] { rendererData, urpPackagePath });
-                        EditorUtility.SetDirty(rendererData);
-                        AssetDatabase.SaveAssets();
+                        "Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset",
+                        "Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset",
+                    })
+                    {
+                        var asset = AssetDatabase.LoadAssetAtPath(p, ppdType);
+                        if (asset == null) continue;
+                        hung = SetMember(rendererData, "m_PostProcessData", asset)
+                            || SetMember(rendererData, "postProcessData", asset);
+                        if (hung) { Debug.Log($"[UrpSetup] ✓ postProcessData 由回退路径挂上：{p}"); break; }
                     }
                 }
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[UrpSetup] 补渲染器资源引用失败：{e.GetType().Name}: {e.Message}"
-                    + " —— 若 postProcessData 仍为 null，后处理会静默不生效");
+                Debug.LogWarning($"[UrpSetup] 回退挂 postProcessData 失败：{e.GetType().Name}: {e.Message}");
             }
 
-            // ── 判决点：postProcessData 为 null 就是"后处理一定不生效" ──
+            if (hung) { EditorUtility.SetDirty(rendererData); AssetDatabase.SaveAssets(); return; }
+
+            // ── ③ 两条路都没成：**只警告，绝不 throw**（throw 在这里会把半成品状态留给调用方）──
+            // 但仍要把后果说清楚，并把结论留给调用方在**配置全部完成后**去判（见 ConfigureUrp 末尾）。
+            Debug.LogWarning("[UrpSetup] ⚠ 补渲染器资源引用失败（ResourceReloader 与回退路径都没成）—— "
+                + "postProcessData 若为 null，URP 会**静默跳过**全部后处理（辉光/暗角/色差/颗粒/调色/色调映射一个都不生效）");
+        }
+
+        /// <summary>试官方 `ResourceReloader.TryReloadAllNullIn(asset, packagePath)`。成功返回 true。</summary>
+        static bool TryResourceReload(UnityEngine.Object asset, string packagePath)
+        {
+            try
+            {
+                // ⚠ 必须用 GetTypes() + NonPublic：ResourceReloader 是 **internal** 类型，
+                //    `Assembly.GetType(name)` 默认只找公开类型（我就是这么踩进坑的）。
+                System.Type reloader = null;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    System.Type[] types;
+                    try { types = asm.GetTypes(); } catch { continue; }   // 个别程序集 GetTypes 会抛
+                    foreach (var t in types)
+                        if (t.FullName == "UnityEditor.Rendering.ResourceReloader") { reloader = t; break; }
+                    if (reloader != null) break;
+                }
+                if (reloader == null) return false;
+                var m = reloader.GetMethod("TryReloadAllNullIn",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
+                    | System.Reflection.BindingFlags.Static);
+                if (m == null) return false;
+                m.Invoke(null, new object[] { asset, packagePath });
+                EditorUtility.SetDirty(asset);
+                AssetDatabase.SaveAssets();
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>按名字给对象写成员（属性或字段，公开或非公开）。成功返回 true。</summary>
+        static bool SetMember(object target, string name, object value)
+        {
+            var t = target.GetType();
+            var p = t.GetProperty(name, System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (p != null && p.CanWrite) { p.SetValue(target, value); return true; }
+            var f = t.GetField(name, System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (f != null) { f.SetValue(target, value); return true; }
+            return false;
+        }
+
+        /// <summary>按全名找类型（**含 internal** —— 不能只用 Asm.GetType，那样搜不到 internal）。</summary>
+        static System.Type FindTypeAny(string fullName)
+        {
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                System.Type[] types;
+                try { types = asm.GetTypes(); } catch { continue; }
+                foreach (var t in types) if (t.FullName == fullName) return t;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// **配置全部完成之后**的判决点：postProcessData 仍为 null 就抛。
+        ///
+        /// 【为什么移到这里】原先它放在 `EnsureRendererResources` 里，而那一步跑在
+        /// `AssignRendererData` **之前** ⇒ 一抛异常，刚建好的 URP Asset 就没被挂上管线
+        /// ⇒ `currentRenderPipeline = null` ⇒ 整个工程渲染全废（31 项判红）。
+        /// **一个"资源没填上"被放大成"管线全废"**，那是判据位置错了，不是判据太严。
+        /// 现在：先尽力补齐、把该做的配置全做完，最后才判 —— 抛出去时工程状态是完整且一致的。
+        /// </summary>
+        static void VerifyRendererResources(UniversalRendererData rendererData)
+        {
             var t = rendererData.GetType();
             var pi = t.GetProperty("postProcessData");
             object ppd = pi != null ? pi.GetValue(rendererData) : null;

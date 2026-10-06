@@ -282,3 +282,59 @@ Assets/Scripts/Runtime/CameraPostFx.cs(2,29): error CS0234:
 不依赖编译期程序集存在、URP 缺失时优雅降级、每个反射成员名独立判空并把原因写进 `LastProblem`。
 **刻意不给 asmdef 加 URP 引用** —— `tools/gen-asmdef.mjs` 的规则表是固定的，
 加一条会与规则表冲突；单点需求用反射正是这套架构的取舍（已写进文件头，防止下一个人"好心"去加）。
+
+---
+
+# 附四：后处理根因（最底层）· 卡车四屏 · 方法与节奏的修正
+
+## 十四、后处理不生效的**最底层**原因
+
+逐层排除后的诊断（第 31 轮，一次打到底）：
+```
+[RENDER][URP诊断] RendererData=UniversalRendererData
+  · postProcessData=**null（后处理会被静默跳过）** · renderingMode=Forward · depthPriming=Disabled
+```
+
+`UniversalRendererData.OnEnable` 会调 `ResourceReloader.TryReloadAllNullIn` 填 `postProcessData`，
+**但那只在"资产被导入 / 域重载"时发生**。我们用 `ScriptableObject.CreateInstance` + `CreateAsset`
+在**运行中的编辑器里**新建它，走不到那条路径 ⇒ 资源保持 null ⇒ **URP 静默跳过整个后处理 pass**。
+
+**排除链（每一层都有实测证据，缺一层都会误判）**：
+| 层次 | 现象 | 排除依据 |
+|---|---|---|
+| 效果参数 | 6 项全 0.000% | 参数写对了也 0.000% |
+| 相机开关 | 相机没开 `renderPostProcessing` | 加了 `CameraPostFx`，仍 0.000% |
+| profile 挂载 | 场景 Volume 要等 VolumeManager 重建栈 | 改挂 URP Asset 的 `volumeProfile`，仍 0.000% |
+| **测量地基** | —— | **自检：同状态连拍两张 = 0.000%（地基可靠）** |
+| **渲染器资源** | `postProcessData = null` | **命中** |
+
+**教训**：排查"效果不生效"要**从最底层的资源引用往上查**，而不是从参数往下猜。
+
+## 十五、方法上的错误与修正（用户指出"好慢"，我认）
+
+**我前几轮做的是**：改一层 → 等 15 分钟 CI → 看一个数 → 再改一层。
+每轮只排除一个假设，四次串行 = 一小时，而**每次 CI 只回答了一个是/否问题**。
+
+**正确做法（本会话两次成功定位都是这么做的）**：
+- 货架跨度：一次运行内量出所有构件尺寸 + 同轮 A/B
+- ShadowCaster bias：**同一轮内**把主光 shadows 由 Soft 改 None 再拍一张
+⇒ **把多个假设放进同一次运行**；验证要"一次问多个问题"，而不是串行问一个是/否。
+
+**另加一条**：当"修复"连续两轮不生效时，**先回头验证测量与判据本身**
+（本轮先做连拍自检 0.000%，确认地基可靠，才继续往下查 —— 这个顺序是对的）。
+不这么做的代价：可能花三小时去修一个"其实是我的测量在骗我"的问题。
+
+## 十六、卡车四屏（④ UI 主线的第一个可验证交付）
+
+出处：`docs/reference-official/04-场景介绍初始界面与地图.md` §2.2（**已核验的官方资料**）。
+实现：`Runtime/TruckScreens.cs` —— 程序化贴图（零资产、确定性），
+数据取产品真源（理智/证据/时钟走 `HudModel` 口径，地图走 `LevelData`）。
+
+**两个设计取舍（都写进了代码注释，不是遗漏）**：
+1. 四屏建在卡车构造函数**末尾**而非 `BuildInterior` 内 —— 后者只在**程序化回退分支**被调用，
+   而四屏是功能屏。放进分支会导致"套件可用时四屏消失"（走了另一条路就丢功能）。
+2. 屏幕**文字目前是条状占位**：本工程无字体资产、无 TMP。真数值走 `LastDraw` 供 HUD/日志读。
+   **不假装屏上有可读文字**；真字形需要在 Blender 烘一张位图字体（后续里程碑）。
+
+⚠ 另如实登记：`whisper-android #50/#49`（出货包构建）失败，疑似与 `build-dev-mono` 同源的形态校验问题
+（`build-dev-mono` 从未成功过）。**取证与 Monobehaviour 编译不受影响**，但出货包这条路要单独查。

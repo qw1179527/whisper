@@ -486,6 +486,67 @@ namespace Whisper.Editor
                     problems.Add($"【后处理判据不成立】{probe.Name} 开/关只变化 {d:0.000}%（<{probe.MinPct}%）—— 该效果对渲染没有实际作用");
             }
 
+            // ── 相机级抗锯齿（FXAA）ON/OFF 证据 ────────────────────────────────────
+            // 【为什么单独做，不塞进 probes 列表】它的开关在**相机**上
+            // （`UniversalAdditionalCameraData.antialiasing`），不在 Volume Profile 里 ——
+            // 而 ② 要求「每一项都要有 ON/OFF 像素证据」，抗锯齿是其中一项。
+            // 官方移动端立场："For anti-aliasing on mobile platforms, Unity recommends that you use FXAA."
+            {
+                object camData = null;
+                try
+                {
+                    foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+                    {
+                        var ext = asm.GetType("UnityEngine.Rendering.Universal.CameraExtensions", false);
+                        var m = ext?.GetMethod("GetUniversalAdditionalCameraData",
+                            BindingFlags.Public | BindingFlags.Static);
+                        if (m != null) { camData = m.Invoke(null, new object[] { cam }); break; }
+                    }
+                }
+                catch (Exception e) { Debug.LogWarning("[RENDER][后处理] 取相机 URP 数据失败：" + e.Message); }
+
+                var aaProp = camData?.GetType().GetProperty("antialiasing", BindingFlags.Public | BindingFlags.Instance);
+                if (aaProp == null || !aaProp.CanWrite)
+                {
+                    problems.Add("【后处理缺失】拿不到相机上的 antialiasing（相机级抗锯齿无法验证）");
+                }
+                else
+                {
+                    // 关 = None
+                    object none = null, fxaa = null;
+                    try { none = Enum.Parse(aaProp.PropertyType, "None"); } catch { }
+                    foreach (var n in new[] { "FastApproximateAntialiasing", "FXAA", "FastApproximate" })
+                    { try { fxaa = Enum.Parse(aaProp.PropertyType, n); break; } catch { } }
+                    if (none == null || fxaa == null)
+                    {
+                        problems.Add($"{aaProp.PropertyType.Name} 里找不到 None / FXAA 成员 —— 抗锯齿判据无法成立");
+                    }
+                    else
+                    {
+                        aaProp.SetValue(camData, none);
+                        var aaOff = RenderTo(cam, Path.Combine(_outDir, "postfx_AntiAliasing_OFF.png"), vol);
+                        aaProp.SetValue(camData, fxaa);
+                        var aaOn = RenderTo(cam, Path.Combine(_outDir, "postfx_AntiAliasing_ON.png"), vol);
+                        written += 2;
+                        double aaD = ChangedPct(aaOn.pixels, aaOff.pixels);
+                        index.AppendLine(string.Join(",", "postfx", "corridor_main", "AntiAliasing_ON",
+                            "postfx_AntiAliasing_ON.png", aaOn.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                            aaOn.std.ToString("0.00", CultureInfo.InvariantCulture), aaOn.colors.ToString(CultureInfo.InvariantCulture),
+                            aaOn.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), aaD.ToString("0.000", CultureInfo.InvariantCulture)));
+                        Debug.Log($"[RENDER][后处理] AntiAliasing(FXAA)：ON vs OFF 变化 {aaD:0.000}%"
+                            + $"（亮度 {aaOn.mean:0.0} vs {aaOff.mean:0.0}）· 读回模式={camData.GetType().GetProperty("antialiasing")?.GetValue(camData)}");
+                        // ⚠ 阈值说明：FXAA 只改**边缘像素**，在全屏占比里通常远小于 0.5%（那是"整幅变化"的门槛）。
+                        // 所以这里用 0.01% —— 它不是"放宽判据迁就结果"，而是**该效果的作用面积本来就小**；
+                        // 真正的判据是"可分辨 vs 逐像素完全相同"（0.000% 就意味着完全没生效）。
+                        const double AaMinPct = 0.01;
+                        if (aaD < AaMinPct)
+                            problems.Add($"【后处理判据不成立】AntiAliasing(FXAA) 开/关只变化 {aaD:0.000}%（<{AaMinPct}%）"
+                                + " —— 相机级抗锯齿对渲染没有实际作用");
+                        aaProp.SetValue(camData, fxaa);   // 保持开启（产品默认）
+                    }
+                }
+            }
+
             // 还原：把探针期间的强值退掉，避免影响后续（当前是最后一步，但保持函数可重入）
             vol.enabled = false;
             UnityEngine.Object.DestroyImmediate(volGo);
