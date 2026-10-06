@@ -167,6 +167,7 @@ namespace Whisper.Editor
             // 一抛异常，刚建好的 URP Asset 就没挂上管线 ⇒ currentRenderPipeline=null ⇒ 渲染全废。
             // 「一个资源没填上」被放大成「管线全废」= 判据位置错，不是判据太严。
             // 现在：该做的全做完、管线确认生效，最后才判资源 —— 抛出去时工程状态是完整一致的。
+            EnsureSsaoFeature(rendererData);
             bool postFxReady = VerifyRendererResources(rendererData);
             if (!postFxReady) Debug.LogError("[UrpSetup] 后处理不可用（见上一条）—— 其余渲染配置已全部完成并生效");
 
@@ -364,6 +365,96 @@ namespace Whisper.Editor
                 + "URP 会**静默跳过**全部后处理（辉光/暗角/色差/颗粒/调色/色调映射一个都不会生效）。"
                 + "画面仍是完整可玩的，但后处理这一整类效果缺失 —— 取证的『逐项后处理 ON/OFF』会判红。");
             return false;
+        }
+
+        /// <summary>
+        /// 给 RendererData 挂上 **SSAO**（屏幕空间环境光遮蔽）Renderer Feature。
+        ///
+        /// ══════════════════════════════════════════════════════════════════════════════════
+        /// 为什么现在才能做（一条被 Built-in 时代限制挡住的功能）
+        /// ══════════════════════════════════════════════════════════════════════════════════
+        /// `data/config.json` 的 `render.tiers` 里长期写着：
+        /// &gt; `_disabledWhy`: "ssao/ssgi/eyeAdaptation/**volumetricLight** 默认关：
+        /// &gt;   它们在 **OnRenderImage 的 Blit 链**里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。"
+        ///
+        /// **那条理由属于 Built-in 管线** —— `OnRenderImage` 是 Built-in 的相机回调。
+        /// 我们已经迁到 URP，SSAO 在 URP 里的正确形态是 **Renderer Feature**
+        /// （`ScreenSpaceAmbientOcclusion`，官方 API 页已核：`docs/reference-urp17-setup.md` §…），
+        /// 由管线在渲染器内部、**在深度可用之后**执行 ⇒ 根本不存在"拿不到深度"的问题。
+        ///
+        /// ⇒ ① 环境/氛围渲染（墙角与缝隙变暗）由此可以真正开工。
+        ///
+        /// ⚠ 用反射：`Whisper.Runtime`/Editor 脚本不引用 URP 程序集时直接写 URP 类型会 CS0234
+        ///   （本项目已实测踩过这个坑）。反射不依赖编译期成员存在。
+        /// 幂等：已经有一个 SSAO 特性就直接返回（不重复挂）。
+        /// </summary>
+        static void EnsureSsaoFeature(UniversalRendererData rendererData)
+        {
+            try
+            {
+                var featType = FindTypeAny("UnityEngine.Rendering.Universal.ScreenSpaceAmbientOcclusion");
+                if (featType == null)
+                {
+                    Debug.LogWarning("[UrpSetup] 找不到 ScreenSpaceAmbientOcclusion（URP 版本差异？）—— SSAO 未挂");
+                    return;
+                }
+                // 幂等：已有同类型特性就跳过
+                var listProp = rendererData.GetType().GetProperty("rendererFeatures");
+                var list = listProp != null ? listProp.GetValue(rendererData) as System.Collections.IList : null;
+                if (list != null)
+                {
+                    foreach (var f in list)
+                        if (f != null && f.GetType() == featType)
+                        {
+                            Debug.Log("[UrpSetup] SSAO 特性已存在（跳过）");
+                            return;
+                        }
+                }
+
+                var feat = ScriptableObject.CreateInstance(featType);
+                if (feat == null) { Debug.LogWarning("[UrpSetup] SSAO 特性实例化失败"); return; }
+                feat.name = "SSAO";
+
+                // 参数走 SerializedObject（URP 把它们放在一个可序列化的 settings 结构里，
+                // 不同小版本字段名会变 —— 所以**逐个尝试并如实报告哪个没设上**，不静默）
+                try
+                {
+                    var so = new SerializedObject(feat);
+                    int applied = 0;
+                    // 常见字段名（URP 17）：m_Settings.* 下的 Intensity / Radius / SampleCount / Falloff
+                    foreach (var path in new[]
+                    {
+                        "m_Settings.Intensity", "m_Settings.Radius", "m_Settings.Falloff",
+                        "m_Settings.DirectLightingStrength", "m_Settings.SampleCount",
+                    })
+                    {
+                        var p = so.FindProperty(path);
+                        if (p == null) continue;
+                        if (path.EndsWith("Intensity")) p.floatValue = 0.55f;
+                        else if (path.EndsWith("Radius")) p.floatValue = 0.35f;   // 室内小尺度，别糊成一片
+                        else if (path.EndsWith("Falloff")) p.floatValue = 120f;
+                        else if (path.EndsWith("DirectLightingStrength")) p.floatValue = 0.15f;
+                        else if (path.EndsWith("SampleCount")) p.intValue = 4;     // 移动端省
+                        applied++;
+                    }
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                    Debug.Log($"[UrpSetup] SSAO 参数应用 {applied} 项（字段名随版本变，0 项=用了默认值）");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[UrpSetup] SSAO 参数设置失败（用默认值继续）：{e.GetType().Name}: {e.Message}");
+                }
+
+                AssetDatabase.AddObjectToAsset(feat, rendererData);
+                if (list != null) list.Add(feat);
+                EditorUtility.SetDirty(rendererData);
+                AssetDatabase.SaveAssets();
+                Debug.Log("[UrpSetup] ✓ SSAO Renderer Feature 已挂上（环境光遮蔽：墙角/缝隙变暗）");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[UrpSetup] 挂 SSAO 失败：{e.GetType().Name}: {e.Message}");
+            }
         }
 
         /// <summary>

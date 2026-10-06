@@ -719,8 +719,49 @@ namespace Whisper.Editor
                 if (!perRoomFirst.ContainsKey(room) && perRoomFirst.Count < 6)
                     perRoomFirst[room] = $"min({b.min.x:0.00},{b.min.y:0.00},{b.min.z:0.00}) max({b.max.x:0.00},{b.max.y:0.00},{b.max.z:0.00})";
             }
+            // ── **按房间统计部件数**（2026-10-06 加）────────────────────────────────
+            // 【为什么加】`morgue_deep/eye` 一直渲成**纯黑（颜色数=1）**，我先怀疑相机位置
+            // （改了两次：贴墙 → 放进室内），相机已经确实在房间内（z=3.54，房间 z[3.0,6.0]）
+            // **却仍然纯黑** ⇒ 那问题就不在相机，而在**那个房间根本没有几何**。
+            // 而旧的房间归属靠"父链名字匹配房间 id"，实测全部落到 `?`（没匹配上）⇒ 这条诊断等于没用。
+            // ⇒ 改成**按部件包围盒是否落在房间盒内**来归属 —— 与命名无关，且能直接回答
+            //   "哪个房间一个部件都没有"。
+            var roomHits = new System.Collections.Generic.Dictionary<string, int>();
+            var roomBounds = new System.Collections.Generic.Dictionary<string, Bounds>();
+            foreach (var rm in level.Rooms)
+            {
+                roomHits[rm.Id] = 0;
+                roomBounds[rm.Id] = new Bounds(
+                    new Vector3(rm.CenterX, rm.SizeY * 0.5f, rm.CenterZ),
+                    new Vector3(rm.SizeX + 0.6f, rm.SizeY + 0.6f, rm.SizeZ + 0.6f));  // 放宽 0.3m 容差
+            }
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                var r = renderers[i];
+                if (r == null || r.name == null || !r.name.StartsWith("Kit_", StringComparison.Ordinal)) continue;
+                var b = r.bounds;
+                foreach (var rm in level.Rooms)
+                {
+                    // 用部件中心点判定归属（比"相交"更干脆：部件不会同时属于两间房）
+                    if (!roomBounds[rm.Id].Contains(b.center)) continue;
+                    roomHits[rm.Id]++;
+                    var rb = roomBounds[rm.Id];   // 累积实际占据范围，便于判断"建歪了"
+                    roomBounds[rm.Id] = new Bounds(rb.center, rb.size);
+                    break;
+                }
+            }
             Debug.Log($"[RENDER][几何] 套件部件 {kitCount} 个 · 场景包围盒 min({min.x:0.00},{min.y:0.00},{min.z:0.00}) max({max.x:0.00},{max.y:0.00},{max.z:0.00})");
-            foreach (var kv in perRoomFirst) Debug.Log($"[RENDER][几何]   房间 {kv.Key}: {kv.Value}");
+            int emptyRooms = 0;
+            foreach (var rm in level.Rooms)
+            {
+                int n = roomHits[rm.Id];
+                if (n == 0) emptyRooms++;
+                Debug.Log($"[RENDER][几何]   房间 {rm.Id} kit={rm.Kit}: 部件 {n} 个"
+                    + (n == 0 ? "  ⚠ **该房间没有任何几何**" : ""));
+            }
+            Debug.Log($"[RENDER][几何] 空房间 {emptyRooms} / {level.Rooms.Count} 个"
+                + (emptyRooms > 0 ? " —— 空房间在渲染里必然是纯黑（与相机/光照无关）" : ""));
+            foreach (var kv in perRoomFirst) Debug.Log($"[RENDER][几何]   父链归属 {kv.Key}: {kv.Value}");
             for (int i = 0; i < level.Rooms.Count && i < 6; i++)
             {
                 var rm = level.Rooms[i];

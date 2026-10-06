@@ -564,6 +564,9 @@ namespace UnityEngine
     {
         /// <summary>文档：ScriptableObject.CreateInstance&lt;T&gt;() — 按类型创建资产实例。</summary>
         public static T CreateInstance<T>() where T : ScriptableObject => default;
+        /// <summary>文档：ScriptableObject.CreateInstance(Type) — **非泛型重载**
+        /// （反射式建 Renderer Feature 要用：泛型版要求编译期类型，拿不到运行时类型）。</summary>
+        public static ScriptableObject CreateInstance(System.Type type) => null;
     }
 
     public partial class Transform
