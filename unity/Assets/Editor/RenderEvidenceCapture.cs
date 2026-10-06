@@ -383,6 +383,24 @@ namespace Whisper.Editor
                     + $" · 组件 {vol.profile.components.Count} 个");
             }
 
+            // ══════════════════════════════════════════════════════════════════
+            // 【自检 A：我的测量地基可靠吗】
+            // 我连续三轮都在对比"我改完之后的两张图"，却**从没验证过"不改任何东西的两张图"是否真的相同**。
+            // 如果确定性的同一场景连拍两张都有差异，那 0.000% 就不可能是"效果没生效"，
+            // 而更可能是"我根本没在测我以为在测的东西"。
+            // 判据：同一状态连拍两张，变化必须 **恰好 0.000%**（渲染是确定性的）。
+            // ══════════════════════════════════════════════════════════════════
+            {
+                probeDisableAll(vol.profile);
+                var a = RenderTo(cam, Path.Combine(_outDir, "postfx_SELFTEST_A.png"), vol);
+                var b = RenderTo(cam, Path.Combine(_outDir, "postfx_SELFTEST_B.png"), vol);
+                written += 2;
+                double same = ChangedPct(a.pixels, b.pixels);
+                Debug.Log($"[RENDER][后处理][自检] 同一状态连拍两张：变化 {same:0.000}%（应为 0.000，否则我的测量地基有问题）· 亮度 {a.mean:0.00}/{b.mean:0.00}");
+                if (same > 0.001)
+                    problems.Add($"【测量地基不可靠】同状态连拍两张差异 {same:0.000}% —— 后处理判据的结论不可信，先修测量");
+            }
+
             var probes = new System.Collections.Generic.List<FxProbe>
             {
                 new FxProbe
@@ -462,6 +480,18 @@ namespace Whisper.Editor
             // 还原：把探针期间的强值退掉，避免影响后续（当前是最后一步，但保持函数可重入）
             vol.enabled = false;
             UnityEngine.Object.DestroyImmediate(volGo);
+        }
+
+        /// <summary>把所有已知后处理效果都设成中性值（用于测量地基自检：确保两张图状态一致）。</summary>
+        static void probeDisableAll(VolumeProfile p)
+        {
+            SetFx(p, (Bloom b) => { b.intensity.value = 0f; b.intensity.overrideState = true; });
+            SetFx(p, (Vignette v) => { v.intensity.value = 0f; v.intensity.overrideState = true; });
+            SetFx(p, (ChromaticAberration c) => { c.intensity.value = 0f; c.intensity.overrideState = true; });
+            SetFx(p, (FilmGrain g) => { g.intensity.value = 0f; g.intensity.overrideState = true; });
+            SetFx(p, (ColorAdjustments ca) =>
+            { ca.saturation.value = 0f; ca.saturation.overrideState = true; ca.contrast.value = 0f; ca.contrast.overrideState = true; });
+            SetFx(p, (Tonemapping t) => { t.mode.value = TonemappingMode.None; t.mode.overrideState = true; });
         }
 
         /// <summary>在 profile 里找某类组件并施加改动；找不到返回 false（调用方据此判红）。</summary>
