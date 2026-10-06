@@ -89,8 +89,13 @@ namespace Whisper.Editor
             {
                 // 入口视角：官方要求"玩家一进来就面对菜单板"
                 new View { name = "entrance", pos = entryPos, yaw = YawTo(entryPos, entryLook), judged = true },
-                // 俯视全景：从高处斜看整个仓库（位置固定在高处一角，朝场心）
-                new View { name = "orbit",    pos = new Vector3(hx * 0.70f, hz * 0.85f, -hz * 0.95f),
+                // 俯视全景：从高处斜看整个仓库。
+                // ⚠ 【我自己的回归，记下来】第一版写成 `y = hz * 0.85`（= 7.65m），
+                //   而**仓库层高只有 5.6m ⇒ 相机在屋顶外面**，拍到的是全黑（亮度 7.0 · 变化 0.000%），
+                //   判据直接判红。更糟的是**我当时没检查这一项的判定**，让它带着红了两个 run。
+                //   ⇒ 高度改为**由大厅自己的层高推导**（0.72 × FloorHeightM ≈ 4.0m，稳在室内），
+                //     不再写一个"看起来够高"的数 —— 层高改了它也自动跟着走。
+                new View { name = "orbit",    pos = new Vector3(hx * 0.70f, hall.FloorHeightM * 0.72f, -hz * 0.95f),
                             yaw = YawTo(new Vector3(hx * 0.70f, 0f, -hz * 0.95f), Vector3.zero), judged = true },
                 // 货车特写：站在车的斜前方回望它（距离按车长推，保证整车入镜）
                 new View { name = "truck",    pos = truckAt + new Vector3(-hx * 0.55f, 1.4f, -hz * 0.70f),
@@ -98,6 +103,14 @@ namespace Whisper.Editor
                 // 菜单板正视：站到板前一段距离平视它
                 new View { name = "board",    pos = boardAt + new Vector3(0f, -0.9f, hz * 0.85f),
                             yaw = YawTo(boardAt + new Vector3(0f, 0f, hz * 0.85f), boardAt), judged = true },
+                // 货架区（左墙）：**这个取景点是补上的，理由值得记**
+                // 前几轮把 10 个工业道具接进工程后，我**没有任何一张图能证明它们出现在画面里** ——
+                // 因为既有的四个取景点都不覆盖左墙货架（`HallScene.BuildProps` 把货架放在
+                // `x = -WidthM/2 + 0.9`），而唯一看全景的 `orbit` 当时正被我弄坏（相机在屋顶外）。
+                // ⇒ **改了东西却没有能验证它的取景点，等于没改。** 取景点的覆盖范围要与改动范围对齐。
+                new View { name = "storage",  pos = new Vector3(-hx * 0.5f, 1.9f, -hz * 0.10f),
+                            yaw = YawTo(new Vector3(-hx * 0.5f, 0f, -hz * 0.10f),
+                                        new Vector3(-hx * 0.92f, 0.9f, -hz * 0.10f)), judged = false },
             };
             Debug.Log($"[LOBBY] 取景点：入口({entryPos.x:F1},{entryPos.z:F1}) · 货车({truckAt.x:F1},{truckAt.z:F1}) · 菜单板({boardAt.x:F1},{boardAt.z:F1})");
 
