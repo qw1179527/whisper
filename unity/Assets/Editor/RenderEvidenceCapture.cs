@@ -340,6 +340,8 @@ namespace Whisper.Editor
             // ⚠ 必须把 Volume **显式**挂进场景（详见 RenderTo 重载的说明）：
             //   否则"效果无效"与"取证没接对"区分不了，出来的就是假证据。
             RunPostFxOnOff(camGo, cam, key, refIntensity, rooms, index, problems, ref written);
+            // 目标② 的「阴影(含质量)」一项：同样要**像素级 ON/OFF 证据**，不接受配置证据
+            RunShadowQualityOnOff(cam, key, _outDir, index, problems, ref written);
 
             File.WriteAllText(Path.Combine(_outDir, "render-index.csv"), index.ToString());
             Debug.Log($"[RENDER] 共 {written} 张图 → {_outDir}");
@@ -623,6 +625,61 @@ namespace Whisper.Editor
             // 还原：把探针期间的强值退掉，避免影响后续（当前是最后一步，但保持函数可重入）
             vol.enabled = false;
             UnityEngine.Object.DestroyImmediate(volGo);
+        }
+
+        /// <summary>
+        /// **阴影质量 ON/OFF 像素证据**（目标②的「阴影(含质量)」一项）。
+        ///
+        /// 【判据形态】不是"我在 URP Asset 里设了 shadowmapResolution=1024"（配置证据），
+        /// 而是"**改这个值，画面像素必须变**"（渲染证据）。同目标②要求的"每一项都要有 ON/OFF 证据"。
+        ///
+        /// 【为什么用 shadowmapResolution 作为自变量】
+        /// 它是**阴影质量**最直接的表征（512/1024/2048/4096），且室内场景的自阴影/接触阴影
+        /// 对这个值最敏感。URP Asset 上是可写属性（`mainLightShadowmapResolution`）。
+        ///
+        /// ⚠ 与后处理探针同样的纪律：**每次测量前把变量还原**，只留被测的那一个在变。
+        /// </summary>
+        static void RunShadowQualityOnOff(Camera cam, Light mainLight, string outDir,
+            StringBuilder index, System.Collections.Generic.List<string> problems, ref int written)
+        {
+            var urp = GraphicsSettings.currentRenderPipeline;
+            if (urp == null)
+            {
+                problems.Add("【阴影质量】没有 currentRenderPipeline —— 无法验证阴影质量");
+                return;
+            }
+            var prop = urp.GetType().GetProperty("mainLightShadowmapResolution");
+            if (prop == null || !prop.CanWrite)
+            {
+                problems.Add("【阴影质量】URP Asset 上没有可写的 mainLightShadowmapResolution");
+                return;
+            }
+            int original = (int)prop.GetValue(urp);
+            try
+            {
+                // 低：256（明显劣化）；高：2048（明显更细）。取 2048 而非 4096 是为移动端口径。
+                prop.SetValue(urp, 256);
+                var lo = RenderTo(cam, Path.Combine(outDir, "shadow_Quality_LOW256.png"), null);
+                prop.SetValue(urp, 2048);
+                var hi = RenderTo(cam, Path.Combine(outDir, "shadow_Quality_HIGH2048.png"), null);
+                written += 2;
+                double d = ChangedPct(hi.pixels, lo.pixels);
+                index.AppendLine(string.Join(",", "shadow", "corridor_main", "Quality_HIGH2048",
+                    "shadow_Quality_HIGH2048.png", hi.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                    hi.std.ToString("0.00", CultureInfo.InvariantCulture), hi.colors.ToString(CultureInfo.InvariantCulture),
+                    hi.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), d.ToString("0.000", CultureInfo.InvariantCulture)));
+                Debug.Log($"[RENDER][阴影质量] 256 vs 2048 变化 {d:0.000}%"
+                    + $"（亮度 {hi.mean:0.0} vs {lo.mean:0.0} · 颜色数 {hi.colors} vs {lo.colors}）");
+                // 阈值：阴影分辨率只改**阴影像素**，全屏占比通常小于后处理。取 0.05%。
+                const double ShadowMinPct = 0.05;
+                if (d < ShadowMinPct)
+                    problems.Add($"【阴影质量判据不成立】shadowmapResolution 256 vs 2048 只变化 {d:0.000}%（<{ShadowMinPct}%）"
+                        + " —— 阴影分辨率对渲染没有实际作用（阴影可能根本没生效）");
+            }
+            finally
+            {
+                prop.SetValue(urp, original);   // 务必还原
+            }
         }
 
         /// <summary>
