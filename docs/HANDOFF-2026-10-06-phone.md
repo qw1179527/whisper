@@ -5,6 +5,40 @@
 
 ---
 
+## 【零】任务是什么（**先看这一节，否则后面全看不懂**）
+
+### 做成什么
+**`Whisper`** —— 一个 **Unity 6 的 Android 多人合作恐怖游戏**（对标《恐鬼症》Phasmophobia）。
+最终目标（用户原话）：**「直至最终能正常出包游玩」**。
+
+### 用户给的约束（按优先级）
+1. **彻底不用管** —— 用户不参与、不点任何东西。
+   我要能**自己构建、自己验证、自己出包、自己判断成败**。**不问用户。**
+2. **高画质方向，不受包体约束。**
+   ⚠️ **没有 200MB 包体上限** —— 曾有一条「APK ≤200MB」的条文，**用户已明令作废**：
+   高模高贴图必然推高包体，**拿它卡构建等于把画质目标堵死**。
+3. 用户要能**自己看到效果** —— 取证图要同步到 `DSH专用/`（他会自己打开看）。
+4. 遇阻**先自己找证据定位**；探索性工作**必须设判决点**，到点下结论，不无限投入。
+
+### 推进顺序（用户定的）
+```
+① 把第 5 档修到能用      ← 云端 Unity 取证（我唯一能"看见画面"的手段，否则是盲改）【已完成】
+② 用起来，推进游戏本身    ← P0-2 大厅碰撞体 · P0-3 点击失灵 · P1 货车/大厅场景重做套件
+③ 之后按用户约束顺序      ← 道具四大类 → 机制细化 → 过渡动画与真人化角色 → 真实物理与画质
+```
+
+### 判断标准（用户亲口定的，**不得放松**）
+> **改完通过门禁链，且能在云端取证里看到画面对。**
+> **每一项"通过"必须有可复核证据（日志原文 / 像素 / 退出码 / 断言数）；
+> 无法判定就是未通过，不得写成通过。**
+
+### 这个项目的失败模式（**全篇最重要的一句**）
+**不是"跑不起来"，而是「跑起来了、门禁全绿、结果是错的」。**
+本会话抓到的每一个真缺陷（游戏无光照 · 手电零作用 · 关卡不吃光 · 10 个道具六重断链 · 货架悬空）
+**门禁一个都没拦住** —— 全靠**看图**与**读真实构建结果**才暴露。
+
+---
+
 ## 〇、先读这三条（不知道会白干）
 
 ### 1. `DSH专用/` 里的取证目录：**用户会清理，别指望它长期留存**
@@ -196,7 +230,122 @@
 
 ---
 
-## 六、关键文件与工具索引
+## 六、源码在哪（**4 份副本 + 2 个存档包，别搞混**）
+
+### 真源 = git 仓库（**唯一可信**）
+```
+仓库   https://github.com/qw1179527/whisper（私有）
+分支   master（手机侧）↔ main（远端）
+HEAD   见本文第一节
+```
+**⇒ 任何要紧的东西先提交到 git。`DSH专用/` 不是归档处**（见第〇节第 1 条）。
+
+### 手机上的工作副本（**日常就用这个**）
+```
+~/whisper                                     ← dsh-home/whisper，我一直在改的就是这里
+   unity/Assets/**/*.cs      106 个         ← C# 源码
+   tools/**                  232 个脚本     ← 全部门禁与生成器
+   data/                     9 个配置       ← config.json / design-tokens.json / spec-ledger.json /
+                                              unity-api-registry.json / module-manifest.json …
+   docs/                                   ← 文档（含 reference-official/ 与本文）
+```
+
+### 电脑端的副本（**只读参考，不要拿它覆盖手机上那份**）
+```
+DSH专用/电脑上/01-工程源码/          96 个 .cs · 带 .git（HEAD 63923f5）
+   ⇒ README-目录索引.md 称它"whisper 最新版（含全部修复与校验）"
+   ⇒ 但它的 .git 提交 63923f5 我这边【也有】，我的 HEAD 更靠前
+DSH专用/whisper-pc/whisper/          96 个 .cs · 带 .git
+   ⇒ README 明确警告：【工作区 whisper 是旧副本（commit 78fc999）】，
+     真源 D:\dshr 已到 2048e26；73 个同名不同内容 + 81 个独有
+   ⇒ 【不要拿它覆盖 01-工程源码/】
+DSH专用/电脑上/whisper-full.zip      4830 MB · whisper 全量原始快照（含 Library 缓存与历史 APK）
+DSH专用/电脑上/08-工作区其他内容.zip  263 MB · truck-sample / 建模知识库(28) / whisper-models(72) / …
+```
+
+### ⚠️ 一条必须知道的
+`电脑上/README-目录索引.md` 第 52 行记着 **PC 真源 `D:\dshr` 到 `2048e26`**，
+而电脑上那两份副本都不是它。**PC 已不可用**（`63923f5` 的提交信息原文：
+「收纳电脑端全部未提交工作（**PC 不再可用，此为唯一副本**）」）。
+⇒ **若怀疑有"比手机侧更新的源码"，唯一线索在那个 zip / 那次迁移记录里，不在任何一份目录副本里。**
+
+---
+
+## 七、建模知识与工具的出处（**"这些知识/工具是哪来的"**）
+
+### A. 官方对标资料（**用户提供，最高优先级**）
+```
+docs/reference-official/          ← 我已收录进仓库
+  01-建模画质UI菜单.md            鬼魂模型/形态/动画 · 画质选项 · UI 分区
+  02-完整机制道具猎杀鬼魂.md       状态机 · 猎杀规则 · 电子干扰半径
+  03-官方道具与机制.md            七件证据类装备 · 三级进阶 · 携带规则
+  04-场景介绍初始界面与地图.md     ★ 主菜单/大厅/卡车布局 · 各张地图结构
+  05-难度设置与鬼魂机制.md        五档难度 · 完整数值对照
+```
+来源：用户 2026-10-06 放在 `DSH专用/` 的 5 份 `资料*.md`。
+内容是对标游戏《恐鬼症》v0.15.1.0 / v0.13 的**实况描述**，**不是我们的项目计划**。
+（一处歧义见第〇节；整目录不与代码耦合，可删。）
+
+### B. 电脑端建模知识库（**22 份，我当初只读了 5 份，被用户指出**）
+```
+DSH专用/电脑上/05-建模知识/                    207 KB · 22 份 md
+  five-fixes-and-modeling-redo-plan.md         ★ 五修复与建模重做计划（P0/P1 的出处）
+  multi-map-build-plan.md                      多地图施工图（第 13–14 轮）
+  multi-map-and-truck-progress.md              ★ 多地图与货车进展（第 15–16 轮）
+  truck-sample-v1-and-web-query-status.md      货车样板一代
+  truck-sample-v2.md / truck-sample-v3-material-contrast.md   货车样板二/三代（含材质对比自检）
+  truck-kit-integration-and-glbmaterial-gap.md 套件接入与 glb 材质缺口
+  truck-material-fix-2026-10-05.md · truck-and-session-wiring.md
+  glb-material-read-step1.md                    GLB 材质读取第一步
+  official-sources-2026-10-05*.md              5 份（events-weather / hunt / items-salt-sensors /
+                                                los-ghostroom / 主文档）
+  official-devlog-lobby-shop-pipeline.md       官方开发日志：大厅-商店-管线
+  readpage-works-and-official-van-screens.md   官方车内四屏
+  free-look-and-official-sources.md            ★ 自由视角与官方出处（P0-2 的出处）
+  phone-build-environment-plan.md · phone-workflow-path-b.md   手机端出包环境
+  research-request-list.md · patch-script-rules.md
+  modeling/HANDOFF-建模.md                      ★ 建模交接
+  modeling/gen_hall_modules.py                  大厅模块生成（Python）
+
+DSH专用/电脑上/01-工程源码/docs/               20+ 份（与上面部分重复，另有）
+  HANDOFF.md（42 KB，PC 版主交接）· parity-report.md · mechanism-gaps.md
+  official-sources-2026-10-05*.md · main-ui-cleanup-and-delivery-2026-10-05.md
+  device-evidence-0.1.72/72b/75/79/81.md       真机取证记录（含 blocked 那份）
+  design-联机架构-跨地区与房间列表-2026-10-05.md · phone-build-environment-plan.md
+```
+
+### C. 建模工具（**哪些在仓库里、哪些只在电脑端**）
+```
+在仓库（手机可用）：
+  tools/gen-kits.mjs                  套件生成（Blender 脚本化 → glb）
+  tools/gen-kit-resources.mjs         ★ 清单里的 file → Resources/Kits/（确定性复制 + sha256 校验）
+  tools/gen-map.mjs · tools/gen-asylum-v1.mjs     关卡地图生成器
+  tools/glb-bbox.mjs · tools/glb-material-read.mjs  GLB 量测
+  tools/kit-view-diff.mjs · tools/kit-bytes-selftest.sh
+  tools/fix-truck-axis.mjs · tools/fix-prop-axis.mjs  轴向修复（本次新增后者）
+  tools/register-kit-glb.mjs · tools/consolidate-room-kits.mjs · tools/fix-room-kit-ids.mjs
+
+【只在电脑端】（手机侧没有，要用得先拷过来）：
+  DSH专用/电脑上/09-工作区whisper独有存档/工作区whisper独有/tools/
+      gen-hall-kits.mjs    ★★ 大厅套件生成 —— **含锚点约定**，货架摆放就卡在这（见第三节①）
+      kit-builder.py       ★★ 套件构建器（Python）
+      lib/kit-hall.mjs     ★  大厅套件配方
+      sync-footprints.mjs     占地同步
+  DSH专用/电脑上/09-…/unity/Assets/ThirdParty/CC0/props/   10 个 Hall_*.glb 的原始位置
+  DSH专用/电脑上/04-Blender/     gen-kits.mjs · kits/ · kits-glb/ · props/
+```
+**⇒ 那 10 个大厅道具（`Hall_IBeamColumn` 等）的生成脚本在电脑端**，
+**手机侧没有** —— 这就是"货架两次没摆对"的下一步入口（拿锚点定义）。
+
+### D. Git 历史里的实测结论（**第 3 类真源，就在注释里**）
+本仓大量工具与源码的**头部注释记录了实测教训**，例如：
+`gen-hall-kits.mjs` 头部（导出约定）· `WhisperLitPbr.shader`（为何不用内置雾）·
+`fix-truck-axis.mjs`（轴系退化的完整推理）· `HallScene.Furnishing.cs`（货架两次失败的算式）。
+**⇒ 改任何文件前先读它的头部注释**，能省一轮返工。
+
+---
+
+## 八、关键文件与工具索引
 
 ```
 tools/agent-task.mjs              派发 unity-agent 任务 → 下载产物 → 自动同步 DSH专用/
@@ -224,7 +373,7 @@ node tools/agent-task.mjs lobby-evidence     # 大厅（含 storage 货架取景
 
 ---
 
-## 七、给接手者的一句话
+## 九、给接手者的一句话
 
 **这个项目的失败模式不是"跑不起来"，而是"跑起来了、门禁全绿、结果是错的"。**
 本会话抓到的每一个真缺陷（无光照、手电零作用、关卡不吃光、道具六重断链、货架悬空）
