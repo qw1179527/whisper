@@ -279,6 +279,20 @@ Shader "Whisper/LitPbr"
                 // ── ⑩ 自发光在雾之后相加（远处也要看得见）──
                 half3 emissive = _WhisperEmission.rgb * _WhisperEmission.a;
 
+                // ⚠⚠ 【2026-10-06 修一个我自己在 URP 迁移时引入的回归 —— lerp 参数写反了】⚠⚠
+                // 我原先写的是 `lerp(lit, fogColor, fogK)`，但它与正确语义**正好相反**：
+                //   · 正确语义：fogK=0（近处/未起雾）→ 应是**本体**；fogK=1（远处）→ 才是雾色
+                //     ⇒ `lerp(lit, fogColor, fogK)`
+                //   · 而我写的那个在 fogK=0 时返回 **fogColor** —— 等价于"雾永远按最大浓度参与"，
+                //     画面被雾色整体替换掉本体。
+                //   （原始 Built-in 版是 `lerp(c, fcol, f)`，参数顺序与上面这条正确语义一致；
+                //     我在迁 URP 时把两个实参写颠倒了，属于纯粹的迁移事故。）
+                // 后果（云端取证实测，不是推测）：
+                //   entrance_safe/orbit33 开灯 2.9 < **关灯 17.6** —— 开灯反而更暗（自相矛盾），
+                //   "颜色数 2 / 判为全黑"的判红就是它。
+                // 为什么本机门禁没拦住：本机没有 Unity，无法离线渲染；门禁只能验
+                //   "uniform 有没有声明、契约对不对"，**验不了这个数学式对不对**。
+                // ⇒ 这条只有「看图 + 读像素」能发现 —— 本项目"门禁全绿但结果是错的"的又一例。
                 return half4(lerp(lit, fogColor, fogK) + emissive, IN.color.a);
             }
             ENDHLSL

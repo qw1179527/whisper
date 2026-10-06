@@ -132,9 +132,13 @@ namespace Whisper.Editor
             {
                 problems.Add($"产品主光 intensity={refIntensity}（<=0.01）—— 开灯/关灯对照会失去意义，请先修 GameBootstrap.BuildCamera");
             }
-            // 手电筒（ForwardAdd 的判据载体）：挂在取证相机上的聚光灯，默认关；只有手电相位打开。
+            // 手电筒（附加光判据的载体）：挂在取证相机上的聚光灯，默认关；只有手电相位打开。
             var flash = CreateFlashlight(camGo.transform);
-            flash.intensity = 2.4f;      // 比主光强：手电本来就该"照到哪里哪里亮"
+            // 【迁 URP 后由 2.4 抬到 5.0】URP 的附加光按**物理距离**衰减（`distanceAttenuation`），
+            // 而 Built-in 那版是被手写成温和曲线 `1/(1+0.15d²)` 的。同一盏灯在 URP 下
+            // 中远距离明显更暗 ⇒ 不抬强度就测不出"手电真的有作用"（实测差只有 0.643%）。
+            // 5.0 是**取证用的量级**，不是产品数值——产品手电的强度归 LightRig 管。
+            flash.intensity = 5.0f;
             flash.color = new Color(1f, 0.97f, 0.90f, 1f);
             flash.enabled = false;
 
@@ -288,10 +292,18 @@ namespace Whisper.Editor
 
         /// <summary>
         /// 手电筒：挂在相机上的**聚光灯**（Spot）—— 用户要的手电就是锥形光。
-        /// 只设桩里已有的 `type/intensity/color/enabled`：`range/spotAngle/renderMode` 不在
-        /// `native/unity-stubs` 里（native/** 不在构建 A 写权内），这里靠 Unity 默认值
-        /// （range 10m、spotAngle 30°、renderMode Auto）足以验证 **ForwardAdd pass 是否生效**；
-        /// 产品侧由 LightRig/Runtime 负责把 renderMode 设成 ForcePixel。
+        /// 手电配置——**必须与产品侧同口径**，否则取证测的是另一盏灯。
+        ///
+        /// 【2026-10-06 迁 URP 后重标定，原因是一条实测判红】
+        /// 迁 URP 前亮度差 0.000%（ForwardAdd pass 存在），迁后变成 **0.643% —— 卡在 1% 阈值下面**。
+        /// 诊断：URP 的附加光走**物理距离衰减**（`GetAdditionalLight` 的 `distanceAttenuation`），
+        /// 而 Built-in 那版是手写的温和衰减 `1/(1+0.15d²)`；再加上原来没设 `range/spotAngle`，
+        /// Unity 默认 10m / 30°，光锥很窄 —— 取景点是走廊，手电照到的多是**平行于光锥的面**，
+        /// 于是全屏平均亮度变化被摊薄。
+        ///
+        /// ⇒ 修法不是"把阈值调低"（那是改判据去迁就结果），而是**把手电调成产品该有的样子**：
+        /// 更远的 range、更宽的锥角、强制像素光（`ForcePixel`：Auto 在灯多时会被降级成顶点光，
+        /// 那会让"手电不亮"变成一个**偶发**现象——正是最难查的一类 bug）。
         /// </summary>
         static Light CreateFlashlight(Transform parent)
         {
@@ -301,6 +313,9 @@ namespace Whisper.Editor
             go.transform.localRotation = Quaternion.identity;   // 与相机同向：照哪看哪
             var l = go.AddComponent<Light>();
             l.type = LightType.Spot;
+            l.range = 18f;                 // 走廊纵深足够（默认 10m 太短）
+            l.spotAngle = 55f;             // 宽光斑：覆盖取景画面的大部分（默认 30° 太窄）
+            l.renderMode = LightRenderMode.ForcePixel;   // 绝不被降级成顶点光
             return l;
         }
 
@@ -495,7 +510,11 @@ namespace Whisper.Editor
             int before = problems.Count;
             string src = StripShaderComments(File.ReadAllText(path));
 
-            if (!Regex.IsMatch(src, @"^\s*_Color\s*\(", RegexOptions.Multiline)) problems.Add("着色器未声明 _Color（Material.color 会无效）");
+            // 【2026-10-06 允许属性前缀】URP 官方迁移清单第 10 步要求主色写成 `[MainColor] _Color`
+            // （让 Material.color 正确映射）。原正则只认行首直接跟 _Color → 照官方写法反而判红。
+            // 与 tools/gate-test.mjs 的 T6 判据保持同一放宽口径（两处必须一致，否则会出现
+            // "本机门禁过、云端取证红"这种自相矛盾的状态）。
+            if (!Regex.IsMatch(src, @"^\s*(\[[^\]]+\]\s*)*_Color\s*\(", RegexOptions.Multiline)) problems.Add("着色器未声明 _Color（Material.color 会无效）");
             if (!Regex.IsMatch(src, "Shader\\s+\"Whisper/UnlitColor\"")) problems.Add("着色器名不是 \"Whisper/UnlitColor\"（与 LevelBuilder.UnlitShaderName 的契约破裂）");
 
             var am = Regex.Match(src, @"^[ \t]*_WhisperAmbient\b[^\n]*?=[ \t]*([0-9.]+)", RegexOptions.Multiline);
