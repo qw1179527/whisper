@@ -1011,6 +1011,11 @@ namespace UnityEngine
         /// 只设 `GraphicsSettings.defaultRenderPipeline` 而不设这个，遇到"该档有覆盖"时会回落成 Built-in。
         /// </summary>
         public static Rendering.RenderPipelineAsset renderPipeline { get; set; }
+        /// <summary>文档：QualitySettings.names / SetQualityLevel / GetQualityLevel —— 质量档枚举与切换。</summary>
+        public static string[] names => System.Array.Empty<string>();
+        public static void SetQualityLevel(int index) { }
+        public static void SetQualityLevel(int index, bool applyExpensiveChanges) { }
+        public static int GetQualityLevel() => 0;
     }
 
     /// <summary>文档：ShadowQuality — 阴影质量档。</summary>

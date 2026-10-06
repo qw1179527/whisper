@@ -544,6 +544,28 @@ namespace Whisper.Editor
             SetSerialized(urp, "m_VolumeFrameworkUpdateMode",     p => p.intValue = 0);      // 0 = EveryFrame
             SetSerialized(urp, "m_RequireDepthTexture",           p => p.boolValue = true);
             SetSerialized(urp, "m_RequireOpaqueTexture",          p => p.boolValue = false);
+
+            // ── **QualitySettings 侧**（2026-10-06 实测抓到：它会把上面全盖掉）────────
+            // 【证据】新加的「阴影质量 ON/OFF 像素证据」实测：
+            //   `shadowmapResolution 256 vs 2048 变化 **0.000%**`（亮度 52.0 vs 52.0）⇒ 阴影根本没生效。
+            // 根因：本工程 `ProjectSettings/QualitySettings.asset` 的当前档是 **Very Low**
+            //   （`m_CurrentQuality: 5`），而该档 `shadows: 0`、`pixelLightCount: 0`。
+            //   Unity 里 **QualitySettings 的阴影开关优先于 URP Asset** ⇒
+            //   上面把 `m_MainLightShadowsSupported` 设成 true **完全无效**。
+            // （本文件头部的注释第 25 行其实早就写着这件事，但配置代码里漏了这一步 ——
+            //   "写下了" 与 "做到了" 是两件事，这类漏接在本项目已出现多次。）
+            // ⇒ 显式把质量档设为**最高档**并打开阴影：
+            //   这是**取证/构建环境**的统一基线；产品在真机上仍可按档位下调（那属于性能策略）。
+            int top = QualitySettings.names != null ? QualitySettings.names.Length - 1 : 0;
+            if (top >= 0) QualitySettings.SetQualityLevel(top, applyExpensiveChanges: true);
+            QualitySettings.shadows = ShadowQuality.All;
+            QualitySettings.shadowResolution = ShadowResolution.High;
+            QualitySettings.shadowDistance = urp.shadowDistance;
+            QualitySettings.pixelLightCount = 8;          // 22 盏房间点光要能被逐像素点亮
+            QualitySettings.antiAliasing = 2;
+            Debug.Log($"[UrpSetup] QualitySettings → 档 {QualitySettings.names?[QualitySettings.GetQualityLevel()]}"
+                + $" · shadows={QualitySettings.shadows} · shadowResolution={QualitySettings.shadowResolution}"
+                + $" · shadowDistance={QualitySettings.shadowDistance} · pixelLightCount={QualitySettings.pixelLightCount}");
         }
 
         /// <summary>
