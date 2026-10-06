@@ -72,6 +72,25 @@ namespace Whisper.Runtime
             var light = lightGo.GetComponent<Light>();
             light.type = LightType.Directional;
             light.intensity = 2.55f;
+            // ══════════════════════════════════════════════════════════════════════════════
+            // **必须显式开阴影**（2026-10-06 批次 A 一击命中，此前查了 6 轮）
+            // ══════════════════════════════════════════════════════════════════════════════
+            // 取证实测（原文）：
+            //   `[RENDER][主光实测] type=Directional **shadows=None** intensity=2.55`
+            //   `[RENDER][材质关键字] Whisper/LitPbr | MAIN_LIGHT_SHADOWS=False | MAIN_LIGHT_SHADOWS_CASCADE=False`
+            // ⇒ **主光的 `shadows` 从未被设置过**，默认 `None` ⇒ URP 判定"主光不投影"
+            //   ⇒ **根本不生成主光阴影贴图、也不设置 `_MAIN_LIGHT_SHADOWS` 关键字**
+            //   ⇒ 着色器里的 `GetMainLight(shadowCoord)` 拿到的 `shadowAttenuation` 恒为 1。
+            //
+            // 后果：此前 6 条假设（QualitySettings 覆盖 / 分辨率 / 点光源洗白 / 投射标志 /
+            // 主光照不到几何 / 设置未落盘）**全被逐一排除**，而它们都不是原因 ——
+            // 因为**我一直在改一个从未被打开的开关上的参数**，
+            // 所以"改什么都不变"（三条阴影对照恒 0.000%）。A2 的 `MAIN_LIGHT_SHADOWS=False`
+            // 正是这条的下游症状，而不是独立缺陷。
+            //
+            // ⚠ 本项目反复出现的形态："能力已存在/配置已写，但**接线那一句**漏了"。
+            //   这一条的教训是：**先确认开关本身是开的，再调它的参数**。
+            light.shadows = LightShadows.Soft;
             light.color = HexToColor(DesignTokens.ColorBone);
             lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
 
