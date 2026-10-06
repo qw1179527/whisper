@@ -73,7 +73,75 @@ namespace Whisper.Gameplay.Level
         /// </summary>
         public const float DoorFrameInkMix = 0.0f;
 
-        /// <summary>光分区基色（V9 §11 色板）。</summary>
+        /// <summary>
+        /// 【2026-10-06 重做：每个表面给【自己的色相】，不再"一个基色调明度"】
+        ///
+        /// ## 用户的原话与它指出的真问题
+        /// 「疗养院的地图墙壁房间啥的不还是绿色、灰色等纯色吗，**谁家医院这样**」
+        ///
+        /// 查下来根因是**结构性的**，不是色值没调好：
+        /// 此前每个分区的**所有表面**都写成 `Scale(ZoneBase(zone), k)` ——
+        /// 墙 0.73 / 地 0.43 / 顶 0.78 / 道具 0.66，**同一个基色乘不同系数**。
+        /// 压力区基色是 `ColorMold #5C8C6E`（中绿），于是：
+        /// ```
+        ///   墙 #43664F · 地 #273C2F · 顶 #487C56 · 道具 #3C5C48     ← 全是绿，只差明度
+        /// ```
+        /// **一个房间从头到脚同一个色相**，看起来当然就是"纯绿一片"。
+        ///
+        /// 而真实医院的观感是**靠不同色相拼出来的**：
+        /// 【浅绿墙裙/白墙】+【灰色地砖】+【白色吊顶】+【深色金属门框】——
+        /// 四者的区别在**色相**，不在明度。这正是此前缺的那一层。
+        ///
+        /// ## 设计约束（两条，都有理由）
+        /// ① **亮度基本维持原值**，只换色相。
+        ///    为什么不趁机调亮：用户此前明确反馈过"好亮、氛围不如灰盒"，
+        ///    而这套亮度是按灰盒的暗基调标定过的。**换色相是这次的目标，改亮度不是。**
+        /// ② **保留分区的情绪梯度**（安全区暖 / 压力区冷 / 高风险区锈），
+        ///    它服务于玩法（越危险的区域越脏越暗），不能因为"要像医院"就抹掉。
+        ///
+        /// ## 表怎么读
+        /// 每行是一个分区，列出该分区下五种表面的**独立色值**。
+        /// 数字后用注释标出它"读起来是什么"——
+        /// 因为这类表最容易在后续维护里被改回"统一乘系数"，注释是防止那种退化的。
+        /// </summary>
+        static readonly (string zone, string wall, string floor, string ceiling, string prop, string frame)[] SurfaceTable =
+        {
+            //          墙（医院浅绿/暖白灰泥）  地（地砖/塑胶地）  顶（吊顶）      道具          门框（深金属）
+            ("safe",     "#D9D2C2", "#B0A99C", "#E4DED1", "#C6BEA9", "#33322F"),  // 暖白区：像走廊，干净
+            ("pressure", "#8FA38C", "#5A5954", "#8E908A", "#6E6656", "#2E3230"),  // 压力区：医院浅绿墙 + 灰地砖
+            ("high-risk","#6B5A48", "#43413C", "#5A554E", "#4E4234", "#26231F"),  // 高风险：脏褐墙 + 暗水泥地
+        };
+
+        static (string wall, string floor, string ceiling, string prop, string frame) SurfaceOf(string zone)
+        {
+            foreach (var r in SurfaceTable)
+                if (r.zone == zone) return (r.wall, r.floor, r.ceiling, r.prop, r.frame);
+            var d = SurfaceTable[1];   // 未登记的分区按"压力区"处理（此前 default 也是这个语义）
+            return (d.wall, d.floor, d.ceiling, d.prop, d.frame);
+        }
+
+        /// <summary>墙：医院浅绿墙裙 / 暖白灰泥 / 脏褐灰泥 —— 按分区取。</summary>
+        public static Rgb Wall(string zone) => Parse(SurfaceOf(zone).wall);
+
+        /// <summary>地：**灰色**（地砖 / 塑胶地 / 暗水泥）—— 刻意与墙不同色相。</summary>
+        public static Rgb Floor(string zone) => Parse(SurfaceOf(zone).floor);
+
+        /// <summary>顶：**近中性**（吊顶）—— 刻意不跟墙走，否则抬头又是同一片绿。</summary>
+        public static Rgb Ceiling(string zone) => Parse(SurfaceOf(zone).ceiling);
+
+        /// <summary>道具：暖木/旧金属调 —— 与墙面拉开，否则道具"融进墙里"看不出是物件。</summary>
+        public static Rgb Prop(string zone) => Parse(SurfaceOf(zone).prop);
+
+        /// <summary>
+        /// 门框：**深色金属**（独立色值，不再由基色混墨推）。
+        ///
+        /// 【为什么改】`DoorFrameInkMix = 0` 时期门框 = 基色原色 → 压力区下就是**亮绿**，
+        /// 而医院门框是深色金属包边，是画面里少数几个"深色重音"。
+        /// 把它定成深色还能在浅色墙面上勾出边框，让门"读得出来"。
+        /// </summary>
+        public static Rgb DoorFrame(string zone) => Parse(SurfaceOf(zone).frame);
+
+        /// <summary>光分区基色（V9 §11 色板）。保留：灯光染色与 HUD 仍按分区取基调。</summary>
         public static Rgb ZoneBase(string zone)
         {
             switch (zone)
@@ -85,17 +153,6 @@ namespace Whisper.Gameplay.Level
         }
 
         static readonly Rgb Ink = Parse(DesignTokens.ColorInk);
-
-        public static Rgb Wall(string zone) => Scale(ZoneBase(zone), WallScale);
-        public static Rgb Floor(string zone) => Scale(ZoneBase(zone), FloorScale);
-        public static Rgb Ceiling(string zone) => Scale(ZoneBase(zone), CeilingScale);
-        public static Rgb Prop(string zone) => Scale(ZoneBase(zone), PropScale);
-
-        /// <summary>
-        /// 门框：向墨色**混合**而不是乘一个 &gt;1 的系数。
-        /// 乘法在浅色上必然截顶（bone 216×1.3 = 280.8 → 255），混合则天然落在区间内。
-        /// </summary>
-        public static Rgb DoorFrame(string zone) => Mix(ZoneBase(zone), Ink, DoorFrameInkMix);
 
         static Rgb Scale(in Rgb c, float k) => new Rgb(Clamp01(c.R * k), Clamp01(c.G * k), Clamp01(c.B * k));
 
