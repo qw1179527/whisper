@@ -126,14 +126,25 @@ namespace Whisper.Gameplay.Level
             Debug.Log($"[LightRig] 建灯 {Lights.Count} 盏 · 房间 {level.Rooms.Count} 个（ForwardAdd 才会让它们真的照亮画面）");
         }
 
-        /// <summary>分区基准强度：安全区最亮、高风险区最暗（与 LevelPalette 的明暗梯度同语义）。</summary>
+        /// <summary>
+        /// 分区基准强度：安全区最亮、高风险区最暗（与 LevelPalette 的明暗梯度同语义）。
+        ///
+        /// 【2026-10-06 按 URP 重标定】原值（0.55~1.15）是 **Built-in 时代的感性值**；
+        /// 迁到 URP 后点光的照度口径变了，实测后果有判据原文为证：
+        /// &gt; `entrance_safe/eye` 判定视角开灯帧平均亮度 **10.8** 低于亮度目标下限 **20**（暗到看不清）
+        /// 而更早的 Unlit 路径同类视角能到 **40.4** ⇒ 这是**迁 PBR/URP 后变暗**，不是设计意图。
+        ///
+        /// 标定依据（不猜）：目标是"开灯帧 ≥ 20"。PBR 漫反射对光强**近似线性**（色调映射再压一次），
+        /// 故先按 **×2** 抬一档实测 —— 上限是 110，留足余量，不一次抬到可能洗白的程度。
+        /// **分区梯度比例保持不变**（安全区仍最亮、高风险区仍最暗）。
+        /// </summary>
         public static float BaseIntensityOf(string zone)
         {
             switch (zone)
             {
-                case "safe": return 1.15f;
-                case "high-risk": return 0.55f;
-                default: return 0.85f;
+                case "safe": return 2.30f;
+                case "high-risk": return 1.10f;
+                default: return 1.70f;
             }
         }
 

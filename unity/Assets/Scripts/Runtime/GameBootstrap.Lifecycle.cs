@@ -62,12 +62,16 @@ namespace Whisper.Runtime
             _camera.transform.position = new Vector3(0f, PlayerController.EyeHeightM, -6f);   // 眼高引用单一真源
             _camera.transform.rotation = Quaternion.identity;
 
-            // 一盏方向光：为将来接 Lit 材质/真美术资产预留（当前是 Unlit，光照不影响观感）
+            // 一盏方向光：作为**环境补光**（主要照明来自房间点光源 `LevelBuilder.LightRig`）。
+            // 【2026-10-06 按 URP 重标定】原注释写于「当前是 Unlit，光照不影响观感」的时代 ——
+            // 那时 0.85 只是占位值；现在几何走 **Lit/PBR** 着色器，这个值**真的参与成像**，
+            // 而它偏低（实测判定视角开灯帧仅 10.8，目标下限 20）。
+            // 与 LightRig 的点光**同批按 ×2 抬一档**（同一轮里只动"灯强度"这一个变量，便于归因）。
             var lightGo = new GameObject("KeyLight", typeof(Light));
             lightGo.transform.SetParent(transform, false);
             var light = lightGo.GetComponent<Light>();
             light.type = LightType.Directional;
-            light.intensity = 0.85f;
+            light.intensity = 1.70f;
             light.color = HexToColor(DesignTokens.ColorBone);
             lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
 
