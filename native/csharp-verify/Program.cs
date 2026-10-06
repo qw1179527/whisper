@@ -130,6 +130,67 @@ static class Program
                 level.Extraction != null && level.Extraction.Standard != level.Extraction.Deep);
             Check("动态事件 2~3 个（V9 §19.2）", () => level.Events.Count >= 2 && level.Events.Count <= 3);
 
+            // ── 分翼（官方 Sunny Meadows 机制：猎杀时所在分翼封锁）──────────────────
+            // 为什么这些断言必须在**本机真跑**里（而不是只写 NUnit）：
+            // NUnit 那套在本机根本不执行（gate-test 跑的是 native/csharp-verify），
+            // 只写 NUnit 等于"以为测了、其实没测" —— 本项目已有先例。
+            Check("分翼：每间房都有 wing（缺失会让封锁悄悄漏掉它）",
+                () => level.Rooms.All(r => !string.IsNullOrWhiteSpace(r.Wing)));
+            Check("分翼：翼数 ≥2（单翼等于没有封锁机制）", () =>
+            {
+                var wings = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var r in level.Rooms) wings.Add(r.Wing);
+                return wings.Count >= 2;
+            });
+            Check("分翼：同一间房不会同时属于两个翼（数据结构保证，但要防解析错位）",
+                () => level.Rooms.All(r => r.Wing != null && r.Wing.IndexOf(',') < 0));
+            {
+                var w = new WingSystem(level);
+                Check("分翼：全图翼清单与房间数据一致", () =>
+                    w.AllWings.Count == new HashSet<string>(level.Rooms.ConvertAll(r => r.Wing)).Count);
+                // 玩家在 ward 区 → 判成 ward 翼
+                var wardRoom = level.Rooms.Find(r => r.Wing == "ward");
+                if (wardRoom != null)
+                {
+                    Check("分翼：玩家在 ward 房内 → 判成 ward", () =>
+                    {
+                        w.UpdatePlayerWing(wardRoom.CenterX, wardRoom.CenterZ);
+                        return w.PlayerWing == "ward";
+                    });
+                    Check("分翼：封锁 ward 只封 ward 的门（封错翼比不封更糟）", () =>
+                    {
+                        int n = w.SealWing("ward");
+                        if (n <= 0) return false;
+                        foreach (var k in w.SealedDoorKeys)
+                            if (!k.StartsWith("ward_", StringComparison.Ordinal)
+                                && !k.StartsWith("corridor_ward/", StringComparison.Ordinal)
+                                && !k.StartsWith("corridor_link/", StringComparison.Ordinal)) return false;
+                        return true;
+                    });
+                    Check("分翼：封锁门键口径与 LevelGeometry.DoorKey 一致（否则关不上且不报错）", () =>
+                    {
+                        var r0 = level.Rooms.Find(r => r.Wing == "ward" && r.Doors.Count > 0);
+                        return r0 == null || w.SealedDoorKeys.Contains(LevelGeometry.DoorKey(r0.Id, r0.Doors[0].Id));
+                    });
+                    Check("分翼：解除封锁清空清单", () =>
+                    {
+                        int n = w.Unseal();
+                        return n > 0 && w.SealedDoorKeys.Count == 0 && !w.IsSealed;
+                    });
+                    Check("分翼：封不存在的翼是空操作（否则玩家被永久困住）", () =>
+                    {
+                        int n = w.SealWing("no_such_wing");
+                        return n == 0 && !w.IsSealed;
+                    });
+                }
+                // 站在所有房间之外 → 按最近房间归属，而不是判成"无翼"
+                Check("分翼：站在房间外按最近房间归属（判成无翼会让封锁在最需要时失效）", () =>
+                {
+                    w.UpdatePlayerWing(999f, 999f);
+                    return !string.IsNullOrEmpty(w.PlayerWing);
+                });
+            }
+
             // 走廊连通性：从入口出发应能到达撤离深处点（防孤岛）
             Check("走廊连通：入口 → 深处撤离点可达", () =>
             {

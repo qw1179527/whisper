@@ -67,6 +67,31 @@ namespace Whisper.Runtime
             Session.TruckSafeSizeX = safe.size.x;
             Session.TruckSafeSizeZ = safe.size.z;
             Session.Tick(Time.deltaTime);
+
+            // ── 分翼封锁：把逻辑层的判定**应用到几何层**（官方机制：猎杀时封锁所在翼）──
+            // 职责切分：`WingSystem`（纯逻辑，跑在本机真断言里）只算"该封哪些门"；
+            //           这里拿着清单去真关门。逻辑与 Unity 分开，两边可各自验证。
+            // 用标志位触发而非每帧无条件执行：清单每帧重算很贵（几十扇门），
+            // 而它只在**猎杀开始/结束**两个时刻变化。
+            if (Session.SealNeedsApply)
+            {
+                Session.SealNeedsApply = false;
+                if (_levelBuilder != null)
+                {
+                    bool sealedNow = Session.Wings.IsSealed;
+                    int ok = 0, missed = 0;
+                    foreach (var key in Session.Wings.SealedDoorKeys)
+                    {
+                        // 封锁 = 关门；instant=true —— 猎杀是突然发生的，不该让玩家看着门慢慢合上
+                        if (_levelBuilder.SetDoorOpen(key, false, instant: true)) ok++;
+                        else missed++;
+                    }
+                    // 未找到的门必须**显式报出来**：门键口径不一致会让封锁静默失效，
+                    // 而"静默失效"正是本项目最忌讳的形态（看起来封了、其实没封）。
+                    Session.EventLog.Add($"[分翼] {(sealedNow ? "封锁" : "解除")}已应用：成功 {ok} 扇"
+                        + (missed > 0 ? $" · **未找到 {missed} 扇**（门键口径不一致？）" : ""));
+                }
+            }
             // 【不要写 _status】曾用 AppendStatus(SessionStatus) 每帧写 _status，那会**覆盖既有 HUD 诊断行**
             // （接口/关卡/玩家/交互次数那套真机取证通道）。改为由 HUD 刷新处统一追加 —— 见 _status.text 的
             // string.Format 里末尾那条 SessionStatus。

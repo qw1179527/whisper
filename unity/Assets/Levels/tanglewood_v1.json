@@ -52,7 +52,8 @@
         }
       ],
       "evidencePoint": false,
-      "lightZone": "safe"
+      "lightZone": "safe",
+      "wing": "house"
     },
     {
       "id": "hall_main",
@@ -90,7 +91,8 @@
       ],
       "props": [],
       "evidencePoint": false,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "kitchen",
@@ -133,7 +135,8 @@
         }
       ],
       "evidencePoint": true,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "bath",
@@ -165,7 +168,8 @@
       ],
       "props": [],
       "evidencePoint": false,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "bedroom",
@@ -202,7 +206,8 @@
         }
       ],
       "evidencePoint": true,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "garage",
@@ -228,7 +233,8 @@
       ],
       "props": [],
       "evidencePoint": false,
-      "lightZone": "high-risk"
+      "lightZone": "high-risk",
+      "wing": "house"
     }
   ],
   "corridors": [

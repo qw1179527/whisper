@@ -90,6 +90,30 @@ namespace Whisper.Gameplay.Level
         public bool EvidencePoint;
         /// <summary>safe | pressure | high-risk（V9 §11 动态光分区）。</summary>
         public string LightZone;
+        /// <summary>
+        /// **分翼**（官方 Sunny Meadows 是分翼机构：限制病房 / 礼拜堂 / 庭院 / 太平间 / 锅炉房）。
+        ///
+        /// 官方机制原文（`docs/reference-official/04-…§7.2`）：
+        /// &gt; 猎杀时**所在分翼封锁**，极难躲藏；房间高度相似，**极易迷路**
+        ///
+        /// ⚠ 与 <see cref="LightZone"/> 是**两个正交维度**，不要合并：
+        ///   · `Wing` 管"哪一片是一个整体 / 猎杀时封哪一片"（**玩法连通性**）；
+        ///   · `LightZone` 管光照强度与闪烁（**观感**）。
+        /// 礼拜堂可以 `wing=chapel` 且 `lightZone=safe`；太平间可以 `wing=morgue` 且
+        /// `lightZone=high-risk` —— 两者互不决定。
+        /// </summary>
+        public string Wing;
+
+        /// <summary>点 (x,z) 是否落在本房间内（**不含边界**，避免相邻房间同时命中）。</summary>
+        public bool ContainsPoint(float x, float z)
+            => x > MinX && x < MaxX && z > MinZ && z < MaxZ;
+
+        /// <summary>房间中心到 (x,z) 的距离平方（用于"玩家在哪间房"的就近判定）。</summary>
+        public float DistSqToCenter(float x, float z)
+        {
+            float dx = CenterX - x, dz = CenterZ - z;
+            return dx * dx + dz * dz;
+        }
 
         public float MinX => PosX;
         public float MinZ => PosZ;

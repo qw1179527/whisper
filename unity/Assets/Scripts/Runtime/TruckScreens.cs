@@ -80,6 +80,14 @@ namespace Whisper.Runtime
             public int Floor;
             /// <summary>调查区域（画地图用）；null = 还没加载。</summary>
             public LevelData Level;
+            /// <summary>
+            /// 玩家当前所在**分翼**（官方 Sunny Meadows 机制：猎杀时封锁所在翼）。
+            /// 地图屏必须显示它 —— 官方明说疗养院"房间高度相似，**极易迷路**"，
+            /// 所以"我在哪一翼"和"哪一翼被封了"是玩家最需要的两条信息。
+            /// </summary>
+            public string PlayerWing;
+            /// <summary>已被封锁的翼（null = 当前无封锁）。</summary>
+            public string SealedWing;
         }
 
         readonly Transform _root;
@@ -174,7 +182,9 @@ namespace Whisper.Runtime
             DrawSound(_soundTex, _data);
             DrawSanity(_sanityTex, _data);
             DrawActivity(_activityTex, _data);
-            LastDraw = $"地图 楼层{_data.Floor} · 理智 {_data.SanityAvg * 100f:0}%/{_data.SanitySelf * 100f:0}%"
+            LastDraw = $"地图 楼层{_data.Floor} · 分翼 {_data.PlayerWing ?? "-"}"
+                + (_data.SealedWing != null ? $"(已封锁 {_data.SealedWing})" : "")
+                + $" · 理智 {_data.SanityAvg * 100f:0}%/{_data.SanitySelf * 100f:0}%"
                 + $" · 活动 {_data.Activity}/10 · 证据 {_data.Evidence}/{_data.EvidenceTotal}";
         }
 
@@ -220,6 +230,13 @@ namespace Whisper.Runtime
                 if (!here) c *= 0.35f;
                 // 证据点：画成亮块（官方地图上鬼房相关标记是重点信息）
                 if (r.EvidencePoint && here) c = Color.Lerp(c, new Color(1f, 0.95f, 0.6f), 0.45f);
+                // ── 分翼（官方机制）──────────────────────────────────────────────
+                // 玩家所在翼：描亮（**"我在哪一翼"** —— 官方说这张图极易迷路）
+                // 被封锁的翼：压成暗红（**"哪一翼被封了"** —— 那是会要命的信息）
+                if (here && !string.IsNullOrEmpty(d.PlayerWing) && r.Wing == d.PlayerWing)
+                    c = Color.Lerp(c, Color.white, 0.35f);
+                if (here && !string.IsNullOrEmpty(d.SealedWing) && r.Wing == d.SealedWing)
+                    c = Color.Lerp(c, new Color(0.85f, 0.15f, 0.12f), 0.55f);
                 Rect(tex, px, py, pw, ph, c);
             }
             // 出入口（标准撤离点）用**绿色横线**——官方口径

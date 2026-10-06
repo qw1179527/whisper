@@ -728,6 +728,8 @@ namespace Whisper.Editor
             //   "哪个房间一个部件都没有"。
             var roomHits = new System.Collections.Generic.Dictionary<string, int>();
             var roomBounds = new System.Collections.Generic.Dictionary<string, Bounds>();
+            // ⚠ 房间盒的**高度轴是 Y**（房间盒打印用的是 `y[0,SizeY]`），不能用 `SizeZ` 当高。
+            // 我第一版把 `SizeZ` 写进了 y 分量 ⇒ 判定盒在 Y 上只有几米却错位，归属统计不可信。
             foreach (var rm in level.Rooms)
             {
                 roomHits[rm.Id] = 0;
@@ -854,21 +856,24 @@ namespace Whisper.Editor
                     }
                     return true;
                 case "eye":
-                    // 【2026-10-06 实测修正（第二次）】第一版把相机放在**离远端墙 0.1~0.6m**，
-                    // 结果贴墙；第二版改成"进深 1/4 处"，**仍在房间边界上**：
-                    //   morgue_deep 房间 z[3.0,6.0]，相机被放到 z=**3.84**
-                    //   ⇒ 落在近端墙的实体盒内 ⇒ 背面剔除 ⇒ **纯黑（颜色数=1）**
-                    //   （日志原文：`✗ morgue_deep/eye/... 判为全黑：亮度 0.0 · 颜色数 1`）
-                    // ⇒ 正解：先把相机**放进房间内侧一段安全距离**（避开墙体厚度），再取景。
+                    // 【2026-10-06 实测修正（第三次，这次找到了真根因）】
+                    // 前两次都在调"相机离墙多远"，而真根因是**相机太高**：
+                    //   morgue 套件实际顶点范围 y∈[-0.85, 0.85] ⇒ **几何高只有 1.69m**
+                    //   而 morgue_deep 房间**声明**高 3.2m ⇒ 相机被放到 y=1.70
+                    //   ⇒ **相机在几何顶上 0.85m**，拍到的是越过墙顶的雾 ⇒ 纯黑（颜色数=1）
+                    // 也就是说：**房间声明高度 ≠ 套件实际高度**（套件是"墙+顶+地"的一间房，
+                    // 声明高度有时是为玩法留的净空）。相机高度必须按**几何**取，不能按声明取。
+                    // 1.60m 落在两个已知套件之内（morgue 1.69 / hall_main 2.91 / ward 3.41），
+                    // 且是人眼高度；再夹一次天花板，双保险。
                     cam.fieldOfView = 70f;
                     {
+                        const float EyeH = 1.60f;
                         float inset = Mathf.Clamp(sz * 0.18f, 0.5f, 1.2f);      // 离近端墙的安全距离
                         float camZ = cz - sz * 0.5f + inset;
-                        // 双保险：绝不越过房间中线（中线以里一定是室内）
-                        camZ = Mathf.Min(camZ, cz);
-                        t.position = new Vector3(cx, Mathf.Clamp(sy * 0.55f, 1.2f, 1.7f), camZ);
-                        // 看向远端偏下：让地面/家具进画，避免整幅只剩天花板
-                        t.LookAt(new Vector3(cx, sy * 0.30f, cz + sz * 0.5f));
+                        camZ = Mathf.Min(camZ, cz);                            // 绝不越过房间中线
+                        float camY = Mathf.Min(EyeH, sy * 0.5f);
+                        t.position = new Vector3(cx, camY, camZ);
+                        t.LookAt(new Vector3(cx, camY * 0.55f, cz + sz * 0.5f));
                     }
                     return true;
                 case "alongX":

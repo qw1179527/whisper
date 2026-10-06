@@ -53,7 +53,8 @@
         }
       ],
       "evidencePoint": false,
-      "lightZone": "safe"
+      "lightZone": "safe",
+      "wing": "house"
     },
     {
       "id": "corridor_f0",
@@ -85,7 +86,8 @@
       ],
       "props": [],
       "evidencePoint": false,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "kitchen_f0",
@@ -122,7 +124,8 @@
         }
       ],
       "evidencePoint": true,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "corridor_f1",
@@ -160,7 +163,8 @@
       ],
       "props": [],
       "evidencePoint": false,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "corridor2_f1",
@@ -186,7 +190,8 @@
       ],
       "props": [],
       "evidencePoint": false,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "master_f1",
@@ -223,7 +228,8 @@
         }
       ],
       "evidencePoint": true,
-      "lightZone": "pressure"
+      "lightZone": "pressure",
+      "wing": "house"
     },
     {
       "id": "attic_f1",
@@ -260,7 +266,8 @@
         }
       ],
       "evidencePoint": true,
-      "lightZone": "high-risk"
+      "lightZone": "high-risk",
+      "wing": "attic"
     }
   ],
   "corridors": [

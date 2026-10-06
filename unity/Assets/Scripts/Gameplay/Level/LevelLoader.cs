@@ -96,6 +96,10 @@ namespace Whisper.Gameplay.Level
                         Kit = MiniJson.AsString(MiniJson.Get(rm, "kit")),
                         EvidencePoint = MiniJson.Get(rm, "evidencePoint") is bool ep && ep,
                         LightZone = MiniJson.Get(rm, "lightZone") is string lz ? lz : null,
+                        // 分翼（官方 Sunny Meadows 机制）：猎杀时封锁"玩家所在翼"。
+                        // 缺失时置 null，由下面的校验判红 —— 不静默当作"无翼"，
+                        // 否则"某间房没登记翼"会让封锁逻辑悄悄漏掉它。
+                        Wing = MiniJson.Get(rm, "wing") is string wg ? wg : null,
                     };
                     var size = MiniJson.AsList(MiniJson.Get(rm, "size"));
                     if (size.Count != 3) problems.Add($"房间 {room.Id} 的 size 必须是 [宽,高,深] 三个数");
@@ -289,6 +293,11 @@ namespace Whisper.Gameplay.Level
                     problems.Add($"房间 {r.Id} 的 kit `{r.Kit}` 的 kind={rk}，房间必须用 kind=room 的套件");
                 if (r.LightZone == null || !ValidLightZones.Contains(r.LightZone))
                     problems.Add($"房间 {r.Id} 的 lightZone 非法：{r.LightZone}（合法：safe/pressure/high-risk）");
+                // 分翼：**必须登记**。缺失会让"猎杀封锁所在翼"的逻辑悄悄漏掉这间房，
+                // 而漏掉的后果是玩家能从一个"本该被封的翼"跑出去 —— 那是玩法缺陷，不是数据瑕疵。
+                if (string.IsNullOrWhiteSpace(r.Wing))
+                    problems.Add($"房间 {r.Id} 缺 wing（分翼）：官方机制要求猎杀时封锁玩家所在翼，"
+                        + "未登记的房间无法被封锁 —— 请在关卡 DSL 里补 wing");
                 var doorIds = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var d in r.Doors)
                 {

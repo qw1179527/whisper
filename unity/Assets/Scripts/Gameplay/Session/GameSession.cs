@@ -55,6 +55,15 @@ namespace Whisper.Gameplay.Session
         public readonly MatchDirector Director;
         public readonly HudModel Hud;
         /// <summary>局内任务（合同日志里的可选目标）——每局按种子抽，进度由局内事件累加。</summary>
+        /// <summary>分翼封锁（官方机制）：猎杀时封锁玩家所在翼。</summary>
+        public readonly Level.WingSystem Wings;
+        /// <summary>
+        /// **需要把封锁状态应用到几何层**（Runtime 侧照单执行 `LevelBuilder.SetDoorOpen`）。
+        /// 为什么用标志位而不是在这里直接关门：本类是**纯逻辑**（跑在本机真断言里、不依赖 UnityEngine），
+        /// 关门是 Unity 那半的事。标志位让两边职责清楚，且逻辑侧可被测。
+        /// </summary>
+        public bool SealNeedsApply;
+
         public readonly Objectives.ObjectiveSystem Objectives;
         public readonly Hearing.Hearing HearingSystem;
         public readonly VoiceBandClassifier Voice;
@@ -148,6 +157,8 @@ namespace Whisper.Gameplay.Session
             // 几何编译一次并复用：证据点落位、出生点、可达性都基于它（此前 GameSession 完全没有几何，
             // 于是"证据点在房间中心"这种几何缺陷在会话层根本无从发现）。
             Geometry = LevelGeometry.Compile(level);
+            // 分翼封锁：从关卡数据建翼清单（官方机制，见 WingSystem 类头）
+            Wings = new Level.WingSystem(level);
             int evidenceTotal = 0;
             foreach (var r in level.Rooms) if (r.EvidencePoint) evidenceTotal++;
             Sanity = new SanitySystem(cfg);
@@ -236,6 +247,39 @@ namespace Whisper.Gameplay.Session
         }
 
         /// <summary>推进一帧。</summary>
+        /// <summary>
+        /// **分翼封锁**（官方 Sunny Meadows 机制：「猎杀时所在分翼封锁，极难躲藏」）。
+        ///
+        /// 判据取"是否有怪处于 chase" —— 与本会话既有的猎杀口径一致（`MonsterBrain.State`）。
+        /// 每次状态翻转都记进 EventLog：封锁/解封是玩家能直接感觉到的玩法事件，
+        /// 而且它必须**可复核** —— 出问题时能回答"那一刻到底封了没有、封了哪些门"。
+        ///
+        /// 【为什么抽成方法】原先内联在 `Tick` 里，让 Tick 涨到 132 行、触发 gate-code C5（>120 判红）。
+        /// 门禁是对的：Tick 是读代码时最先看的地方，不该被一段独立机制撑长。
+        /// </summary>
+        void TickWingSeal()
+        {
+            Wings.UpdatePlayerWing(PlayerX, PlayerZ);
+            bool anyChase = false;
+            foreach (var b in Monsters) if (b.State == "chase") { anyChase = true; break; }
+            if (anyChase && !Wings.IsSealed)
+            {
+                int sealedCount = Wings.SealWing(Wings.PlayerWing);
+                if (sealedCount > 0)
+                {
+                    SealNeedsApply = true;
+                    EventLog.Add($"猎杀开始：封锁 {Wings.SealedWing} 翼（{sealedCount} 扇门）");
+                }
+            }
+            else if (!anyChase && Wings.IsSealed)
+            {
+                string was = Wings.SealedWing;
+                int opened = Wings.Unseal();
+                SealNeedsApply = true;
+                EventLog.Add($"猎杀结束：{was} 解除封锁（{opened} 扇门）");
+            }
+        }
+
         public void Tick(float dt)
         {
             if (Outcome.Ended) return;
@@ -266,6 +310,9 @@ namespace Whisper.Gameplay.Session
 
             // ③ 视觉：保护期内不允许"看见入追击"
             bool chaseAllowed = Director.ChaseBySightAllowed;
+
+            // ③.5 **分翼封锁**（官方 Sunny Meadows 机制：「猎杀时所在分翼封锁，极难躲藏」）
+            TickWingSeal();
 
             // ④ 拾取与证据
             foreach (var l in Items.TryPickup(PlayerX, PlayerZ)) EventLog.Add(l);

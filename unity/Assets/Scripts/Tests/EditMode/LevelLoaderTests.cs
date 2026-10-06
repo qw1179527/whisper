@@ -35,10 +35,10 @@ namespace Whisper.Tests.EditMode
             { ""id"": ""r1"", ""pos"": [0,0], ""size"": [8,3.5,6], ""rotY"": 0, ""floor"": 0, ""kit"": ""hospital_ward"",
               ""doors"": [{ ""id"": ""d_east"", ""wall"": ""east"", ""offsetM"": 0.3, ""widthM"": 2, ""locked"": false }],
               ""props"": [{ ""kit"": ""bed_b"", ""pos"": [1,0,-2], ""rot"": 90 }],
-              ""evidencePoint"": true, ""lightZone"": ""pressure"" },
+              ""evidencePoint"": true, ""lightZone"": ""pressure"", ""wing"": ""ward"" },
             { ""id"": ""r2"", ""pos"": [8,0], ""size"": [6,3,6], ""rotY"": 0, ""floor"": 0, ""kit"": ""morgue"",
               ""doors"": [{ ""id"": ""d_west"", ""wall"": ""west"", ""offsetM"": 0.3, ""widthM"": 2, ""locked"": false }],
-              ""props"": [], ""evidencePoint"": false, ""lightZone"": ""high-risk"" }
+              ""props"": [], ""evidencePoint"": false, ""lightZone"": ""high-risk"", ""wing"": ""morgue"" }
           ],
           ""corridors"": [{ ""from"": ""r1"", ""to"": ""r2"", ""doorA"": ""r1/d_east"", ""doorB"": ""r2/d_west"", ""width"": 2.0 }],
           ""events"": [" + EventsValid + @"],

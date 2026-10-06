@@ -26,12 +26,12 @@ const BOXES = [
   // 生成器给 3.0 那类定的 id 是 `hall_main_entrance_safe`，给 3.5 这类的 id 推导成
   // `hall_main_entrance` —— 两边名字对不上，套件适配检查因此判红（实测 25/28）。
   // 层高取 3.0 后三张图的玄关共用**同一个**套件，命名与既成 id 全部对齐。
-  { id: 'entrance_safe', x0: 0, x1: 4, z0: 0, z1: 3, h: 3.0, floor: 0, kit: 'hall_main_entrance_safe', zone: 'safe', evidence: false,
+  { id: 'entrance_safe', x0: 0, x1: 4, z0: 0, z1: 3, h: 3.0, floor: 0, kit: 'hall_main_entrance_safe', wing: 'reception', zone: 'safe', evidence: false,
     props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 180, pref: 'nw' }],
     doors: [{ id: 'd_east', wall: 'east', at: 1.5 }] },
 
   // ── ② 主干走廊（东西长廊 x=4..18，z=0..3）：承载三个支线的南端 ──
-  { id: 'corridor_main', x0: 4, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 0, kit: 'hall_main', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_main', x0: 4, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 0, kit: 'hall_main', wing: 'reception', zone: 'pressure', evidence: false, props: [],
     doors: [
       { id: 'd_west', wall: 'west', at: 1.5 },
       { id: 'd_n_morgue', wall: 'north', at: 21 },
@@ -39,18 +39,18 @@ const BOXES = [
     ] },
 
   // ── ③ 太平间支线：主干北墙 → 地下深处 → 前室（楼梯口即 z=0 共享墙）──
-  { id: 'morgue_deep', x0: 20, x1: 22, z0: 3, z1: 6, h: 3.2, floor: 0, kit: 'morgue', zone: 'high-risk', evidence: false, props: [],
+  { id: 'morgue_deep', x0: 20, x1: 22, z0: 3, z1: 6, h: 3.2, floor: 0, kit: 'morgue', wing: 'morgue', zone: 'high-risk', evidence: false, props: [],
     doors: [{ id: 'd_south', wall: 'south', at: 21 }, { id: 'd_north', wall: 'north', at: 21 }] },
-  { id: 'morgue_ante', x0: 20, x1: 22, z0: 6, z1: 9, h: 3.2, floor: 0, kit: 'morgue', zone: 'high-risk', evidence: false,
+  { id: 'morgue_ante', x0: 20, x1: 22, z0: 6, z1: 9, h: 3.2, floor: 0, kit: 'morgue', wing: 'morgue', zone: 'high-risk', evidence: false,
     props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 180, pref: 'nw' }],
     doors: [{ id: 'd_south', wall: 'south', at: 21 }] },
 
   // ── ④ 竖向连接廊（x=4..8，门位 x=4.5；刻意与住院部走廊在 x 上错开）──
-  { id: 'corridor_link', x0: 4, x1: 8, z0: 3, z1: 5, h: 3.0, floor: 0, kit: 'hall_main_corridor_link', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_link', x0: 4, x1: 8, z0: 3, z1: 5, h: 3.0, floor: 0, kit: 'hall_main_corridor_link', wing: 'ward', zone: 'pressure', evidence: false, props: [],
     doors: [{ id: 'd_south', wall: 'south', at: 4.5 }, { id: 'd_north', wall: 'north', at: 4.5 }] },
 
   // ── ⑤ 住院部东西走廊（x=4..18，z=5..6；东段伸出连接廊之外 → 与其北门对齐于 x=4.5）──
-  { id: 'corridor_ward', x0: 4, x1: 19, z0: 5, z1: 6, h: 3.0, floor: 0, kit: 'hall_main_corridor_ward', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_ward', x0: 4, x1: 19, z0: 5, z1: 6, h: 3.0, floor: 0, kit: 'hall_main_corridor_ward', wing: 'ward', zone: 'pressure', evidence: false, props: [],
     doors: [
       { id: 'd_south', wall: 'south', at: 4.5 },
       { id: 'd_n1', wall: 'north', at: 5.5 }, { id: 'd_n2', wall: 'north', at: 8.5 },
@@ -58,15 +58,15 @@ const BOXES = [
     ] },
 
   // ── ⑥ 5 间病房（北侧一排，门全在南墙，与走廊北门逐一对齐）──
-  { id: 'ward_01', x0: 4, x1: 7, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+  { id: 'ward_01', x0: 4, x1: 7, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', wing: 'ward', zone: 'pressure', evidence: true,
     props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 5.5 }] },
-  { id: 'ward_02', x0: 7, x1: 10, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+  { id: 'ward_02', x0: 7, x1: 10, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', wing: 'ward', zone: 'pressure', evidence: true,
     props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 8.5 }] },
-  { id: 'ward_03', x0: 10, x1: 13, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+  { id: 'ward_03', x0: 10, x1: 13, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', wing: 'ward', zone: 'pressure', evidence: true,
     props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 11.5 }] },
-  { id: 'ward_04', x0: 13, x1: 16, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+  { id: 'ward_04', x0: 13, x1: 16, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', wing: 'ward', zone: 'pressure', evidence: true,
     props: [{ kit: 'cabinet_a', pos: [0, 0, 0], rot: 270, pref: 'ne' }], doors: [{ id: 'd_south', wall: 'south', at: 14.5 }] },
-  { id: 'ward_05', x0: 16, x1: 19, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', zone: 'pressure', evidence: true,
+  { id: 'ward_05', x0: 16, x1: 19, z0: 6, z1: 10, h: 3.5, floor: 0, kit: 'hospital_ward', wing: 'ward', zone: 'pressure', evidence: true,
     props: [{ kit: 'bed_b', pos: [0, 0, 0], rot: 90, pref: 'nw' }], doors: [{ id: 'd_south', wall: 'south', at: 17.5 }] },
 
   // ══ ⑦⑧ 三层垂直结构 ══
@@ -74,13 +74,13 @@ const BOXES = [
   // 否则与它同层重叠（生成器自检会判红）。而竖井要落在**每层都可走**的位置，最稳的是放进
   // `corridor_main`（x4..22, z0..3）：一层数据一个字节不改，二三层在同样 (x,z) 各放一条走廊 →
   // 竖井在每层都真的能站人（`LevelWorld.ShaftUsableOn` 会在任一层站不住时把这条边判不通）。
-  { id: 'corridor_main_f1', x0: 0, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 1, kit: 'hall_main_corridor_main_f1', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_main_f1', x0: 0, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 1, kit: 'hall_main_corridor_main_f1', wing: 'reception', zone: 'pressure', evidence: false, props: [],
     doors: [{ id: 'd_east', wall: 'east', at: 1.5, type: 'elevator' }, { id: 'd_n_lobby', wall: 'north', at: 20, type: 'double' }] },
-  { id: 'corridor_main_f2', x0: 0, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 2, kit: 'hall_main_corridor_main_f1', zone: 'pressure', evidence: false, props: [],
+  { id: 'corridor_main_f2', x0: 0, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 2, kit: 'hall_main_corridor_main_f1', wing: 'reception', zone: 'pressure', evidence: false, props: [],
     doors: [{ id: 'd_east', wall: 'east', at: 1.5, type: 'elevator' }, { id: 'd_n_boiler', wall: 'north', at: 20, type: 'double' }] },
-  { id: 'lobby', x0: 19, x1: 22, z0: 3, z1: 11, h: 3.5, floor: 1, kit: 'hall_main_lobby', zone: 'safe', evidence: true, props: [],
+  { id: 'lobby', x0: 19, x1: 22, z0: 3, z1: 11, h: 3.5, floor: 1, kit: 'hall_main_lobby', wing: 'chapel', zone: 'safe', evidence: true, props: [],
     doors: [{ id: 'd_south', wall: 'south', at: 20, type: 'double' }] },
-  { id: 'boiler', x0: 19, x1: 22, z0: 3, z1: 11, h: 3.5, floor: 2, kit: 'morgue_boiler', zone: 'high-risk', evidence: true, props: [],
+  { id: 'boiler', x0: 19, x1: 22, z0: 3, z1: 11, h: 3.5, floor: 2, kit: 'morgue_boiler', wing: 'plant', zone: 'high-risk', evidence: true, props: [],
     doors: [{ id: 'd_south', wall: 'south', at: 20, type: 'fire' }] },
 ];
 
@@ -260,6 +260,11 @@ const rooms = BOXES.map((b) => ({
   props: b.props,
   evidencePoint: b.evidence,
   lightZone: b.zone,
+  // 官方 Sunny Meadows 是**分翼机构**（限制病房/礼拜堂/庭院/太平间/锅炉房）⇒
+  // 每个房间归属一个 wing，猎杀时**所在翼封锁**（官方原文："猎杀时所在分翼封锁，极难躲藏"）。
+  // wing 与 lightZone 是**两个正交维度**：wing 管"哪一片被封/哪一片是一个整体"，
+  // lightZone 管光照强度与闪烁。不要把它们混成一个字段。
+  wing: b.wing,
 }));
 
 // 门的绝对坐标表（生成时自校验：对端必须同墙同轴同 at）
