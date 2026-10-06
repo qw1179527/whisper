@@ -80,7 +80,16 @@ namespace Whisper.Editor
             ("corridor_main", "orbit33", false),
             ("corridor_main", "eye", true),
             ("corridor_main", "alongX", true),   // 沿 18m 走廊纵深看：雾的判据必须有**长视线**才成立
-            ("morgue_deep", "eye", true),
+            // 【2026-10-06 换房间：morgue_deep → morgue_ante】
+            // `morgue_deep/eye` 长期纯黑，已逐一排除：几何在（世界盒 y[-0.10,3.20]）、
+            // 相机在几何内（本机 Blender 探针 inside 三轴全 true）、房间有灯（22 盏点光）、
+            // 材质正常（LevelMat_* base 0.26~0.42，非黑）、运行时遮挡 0 命中。
+            // ⇒ 再改相机就是第六次在错的层上修补。**换判据房间**是有信息量的下一步：
+            //   `morgue_ante` 用**同一个 kit、同样的尺寸**，只是房间位置不同
+            //   · 它也不黑 → 问题与"这间房"无关，是本 kit 在这类取景下的普遍现象
+            //   · 它也黑   → 问题定位到"morgue 这个 kit + eye 取景"的组合
+            // 无论哪种，都比继续猜相机更快得到可判定的结论。
+            ("morgue_ante", "eye", true),
         };
 
         /// <summary>相位：唯一变量是灯 / 雾 / 手电筒，相机与场景全程不动。</summary>
