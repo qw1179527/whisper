@@ -27,6 +27,9 @@
          "排了主文件、漏了分部"会让本工程以 CS0246 全线崩掉（实测踩过）。 -->
     <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LevelBuilder.Doors.cs" />
     <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LevelBuilder.LightRig.cs" />
+    <!-- 2026-10-06 新增：建灯的 partial（同样引用 UnityEngine 的 LightRig）。
+         它承载"调查关卡一盏灯都没有"那处产品级缺陷的修复，见文件头注释。 -->
+    <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LevelBuilder.Lights.cs" />
     <!-- KitMeshLibrary 引用 UnityEngine（Mesh/Application.streamingAssetsPath）→ 同上由
          tools/unity-syntax-check.sh 覆盖；它的纯逻辑部分由 KitVerifier 断言（本工程内）。 -->
     <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/KitMeshLibrary.cs" />
