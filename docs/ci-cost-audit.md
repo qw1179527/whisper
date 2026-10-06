@@ -58,3 +58,47 @@ $ gh api .../actions/caches   →  缓存条目: 1（只有 Library-Android-v2-*
 | 单次作业 | 11.9 分钟（固定 8.5 + 干活 3.4）|
 | 能压到多少 | 修好编辑器缓存后约 **7.5 分钟**（省 4.3 分钟，-36%）|
 | **但真正的加速** | **减少轮数**：一次运行回答多个问题、同一症状不连续改两次 |
+
+---
+
+# 六、**2026-10-06 15:45 起：拿不到 runner**（账户级，非 workflow 问题）
+
+## 症状
+`unity-agent` 连续 4 次（#48~#51）在 **2 秒内**失败，且：
+```
+job.status = completed · job.conclusion = failure
+job.runner_id = 0        ← 从未分配 runner
+job.steps = []           ← 一步都没跑
+```
+
+## 对照实验（决定性）
+新建一个**最小探针工作流**（只 `echo PROBE OK` + `uname -a`）并派发：
+```
+probe #1  completed  failure   runner_id: 0   steps: 0
+```
+⇒ **最小作业也拿不到 runner**。所以**不是** `unity-agent` 的定义问题，
+而是**这个仓库/账户拿不到 GitHub-hosted runner**。
+
+## 最可能的原因
+**GitHub Actions 免费额度用尽**。私有仓库免费额度为 **2000 分钟/月**，而本会话：
+- `unity-agent` 约 **50 次** × 约 12 分钟 ≈ **600 分钟**
+- `unity-android`（`push: paths: unity/**` 触发）约 **20 次**
+
+单看 `unity-agent` 未触顶，但两者相加再加上更早的历史用量，**很可能已超**。
+（余额查不到：令牌没有 billing 读取权限，三次尝试均 403。）
+
+## 影响（诚实登记）
+- **云端取证能力当前不可用** —— 而本目标的铁律要求"每一项都要有可复核证据（像素/日志/退出码）"。
+- 因此**不能**再声称"某项已通过云端验证"。
+- 可继续的：本机门禁链（21 步，`bash unity-check.sh`）、本机真断言（170 条）、
+  Blender 侧建模与量测、文档与规范 —— 这些不依赖 CI。
+
+## 建议的动作（需要用户）
+1. 到 GitHub **Settings → Billing and plans** 看 Actions 用量，确认是否触顶；
+2. 若触顶：等月度重置、或调高 spending limit、或把仓库转为 public（public 仓库 Actions 免费无限）；
+3. 无论哪种，都应**关掉 `unity-android` 的 `push` 自动触发**（它不是反馈信号，
+   见本文第四节），把额度留给 `unity-agent`。
+
+## 我这一侧要改的
+**减少轮数**才是根本（见第二节）。额度触顶把这件事从"效率问题"变成了"能力问题"：
+以后必须**一次运行回答多个问题**，且**同一症状不连续改两次**。
