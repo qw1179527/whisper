@@ -156,7 +156,11 @@ log(`全部产物在：${outDir}`);
   const DSH = '/storage/emulated/0/DSH专用';
   const shots = files.filter((f) => /\.png$/i.test(f));
   if (shots.length && fs.existsSync(DSH)) {
-    const dest = path.join(DSH, `取证-${task}-${run.run_number}`);
+    // ⚠ 【改过一次，原因值得记】最初直接写在 `DSH专用/取证-<task>-<run>/`，
+    //   结果跑十次就在【顶层】堆十个长名字的文件夹，把用户的目录弄得很乱（他清掉了一批）。
+    //   ⇒ 现在统一收到 `DSH专用/取证/` **一个父目录**下，一次运行一个子目录。
+    //     顶层只多一个条目，用户按需展开。
+    const dest = path.join(DSH, '取证', `${task}-${run.run_number}`);
     try {
       fs.mkdirSync(dest, { recursive: true });
       let n = 0;
