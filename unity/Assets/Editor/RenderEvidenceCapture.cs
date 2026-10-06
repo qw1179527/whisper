@@ -730,10 +730,15 @@ namespace Whisper.Editor
                 var b = r.bounds;
                 min = Vector3.Min(min, b.min);
                 max = Vector3.Max(max, b.max);
-                // 房间归属：沿父链找带房间名的对象（LevelBuilder 把房间对象命名为房间 id）
+                // 房间归属：沿父链找 Room_<id>（`LevelBuilder.BuildRoom` 就是这么命名的）
                 string room = "?";
                 var t = r.transform.parent;
-                while (t != null) { if (t.name != null && level.Rooms.Exists(x => x.Id == t.name)) { room = t.name; break; } t = t.parent; }
+                while (t != null)
+                {
+                    if (t.name != null && t.name.StartsWith("Room_", StringComparison.Ordinal))
+                    { room = t.name.Substring(5); break; }
+                    t = t.parent;
+                }
                 if (!perRoomFirst.ContainsKey(room) && perRoomFirst.Count < 6)
                     perRoomFirst[room] = $"min({b.min.x:0.00},{b.min.y:0.00},{b.min.z:0.00}) max({b.max.x:0.00},{b.max.y:0.00},{b.max.z:0.00})";
             }
@@ -782,6 +787,41 @@ namespace Whisper.Editor
                 if (n == 0) emptyRooms++;
                 Debug.Log($"[RENDER][几何]   房间 {rm.Id} kit={rm.Kit}: 部件 {n} 个"
                     + (n == 0 ? "  ⚠ **该房间没有任何几何**" : ""));
+            }
+            // ── **每个房间几何的世界包围盒**（含 Y）──────────────────────────────
+            // 【为什么必须有】morgue_deep 一直纯黑，我改了 4 次相机都没碰到真因，
+            // 因为**我从来没有直接读出"那间房的几何在世界里到底占哪一段 Y"**。
+            // 这个读数能一句话回答"相机在不在几何里面"，胜过任何推断。
+            {
+                var byRoom = new System.Collections.Generic.Dictionary<string, Bounds>();
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    var r = renderers[i];
+                    if (r == null || r.name == null || !r.name.StartsWith("Kit_", StringComparison.Ordinal)) continue;
+                    string room = "?";
+                    var t = r.transform.parent;
+                    while (t != null)
+                    {
+                        if (t.name != null && t.name.StartsWith("Room_", StringComparison.Ordinal))
+                        { room = t.name.Substring(5); break; }
+                        t = t.parent;
+                    }
+                    var bb = r.bounds;
+                    if (byRoom.TryGetValue(room, out var cur))
+                    {
+                        var mn = Vector3.Min(cur.min, bb.min);
+                        var mx = Vector3.Max(cur.max, bb.max);
+                        byRoom[room] = new Bounds((mn + mx) * 0.5f, mx - mn);
+                    }
+                    else byRoom[room] = bb;
+                }
+                foreach (var kv in byRoom)
+                {
+                    var bb = kv.Value;
+                    // 相机若在这间房取景，就直接报出"相机相对几何的竖向位置"
+                    Debug.Log($"[RENDER][几何]   世界盒 {kv.Key}: x[{bb.min.x:0.00},{bb.max.x:0.00}]"
+                        + $" y[{bb.min.y:0.00},{bb.max.y:0.00}] z[{bb.min.z:0.00},{bb.max.z:0.00}] 部件几何中心y={bb.center.y:0.00}");
+                }
             }
             Debug.Log($"[RENDER][几何] 空房间 {emptyRooms} / {level.Rooms.Count} 个"
                 + (emptyRooms > 0 ? " —— 空房间在渲染里必然是纯黑（与相机/光照无关）" : ""));
