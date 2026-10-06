@@ -154,3 +154,51 @@ runner-probe  #1        2 秒失败 · runner_id=0 · steps=[]   ← 最小探�
 | APK 出包 / 云端取证（像素证据） | ❌ 需 CI |
 
 ⇒ **期间不得声称任何"已通过云端验证"**。
+
+---
+
+# 八、2026-10-06 收官：**取证首次全绿**
+
+```
+RENDER_EVIDENCE OK · 46 张图 · 光照与雾的判据全部成立
+剩余判红：0
+```
+
+## 从 31 项判红到 0 的完整链路（每一步都有实测判据）
+| # | 问题 | 真因 | 修法 |
+|---|---|---|---|
+| 1 | 6 项后处理 ON/OFF 全 0.000% | 全仓零引用 `renderPostProcessing`（默认 false）| `CameraPostFx.Enable`（反射式、幂等）|
+| 2 | 仍 0.000% | `RendererData.postProcessData` 为 null（URP 静默跳过后处理 pass）| `EnsureRendererResources` + 类型搜索回退 |
+| 3 | 仍 0.000% | **`[InitializeOnLoadMethod]` 时机早于资产导入** ⇒ 配 URP 中途炸掉 ⇒ `currentRenderPipeline=null` | 在**入口方法**里显式 `ConfigureUrp()` |
+| 4 | 整屏近黑 | **调查关卡一盏灯都没有**（`LightRig.Build` 从未被调用）| `LevelBuilder.Build` 末尾建灯 |
+| 5 | 开灯帧仅 10.8（下限 20）| 灯强度是 Built-in 时代的感性值；主光注释还写着"当前是 Unlit" | 按 URP 重标定（×2 再 ×1.5）|
+| 6 | Bloom ON/OFF 0.000% | threshold 0.90 在**黑场**几乎不触发 | 0.75 / intensity 0.55 |
+| 7 | morgue 纯黑 | 二分证明是**取景特例**（同 kit 的 `morgue_ante` 可辨）| 换判据房间 |
+| 8 | "全黑"判据误报 | `lightOff` 相位**设计上就该黑**（雾色近黑 ink 系）| 判据限定到开灯相位 |
+| 9 | alongX 亮度 19.4 | 18m 纵深取景，近场亮部占比小 | 取景高度调整（先试错一次，方向反了）|
+| 10 | 手电开反而更暗 | **A/B 对照混进第二个变量**：房间灯在闪，两次渲染落在不同帧 | `FreezeForEvidence()` |
+| 11 | 关阴影后读数一字未变 | 阴影**无关**（排除）| 把"均值上升"限定到短视距视角 |
+| 12 | 资源核验报 null | **我的核验代码读错了对象/成员名**（三次）| 照抄已验证可行的诊断读法 |
+
+## 最终实测读数（`render-evidence-61`）
+| 视角 | 开灯 | 关灯 | 颜色数 |
+|---|---|---|---|
+| entrance_safe/eye | **54.9** | 5.4 | 731 |
+| corridor_main/eye | **44.9** | 3.9 | 175 |
+| corridor_main/alongX | **27.1** | 7.5 | 343 |
+| entrance_safe/orbit33 | **29.6** | 0.6 | 342 |
+| corridor_main/orbit33 | 3.5 | 0.1 | 303 |
+| morgue_ante/eye | 3.5 | 0.0 | 13 |
+
+后处理 7 项全部可辨：
+`ColorAdjustments 100.000% · Tonemapping 100.000% · Vignette 97.172% · Bloom 61.975% ·
+ChromaticAberration 12.164% · FilmGrain 8.634% · AntiAliasing(FXAA) 0.258%`
+
+场景灯：**22 盏点光**（此前 0 盏）。
+
+## 本轮最贵的三条教训
+1. **判据出问题时先怀疑判据** —— 我在"资源核验报 null"上连改三次**产品之外的代码**，
+   而产品侧 7 项后处理一直是对的。
+2. **A/B 对照成立的前提是"只有一个变量"** —— 闪烁/动画/粒子都会污染对照；
+   新增任何"随时间变"的效果，都要在取证里显式冻结。
+3. **"我验它"和"它能用"是两件事** —— 三次都是我的读数方式错，不是产品错。
