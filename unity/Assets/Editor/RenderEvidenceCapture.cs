@@ -506,16 +506,22 @@ namespace Whisper.Editor
             try
             {
                 var t = urpAsset.GetType();
-                var listProp = t.GetProperty("rendererDataList");
-                var arr = listProp != null ? listProp.GetValue(urpAsset) as System.Collections.IEnumerable : null;
+                // ⚠ 先读**序列化字段** `m_RendererDataList`，不要先碰 `rendererDataList` 属性：
+                // 实测（第 30 轮）那个属性的 getter 会抛 TargetInvocationException（URP 内部对未初始化
+                // 渲染器列表很敏感），于是整段诊断被 catch 掉、什么也没打出来 ——
+                // 一个"诊断静默失效"比没有诊断更糟：它会让人以为"查过了，没问题"。
                 object data0 = null;
-                if (arr != null) foreach (var x in arr) { data0 = x; break; }
+                var f = t.GetField("m_RendererDataList", BindingFlags.NonPublic | BindingFlags.Instance);
+                var arr2 = f != null ? f.GetValue(urpAsset) as Array : null;
+                if (arr2 != null && arr2.Length > 0) data0 = arr2.GetValue(0);
                 if (data0 == null)
                 {
-                    // rendererDataList 是 ReadOnlySpan（反射拿不到）→ 退回序列化字段 m_RendererDataList
-                    var f = t.GetField("m_RendererDataList", BindingFlags.NonPublic | BindingFlags.Instance);
-                    var arr2 = f != null ? f.GetValue(urpAsset) as Array : null;
-                    if (arr2 != null && arr2.Length > 0) data0 = arr2.GetValue(0);
+                    var listProp = t.GetProperty("rendererDataList");
+                    if (listProp != null)
+                    {
+                        var arr = listProp.GetValue(urpAsset) as System.Collections.IEnumerable;
+                        if (arr != null) foreach (var x in arr) { data0 = x; break; }
+                    }
                 }
                 if (data0 == null) { Debug.LogWarning("[RENDER][URP诊断] 拿不到 RendererData 元素"); return; }
 
