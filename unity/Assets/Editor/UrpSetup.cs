@@ -558,8 +558,8 @@ namespace Whisper.Editor
             //   这是**取证/构建环境**的统一基线；产品在真机上仍可按档位下调（那属于性能策略）。
             int top = QualitySettings.names != null ? QualitySettings.names.Length - 1 : 0;
             if (top >= 0) QualitySettings.SetQualityLevel(top, applyExpensiveChanges: true);
-            QualitySettings.shadows = ShadowQuality.All;
-            QualitySettings.shadowResolution = ShadowResolution.High;
+            QualitySettings.shadows = UnityEngine.ShadowQuality.All;
+            QualitySettings.shadowResolution = UnityEngine.ShadowResolution.High;
             QualitySettings.shadowDistance = urp.shadowDistance;
             QualitySettings.pixelLightCount = 8;          // 22 盏房间点光要能被逐像素点亮
             QualitySettings.antiAliasing = 2;
