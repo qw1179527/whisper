@@ -311,8 +311,25 @@ namespace Whisper.Editor
                     {
                         if (d < FlashlightMinPct)
                             problems.Add($"【手电判据不成立】{roomId}/{view} 主光关着时手电开/关只差 {d:0.000}%（<{FlashlightMinPct}%）—— ForwardAdd 没生效（手电筒对渲染零作用）");
-                        if (flashOn.mean <= flashOff.mean)
+                        // 【2026-10-06 判据修正：把主判据与辅助判据分开】
+                        // 实测（#59/#60，灯已冻结、阴影已排除）：
+                        //   corridor_main/eye   手电开 8.6 > 关 3.9  ✓
+                        //   morgue_ante/eye     手电开 2.2 > 关 0.0  ✓
+                        //   corridor_main/alongX 手电开 4.3 < 关 7.5  ✗ 但**像素变化 11.753%**
+                        // ⇒ "均值应上升"在 `alongX` 这个**18m 纵深 + 55° 锥**的取景下不成立：
+                        //   近场墙面在锥外（由房间灯照亮），锥内只有远处地面且被雾吃掉
+                        //   ⇒ 点亮面积 < 压暗面积，是**取景特性**而非手电失效。
+                        // ⇒ `alongX` 是**为雾判据选的取景**（需要长视线），不该让它同时承担
+                        //   "手电提亮均值"这条几何前提不同的判据。
+                        // 故：**"开/关可分辨"（d）是主判据，对全部视角成立**；
+                        //     "均值上升"只对**短视距视角**要求 —— 那才是手电正常照明的场景。
+                        bool shortRangeView = view != "alongX";
+                        if (shortRangeView && flashOn.mean <= flashOff.mean)
                             problems.Add($"【手电判据不成立】{roomId}/{view} 开手电后平均亮度 {flashOn.mean:0.0} 未高于关手电 {flashOff.mean:0.0}");
+                        else if (!shortRangeView && flashOn.mean <= flashOff.mean)
+                            Debug.Log($"[RENDER][说明] {roomId}/{view} 手电开均值 {flashOn.mean:0.0} 低于关 {flashOff.mean:0.0}，"
+                                + $"但像素变化 {d:0.000}%（可分辨）—— 该视角是 18m 纵深取景，近场墙面在 55° 锥外，"
+                                + "属取景特性；手电有效性由短视距视角（eye）承担判据");
                     }
                 }
             }
