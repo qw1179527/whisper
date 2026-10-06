@@ -109,6 +109,25 @@ namespace Whisper.Editor
             var index = new StringBuilder();
             index.AppendLine("room,view,phase,file,mean_luma,stddev,colors,magenta_pct,changed_pct_vs_lightOnFogDefault");
 
+            // ── ⓪ URP 必须在**这里**显式配置（不能只靠 [InitializeOnLoadMethod]）────────
+            // 【2026-10-06 实测根因，一条 InvalidImportException 解释了一整轮的黑屏】
+            // 日志原文：
+            //   [UrpSetup] 编辑器加载时自动配置 URP 失败：InvalidImportException:
+            //     Cannot load. Path Packages/.../Textures/BlueNoise64/L/LDR_LLL1_0.png
+            //     is correct but AssetDatabase cannot load now.
+            // 含义：`[InitializeOnLoadMethod]` 的时机**早于资产导入完成** —— 那一刻
+            // `AssetDatabase` 还不能加载包内资源，于是配置 URP 中途炸掉：
+            //   · PostProcessData 搜不到（t:PostProcessData 零命中）
+            //   · URP Asset 没挂上 → GraphicsSettings.currentRenderPipeline == null
+            //   · 渲染整屏近黑（实测 mean luma 5.2、开灯关灯 0.000%）
+            //   · 六个后处理组件"不在 profile 里"
+            //
+            // ⇒ 修法：在**入口方法里显式配置** —— 执行到这里时资产导入早已完成。
+            //   （`BuildScript` 一直是这么做的，所以出包路径没这个问题；
+            //    只有取证路径漏了这一步。教训：**不要依赖"加载时机"这种隐式契约**，
+            //    要在真正需要它的入口处显式保证。）
+            UrpSetup.ConfigureUrp();
+
             Debug.Log($"[RENDER] 输出 {_outDir}");
 
             // ── ① 着色器契约（纯文本检查：不依赖任何 Unity API，改坏了立刻可见）──

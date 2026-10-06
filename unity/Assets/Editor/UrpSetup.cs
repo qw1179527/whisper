@@ -90,9 +90,21 @@ namespace Whisper.Editor
             }
             catch (Exception e)
             {
-                // 不静默：管线没配好会让**整屏纯黑/品红**，那必须留下可查的痕迹。
-                // 但不在这里 throw —— 让真正用到渲染的任务（取证/构建）自己失败并给出上下文。
-                Debug.LogError($"[UrpSetup] 编辑器加载时自动配置 URP 失败：{e.GetType().Name}: {e.Message}");
+                // 【2026-10-06 实测：这个时机失败是**预期内**的】
+                // 日志原文：
+                //   [UrpSetup] 编辑器加载时自动配置 URP 失败：InvalidImportException:
+                //     Cannot load. Path Packages/.../Textures/BlueNoise64/L/LDR_LLL1_0.png
+                //     is correct but AssetDatabase cannot load now.
+                // 含义：`[InitializeOnLoadMethod]` 的时机**早于资产导入完成** —— 那一刻
+                // AssetDatabase 不能加载包内资源 ⇒ 配置中途炸掉 ⇒ URP Asset 没挂上 ⇒
+                // `currentRenderPipeline == null` ⇒ **渲染整屏近黑**（实测 mean luma 5.2）。
+                //
+                // ⇒ 降级为 Warning（原先写 Error 会让人误以为任务已坏），
+                //   并把正确性交给**入口方法里的显式调用**（RenderEvidenceCapture.Run /
+                //   BuildScript.BuildAndroid）。**不要依赖"加载时机"这种隐式契约。**
+                Debug.LogWarning($"[UrpSetup] 编辑器加载时配置 URP 未成功（时机早于资产导入，属预期）："
+                    + $"{e.GetType().Name}: {e.Message}"
+                    + " —— 已交由入口方法（取证/构建）显式配置，不影响任务");
             }
         }
 
