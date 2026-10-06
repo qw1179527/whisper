@@ -654,7 +654,50 @@ namespace Whisper.Editor
                 problems.Add("【阴影质量】URP Asset 上没有可写的 mainLightShadowmapResolution");
                 return;
             }
-            // ── 先做一个**必然可见**的对照：主光阴影 开(Soft) vs 关(None) ─────────────
+            // ── 【决定性对照：把房间灯全关，只留主光】────────────────────────────────
+            // 【为什么必须这么做】实测：主光 `Soft vs None` 也是 **0.000%**。
+            // 再查发现：房间的 **22 盏点光源没有设 `shadows`**，且 URP Asset 里
+            // `m_AdditionalLightShadowsSupported = false` ⇒ **室内照明几乎全来自不投阴影的点光源**，
+            // 主光的阴影在任何画面里都占比极小 —— 被点光源的直射光"洗掉"了。
+            // ⇒ 正确做法不是继续调主光，而是**先把房间灯关掉**，让主光成为唯一光源，
+            //   这样"主光有没有阴影"才成为一个**能判定的问题**。
+            // （这也解释了为什么"阴影分辨率"两轮都是 0.000%：自变量根本没参与画面。）
+            var keepShadowsOuter = mainLight != null ? mainLight.shadows : LightShadows.Soft;
+            var frozen = _levelGo != null
+                ? _levelGo.GetComponentInChildren<Whisper.Gameplay.Level.LightRig>(true) : null;
+            if (frozen != null && frozen.Lights.Count > 0)
+            {
+                var saved = new System.Collections.Generic.List<(Light l, float i)>();
+                foreach (var rl in frozen.Lights) if (rl.Light != null) { saved.Add((rl.Light, rl.Light.intensity)); rl.Light.intensity = 0f; }
+                try
+                {
+                    if (mainLight != null)
+                    {
+                        mainLight.shadows = LightShadows.Soft;
+                        var kOn = RenderTo(cam, Path.Combine(outDir, "shadow_KeyOnly_ON.png"), null);
+                        mainLight.shadows = LightShadows.None;
+                        var kOff = RenderTo(cam, Path.Combine(outDir, "shadow_KeyOnly_OFF.png"), null);
+                        written += 2;
+                        double dk = ChangedPct(kOn.pixels, kOff.pixels);
+                        index.AppendLine(string.Join(",", "shadow", "corridor_main", "KeyOnly_ON",
+                            "shadow_KeyOnly_ON.png", kOn.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                            kOn.std.ToString("0.00", CultureInfo.InvariantCulture), kOn.colors.ToString(CultureInfo.InvariantCulture),
+                            kOn.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), dk.ToString("0.000", CultureInfo.InvariantCulture)));
+                        Debug.Log($"[RENDER][阴影·仅主光] 关掉房间灯后 主光 Soft vs None 变化 {dk:0.000}%"
+                            + $"（亮度 {kOn.mean:0.0} vs {kOff.mean:0.0} · 颜色数 {kOn.colors} vs {kOff.colors}）");
+                        if (dk < 0.05)
+                            problems.Add($"【阴影判据不成立·仅主光】关掉房间灯后主光 Soft vs None 仍只变化 {dk:0.000}%（<0.05%）"
+                                + " —— 主光阴影链未生效（此时主光是唯一光源，不能再归因于点光源洗白）");
+                        mainLight.shadows = keepShadowsOuter;
+                    }
+                }
+                finally
+                {
+                    foreach (var (l, i0) in saved) l.intensity = i0;   // 务必还原
+                }
+            }
+
+            // ── 主光阴影 开(Soft) vs 关(None)（全灯场景）──────────────────────────────
             // 【为什么先做这个】分辨率对照实测 0.000%（两轮，QualitySettings 已确认为 Ultra/shadows=All）。
             // 若"关掉主光阴影"也毫无变化，那结论就是**阴影根本没参与渲染**，
             // 而不是"分辨率差异太小" —— 这两者的修法完全不同，必须先分开。
