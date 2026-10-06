@@ -133,6 +133,9 @@ namespace UnityEngine
     }
     public class Shader : Object
     {
+        /// <summary>文档：Shader.IsKeywordEnabled(string) — 读**全局**着色器关键字。</summary>
+        public static bool IsKeywordEnabled(string keyword) => false;
+
         public static Shader Find(string name) => null;
         /// <summary>文档：Shader.SetGlobalFloat — 设置全局 shader 常量（无需材质实例）。</summary>
         public static void SetGlobalFloat(string name, float value) { }

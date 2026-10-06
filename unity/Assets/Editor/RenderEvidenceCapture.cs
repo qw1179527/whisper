@@ -742,6 +742,20 @@ namespace Whisper.Editor
                 mainLight.transform.rotation = keepRot;
             }
 
+            // ── A4：**全局** shader 关键字（而不是材质实例上的）──────────────────────
+            // 【为什么】批次 A 后主光实测已 `shadows=Soft`，但材质的 `_MAIN_LIGHT_SHADOWS` 仍 False。
+            // URP 的这两个关键字是**全局**的（`Shader.EnableKeyword`），
+            // 材质实例上的 `IsKeywordEnabled` 不一定反映全局状态 ⇒ 要**分别读**才能分清。
+            {
+                bool gMain = Shader.IsKeywordEnabled("_MAIN_LIGHT_SHADOWS");
+                bool gCasc = Shader.IsKeywordEnabled("_MAIN_LIGHT_SHADOWS_CASCADE");
+                bool gSoft = Shader.IsKeywordEnabled("_SHADOWS_SOFT");
+                Debug.Log($"[RENDER][全局关键字] _MAIN_LIGHT_SHADOWS={gMain} · _MAIN_LIGHT_SHADOWS_CASCADE={gCasc} · _SHADOWS_SOFT={gSoft}");
+                if (!gMain && !gCasc)
+                    problems.Add("【阴影判据不成立·关键字】URP **全局**未启用 `_MAIN_LIGHT_SHADOWS` / `_MAIN_LIGHT_SHADOWS_CASCADE`"
+                        + " —— 着色器因此不做阴影采样（`shadowAttenuation` 恒为 1）");
+            }
+
             // A2：材质是否带 shadow 关键字（变体是否编进包）
             {
                 var mats = new System.Collections.Generic.HashSet<string>();

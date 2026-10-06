@@ -524,6 +524,22 @@
           "widthM": 2,
           "type": "double",
           "locked": false
+        },
+        {
+          "id": "d_n_chapel",
+          "wall": "north",
+          "offsetM": 2.5,
+          "widthM": 2,
+          "type": "double",
+          "locked": false
+        },
+        {
+          "id": "d_n_court",
+          "wall": "north",
+          "offsetM": 7.5,
+          "widthM": 2,
+          "type": "swing",
+          "locked": false
         }
       ],
       "props": [],
@@ -561,12 +577,129 @@
           "widthM": 2,
           "type": "double",
           "locked": false
+        },
+        {
+          "id": "d_n_restricted",
+          "wall": "north",
+          "offsetM": 5.2,
+          "widthM": 1.6,
+          "type": "card",
+          "locked": true
         }
       ],
       "props": [],
       "evidencePoint": false,
       "lightZone": "pressure",
       "wing": "reception"
+    },
+    {
+      "id": "chapel",
+      "pos": [
+        0,
+        3
+      ],
+      "size": [
+        6,
+        3.5,
+        8
+      ],
+      "rotY": 0,
+      "floor": 1,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 2.5,
+          "widthM": 2,
+          "type": "swing",
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "cabinet_a",
+          "pos": [
+            2.61,
+            0,
+            0.56
+          ],
+          "rot": 0,
+          "pref": "nw"
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "safe",
+      "wing": "chapel"
+    },
+    {
+      "id": "courtyard",
+      "pos": [
+        6,
+        3
+      ],
+      "size": [
+        6,
+        3,
+        8
+      ],
+      "rotY": 0,
+      "floor": 1,
+      "kit": "hall_main_corridor_f1",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 1.5,
+          "widthM": 2,
+          "type": "swing",
+          "locked": false
+        }
+      ],
+      "props": [],
+      "evidencePoint": false,
+      "lightZone": "pressure",
+      "wing": "courtyard"
+    },
+    {
+      "id": "restricted_f2",
+      "pos": [
+        0,
+        3
+      ],
+      "size": [
+        6,
+        3.5,
+        8
+      ],
+      "rotY": 0,
+      "floor": 2,
+      "kit": "hospital_ward",
+      "doors": [
+        {
+          "id": "d_south",
+          "wall": "south",
+          "offsetM": 4.4,
+          "widthM": 1.6,
+          "type": "swing",
+          "locked": false
+        }
+      ],
+      "props": [
+        {
+          "kit": "bed_b",
+          "pos": [
+            2.81,
+            0,
+            0.81
+          ],
+          "rot": 90,
+          "pref": "nw"
+        }
+      ],
+      "evidencePoint": true,
+      "lightZone": "high-risk",
+      "wing": "restricted"
     },
     {
       "id": "lobby",
@@ -711,6 +844,27 @@
       "doorA": "corridor_main_f2/d_n_boiler",
       "doorB": "boiler/d_south",
       "width": 2
+    },
+    {
+      "from": "corridor_main_f1",
+      "to": "chapel",
+      "doorA": "corridor_main_f1/d_n_chapel",
+      "doorB": "chapel/d_south",
+      "width": 2
+    },
+    {
+      "from": "corridor_main_f1",
+      "to": "courtyard",
+      "doorA": "corridor_main_f1/d_n_court",
+      "doorB": "courtyard/d_south",
+      "width": 2
+    },
+    {
+      "from": "corridor_main_f2",
+      "to": "restricted_f2",
+      "doorA": "corridor_main_f2/d_n_restricted",
+      "doorB": "restricted_f2/d_south",
+      "width": 1.6
     }
   ],
   "shafts": [

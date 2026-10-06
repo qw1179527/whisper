@@ -75,7 +75,8 @@ const BOXES = [
   // `corridor_main`（x4..22, z0..3）：一层数据一个字节不改，二三层在同样 (x,z) 各放一条走廊 →
   // 竖井在每层都真的能站人（`LevelWorld.ShaftUsableOn` 会在任一层站不住时把这条边判不通）。
   { id: 'corridor_main_f1', x0: 0, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 1, kit: 'hall_main_corridor_main_f1', wing: 'reception', zone: 'pressure', evidence: false, props: [],
-    doors: [{ id: 'd_east', wall: 'east', at: 1.5, type: 'elevator' }, { id: 'd_n_lobby', wall: 'north', at: 20, type: 'double' }] },
+      doors: [{ id: 'd_east', wall: 'east', at: 1.5, type: 'elevator' }, { id: 'd_n_lobby', wall: 'north', at: 20, type: 'double' },
+            ] },
   { id: 'corridor_main_f2', x0: 0, x1: 22, z0: 0, z1: 3, h: 3.0, floor: 2, kit: 'hall_main_corridor_main_f1', wing: 'reception', zone: 'pressure', evidence: false, props: [],
     doors: [{ id: 'd_east', wall: 'east', at: 1.5, type: 'elevator' }, { id: 'd_n_boiler', wall: 'north', at: 20, type: 'double' }] },
   { id: 'lobby', x0: 19, x1: 22, z0: 3, z1: 11, h: 3.5, floor: 1, kit: 'hall_main_lobby', wing: 'chapel', zone: 'safe', evidence: true, props: [],
