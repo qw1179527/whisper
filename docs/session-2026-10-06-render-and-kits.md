@@ -229,3 +229,56 @@ doorframe / window / radiator / rack / unknown。
 那个工程**不包含**依赖 UnityEngine 的 Render 层 ⇒ 引用即 CS0234。
 最终做法：**让纯逻辑层只返回角色名字符串**，由 Unity 侧翻译成材质族 ——
 依赖方向干净（Level 不反向依赖 Render），且枚举只有一份定义。
+
+---
+
+# 附三：后处理从未生效 · 本机门禁的真实盲区（2026-10-06 第三段）
+
+## 十二、逐项 ON/OFF 判据第一次跑就抓出一个大缺陷
+
+**判据**（用户要求「每一项都要有 ON/OFF 像素证据」）：对每个后处理做 OFF→ON 两次同机位渲染，
+按像素差异判定"有没有实际作用"，低于 0.5% 判红。
+
+**第一次结果**：
+```
+[RENDER][后处理] Bloom：0.000%   Vignette：0.000%   ChromaticAberration：0.000%
+[RENDER][后处理] FilmGrain：0.000%   ColorAdjustments：0.000%   Tonemapping：0.000%
+```
+**6 项全是 0.000%** —— 连 Tonemapping（装上就必然改变像素）也纹丝不动。
+
+⇒ 不是参数写小了，是**整条后处理栈从未参与渲染**。
+
+**根因**：全仓**零引用** `renderPostProcessing`。
+URP 里"相机是否参与后处理"由 `UniversalAdditionalCameraData.renderPostProcessing` 决定，
+**默认 false**。UrpSetup 那 6 个 Volume 组件一直在 profile 里、参数也对，
+**但没有任何相机去看它们**。
+
+**我前几轮错在哪**：我把「Volume Profile 里有 6 个组件」当成了「后处理已交付」。
+那是**配置证据，不是渲染证据** —— 正是本目标的铁律要防的那种自欺。
+**像素级 ON/OFF 判据第一次跑就把它揪出来了**，这就是这套判据存在的意义。
+
+## 十三、本机门禁的真实盲区（**这条最值得记**）
+
+修这个缺陷时，我第一版直接写 `using UnityEngine.Rendering.Universal;` + 调 URP 扩展方法。
+**本机全链绿**（21 步通过、Unity 缺失错误 0 条），而**云端真实构建直接判红**：
+```
+Assets/Scripts/Runtime/CameraPostFx.cs(2,29): error CS0234:
+  The type or namespace name 'Universal' does not exist in the namespace 'UnityEngine.Rendering'
+```
+
+根因：`Whisper.Runtime.asmdef` **不引用 URP 程序集**；URP 包的 `autoReferenced`
+**只对默认的 `Assembly-CSharp` 生效，对自定义 asmdef 无效**。
+（`Assets/Editor/UrpSetup.cs` 能直接写 URP 类型，是因为 **Editor 目录没有 asmdef**、
+落在默认程序集里 —— 同一工程两种情况并存，极易误判。）
+
+**门禁自己的"诚实边界"早就写明了这件事**（`tools/gate-editor-api.mjs` 头部）：
+> **桩是我写的，我编造一个 API，桩就替它背书。**
+> 桩能验证"调用点与签名自洽"，永远无法验证"Unity 真的有这个成员"。
+
+这次是那条边界的**实测印证**：命名空间在桩里存在 ⇒ 语法检查认为一切正常。
+**⇒ 动了 `Runtime/**` 就必须等云端真实构建，不能拿本机全绿当通过。**
+
+修法：改用**反射**（本仓既定安全形态，`gate-editor-api` 明确豁免）：
+不依赖编译期程序集存在、URP 缺失时优雅降级、每个反射成员名独立判空并把原因写进 `LastProblem`。
+**刻意不给 asmdef 加 URP 引用** —— `tools/gen-asmdef.mjs` 的规则表是固定的，
+加一条会与规则表冲突；单点需求用反射正是这套架构的取舍（已写进文件头，防止下一个人"好心"去加）。

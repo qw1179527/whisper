@@ -356,6 +356,33 @@ namespace Whisper.Editor
             }
             Debug.Log($"[RENDER][后处理] Volume 已挂 · profile 组件 {vol.profile.components.Count} 个");
 
+            // 【2026-10-06 第二次修：还要把 profile 挂到 URP Asset 的 volumeProfile】
+            // 为什么：场景里的 `Volume` 组件要靠 `VolumeManager` **重建栈**之后才参与混合，
+            // 而重建发生在 URP 初始化/设置变化时 —— 同一帧内新建的 Volume 很可能**还没被拾取**，
+            // 于是"改了参数却仍 0.000%"。实测第 27 轮正是如此（6 项仍全 0.000%）。
+            // URP Asset 的 `volumeProfile` 是**默认 profile**，由管线直接应用、不经 VolumeManager，
+            // 是这里唯一确定可靠的挂法。（该属性可写；用反射以免依赖 URP 程序集引用。）
+            var urpAsset = GraphicsSettings.currentRenderPipeline;
+            bool assetProfileHung = false;
+            if (urpAsset != null)
+            {
+                var pp = urpAsset.GetType().GetProperty("volumeProfile");
+                if (pp != null && pp.CanWrite) { pp.SetValue(urpAsset, vol.profile); assetProfileHung = true; }
+                else Debug.LogWarning("[RENDER][后处理] URP Asset 上没有可写的 volumeProfile —— 只能依赖场景 Volume");
+            }
+
+            // 诊断：把"相机是否真的参与后处理"打出来。
+            // 这是本轮的关键教训：只确认"profile 里有组件"是**配置证据**，
+            // 必须同时确认"相机在看它"才是**渲染证据**。
+            {
+                var camData = cam.GetUniversalAdditionalCameraData();
+                Debug.Log($"[RENDER][后处理] 相机renderPostProcessing="
+                    + (camData != null ? camData.renderPostProcessing.ToString() : "无URP相机数据")
+                    + $" · URP Asset={(urpAsset != null ? urpAsset.name : "无")}"
+                    + $" · profile已挂到Asset={assetProfileHung}"
+                    + $" · 组件 {vol.profile.components.Count} 个");
+            }
+
             var probes = new System.Collections.Generic.List<FxProbe>
             {
                 new FxProbe
