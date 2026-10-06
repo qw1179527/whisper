@@ -6,6 +6,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;              // Volume / VolumeProfile / VolumeComponent（逐项后处理取证用）
+using UnityEngine.Rendering.Universal;    // Bloom / Vignette / FilmGrain / ChromaticAberration / ColorAdjustments / Tonemapping
 
 namespace Whisper.Editor
 {
@@ -266,6 +268,12 @@ namespace Whisper.Editor
             }
             Debug.Log($"[RENDER] 判定视角里最小的「开/关灯」变化 = {worstJudgedLight:0.000}%（判据下限 1%）");
 
+            // ── ⑥ 逐项后处理 ON/OFF 像素证据（用户要求：每一项都要有 ON/OFF 证据）──
+            // 放在最后：它用判定视角的机位，唯一变量是"某一个效果的开与关"。
+            // ⚠ 必须把 Volume **显式**挂进场景（详见 RenderTo 重载的说明）：
+            //   否则"效果无效"与"取证没接对"区分不了，出来的就是假证据。
+            RunPostFxOnOff(camGo, cam, key, refIntensity, rooms, index, problems, ref written);
+
             File.WriteAllText(Path.Combine(_outDir, "render-index.csv"), index.ToString());
             Debug.Log($"[RENDER] 共 {written} 张图 → {_outDir}");
 
@@ -278,6 +286,162 @@ namespace Whisper.Editor
             }
             Debug.Log($"RENDER_EVIDENCE OK · {written} 张图 · 光照与雾的判据全部成立");
             EditorApplication.Exit(0);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 逐项后处理 ON/OFF 像素证据
+        // ═══════════════════════════════════════════════════════════════════════
+
+        /// <summary>一个后处理效果的 ON/OFF 对照配方：名字 + 装上"开启值" + 装上"关闭值"。</summary>
+        sealed class FxProbe
+        {
+            public string Name;
+            /// <summary>把该效果设成"开"（返回 false = 当前 profile 里拿不到这个组件）。</summary>
+            public Func<VolumeProfile, bool> Enable;
+            /// <summary>把该效果设成"关"（中性值）。</summary>
+            public Func<VolumeProfile, bool> Disable;
+            /// <summary>判据：ON 与 OFF 的像素差异下限（%）。取 0.5 = "肉眼可辨"的保守门槛。</summary>
+            public double MinPct = 0.5;
+        }
+
+        /// <summary>
+        /// 逐个后处理效果做 ON/OFF 像素证据，并把结果打进日志 + render-index.csv。
+        ///
+        /// ## 为什么要有这一套（用户 2026-10-06 的原话）
+        /// 「画质注重：上色, 后处理, … 辉光, 体积光, 雾, 颗粒, 色差, 阴影质量, 抗锯齿 … 等一系列方面」
+        /// 且本目标写明「**每一项都要有 ON/OFF 像素证据**」。
+        /// 于是判据不是"我在配置里写了它"，而是"**开与关两张图必须可分辨**"——
+        /// 这与本项目抓出"手电零作用""关卡不吃光"用的是同一套办法：看图，而不是看配置。
+        ///
+        /// ## 关掉一个效果的正确写法
+        /// 全部用**中性值**关闭（UMin/UMax 取 0、或颜色/模式取恒等值），
+        /// 而不是只把 `overrideState` 置 false —— 后者会让"本地默认值"参与结果，
+        /// 而默认值随 Unity 版本变，等于把判据建在流沙上（详见各 Probe 的注释）。
+        ///
+        /// ## 为什么这里**不**替换 profile 本身，而是改它的参数
+        /// profile 是 URP Asset 引用的**同一个实例**；改参数即刻生效（`Camera.Render()` 同步）。
+        /// 替换 profile 会牵动 Asset 引用，一旦失败就是"整个后处理栈消失"，
+        /// 那种失败会被误读成"这个效果没用"。
+        /// </summary>
+        static void RunPostFxOnOff(GameObject camGo, Camera cam, Light mainLight, float productMainLightIntensity,
+            System.Collections.Generic.List<object> rooms,
+            System.Text.StringBuilder index,
+            System.Collections.Generic.List<string> problems,
+            ref int written)
+        {
+            // 用判定视角的机位 + 产品默认光照（开灯 + 默认雾）：这是"玩家真正看到的画面"
+            var room = FindRoom(rooms, "corridor_main");
+            if (room == null)
+            {
+                problems.Add("逐项后处理取证：关卡里找不到 corridor_main —— 无法取景");
+                return;
+            }
+            GetRoomBounds(room, out float cx, out float cz, out float sx, out float sz, out float sy);
+            if (!PlaceCamera(camGo.transform, cam, "corridor_main", "eye", cx, cz, sx, sz, sy, problems)) return;
+
+            // 显式建 Volume 并指向产品 profile（Asset 的 default profile 是否自动生效不由我们假设）
+            var volGo = new GameObject("EvidencePostFxVolume");
+            var vol = volGo.AddComponent<Volume>();
+            vol.isGlobal = true;
+            vol.priority = 1000f;   // 高于任何场景内 Volume：保证我们改的参数就是最终生效的那份
+            vol.profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>("Assets/DefaultVolumeProfile.asset");
+            if (vol.profile == null)
+            {
+                problems.Add("逐项后处理取证：找不到 Assets/DefaultVolumeProfile.asset —— 无法验证任何后处理");
+                UnityEngine.Object.DestroyImmediate(volGo);
+                return;
+            }
+            Debug.Log($"[RENDER][后处理] Volume 已挂 · profile 组件 {vol.profile.components.Count} 个");
+
+            var probes = new System.Collections.Generic.List<FxProbe>
+            {
+                new FxProbe
+                {
+                    Name = "Bloom",
+                    // 关：intensity=0 是**唯一确定的"无辉光"**（MinFloatParameter 的下限就是 0）。
+                    // 不用 overrideState=false 关：那会让 Unity 的内部默认值参与，判据不稳。
+                    Disable = p => SetFx(p, (Bloom b) => { b.intensity.value = 0f; b.intensity.overrideState = true; }),
+                    Enable  = p => SetFx(p, (Bloom b) => { b.intensity.value = 0.9f; b.intensity.overrideState = true; }),
+                },
+                new FxProbe
+                {
+                    Name = "Vignette",
+                    Disable = p => SetFx(p, (Vignette v) => { v.intensity.value = 0f; v.intensity.overrideState = true; }),
+                    Enable  = p => SetFx(p, (Vignette v) => { v.intensity.value = 0.75f; v.intensity.overrideState = true; }),
+                },
+                new FxProbe
+                {
+                    Name = "ChromaticAberration",
+                    // URP 17 的 ChromaticAberration 只有 intensity 一个参数（见 docs/reference-urp17-setup.md §4.2）
+                    Disable = p => SetFx(p, (ChromaticAberration c) => { c.intensity.value = 0f; c.intensity.overrideState = true; }),
+                    Enable  = p => SetFx(p, (ChromaticAberration c) => { c.intensity.value = 0.6f; c.intensity.overrideState = true; }),
+                },
+                new FxProbe
+                {
+                    Name = "FilmGrain",
+                    Disable = p => SetFx(p, (FilmGrain g) => { g.intensity.value = 0f; g.intensity.overrideState = true; }),
+                    Enable  = p => SetFx(p, (FilmGrain g) => { g.intensity.value = 0.8f; g.intensity.overrideState = true; }),
+                },
+                new FxProbe
+                {
+                    Name = "ColorAdjustments",
+                    // 关 = 恒等（饱和 0、对比 0）；开 = 强去饱和（-100 是 URP 的合法下限）
+                    Disable = p => SetFx(p, (ColorAdjustments c) =>
+                    { c.saturation.value = 0f; c.saturation.overrideState = true; c.contrast.value = 0f; c.contrast.overrideState = true; }),
+                    Enable  = p => SetFx(p, (ColorAdjustments c) =>
+                    { c.saturation.value = -100f; c.saturation.overrideState = true; c.contrast.value = 40f; c.contrast.overrideState = true; }),
+                },
+                new FxProbe
+                {
+                    Name = "Tonemapping",
+                    // 关 = None（不映射）；开 = ACES。模式类效果没有"强度"，只能用模式开关对照。
+                    Disable = p => SetFx(p, (Tonemapping t) => { t.mode.value = TonemappingMode.None; t.mode.overrideState = true; }),
+                    Enable  = p => SetFx(p, (Tonemapping t) => { t.mode.value = TonemappingMode.ACES; t.mode.overrideState = true; }),
+                },
+            };
+
+            // 探针期间固定"开灯 + 默认雾 + 无手电"，保证唯一变量只有那一个效果。
+            // `mainLight` 由调用方传入（就是产品那位主光，反射拿到的那个），不自己另找一盏 —— 那会造出第二份真源。
+            if (mainLight != null) mainLight.intensity = productMainLightIntensity;
+            ApplyFog("default");
+
+            foreach (var probe in probes)
+            {
+                if (!probe.Disable(vol.profile) || !probe.Enable(vol.profile))
+                {
+                    // 拿不到组件 = 它根本不在 profile 里 ⇒ 这是**真缺陷**（配了却不存在），必须判红
+                    problems.Add($"【后处理缺失】{probe.Name} 不在 DefaultVolumeProfile 里 —— 该效果不可能生效");
+                    continue;
+                }
+                probe.Disable(vol.profile);
+                var off = RenderTo(cam, Path.Combine(_outDir, $"postfx_{probe.Name}_OFF.png"), vol);
+                probe.Enable(vol.profile);
+                var on = RenderTo(cam, Path.Combine(_outDir, $"postfx_{probe.Name}_ON.png"), vol);
+                written += 2;
+
+                double d = ChangedPct(on.pixels, off.pixels);
+                index.AppendLine(string.Join(",", "postfx", "corridor_main", $"{probe.Name}_ON",
+                    $"postfx_{probe.Name}_ON.png", on.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                    on.std.ToString("0.00", CultureInfo.InvariantCulture), on.colors.ToString(CultureInfo.InvariantCulture),
+                    on.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), d.ToString("0.000", CultureInfo.InvariantCulture)));
+                Debug.Log($"[RENDER][后处理] {probe.Name}：ON vs OFF 变化 {d:0.000}%（亮度 {on.mean:0.0} vs {off.mean:0.0} · 颜色数 {on.colors} vs {off.colors}）");
+                if (d < probe.MinPct)
+                    problems.Add($"【后处理判据不成立】{probe.Name} 开/关只变化 {d:0.000}%（<{probe.MinPct}%）—— 该效果对渲染没有实际作用");
+            }
+
+            // 还原：把探针期间的强值退掉，避免影响后续（当前是最后一步，但保持函数可重入）
+            vol.enabled = false;
+            UnityEngine.Object.DestroyImmediate(volGo);
+        }
+
+        /// <summary>在 profile 里找某类组件并施加改动；找不到返回 false（调用方据此判红）。</summary>
+        static bool SetFx<T>(VolumeProfile profile, Action<T> apply) where T : VolumeComponent
+        {
+            for (int i = 0; i < profile.components.Count; i++)
+            {
+                if (profile.components[i] is T hit) { apply(hit); return true; }
+            }
+            return false;
         }
 
         // ───────────────────────── 场景与相机 ─────────────────────────
@@ -507,7 +671,18 @@ namespace Whisper.Editor
         }
 
         /// <summary>离屏渲染一帧并写 PNG，同时返回像素统计（用来判"洗白/全黑/洋红"）。</summary>
-        static Shot RenderTo(Camera cam, string path)
+        static Shot RenderTo(Camera cam, string path) => RenderTo(cam, path, null);
+
+        /// <summary>
+        /// 同上，但可挂一个 <see cref="Volume"/>。
+        ///
+        /// 【为什么要这个重载】逐效果 ON/OFF 取证必须**显式**把 Volume 挂进场景并指向 profile。
+        /// 依赖"URP Asset 的 default volumeProfile 会自动生效"是危险的：
+        /// 一旦它没生效，取证会给出"这个效果本来就没作用"的**错误结论**，
+        /// 而不是"我的取证没接对"—— 那正是本项目最忌讳的"假证据"。
+        /// 显式挂上之后，"效果无效"与"接线没做"才区分得开。
+        /// </summary>
+        static Shot RenderTo(Camera cam, string path, Volume volume)
         {
             var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32);
             var prevRt = cam.targetTexture;
@@ -524,6 +699,10 @@ namespace Whisper.Editor
                     + $"near={cam.nearClipPlane:0.000} far={cam.farClipPlane:0} "
                     + $"正交={cam.orthographic} 裁剪mask={cam.cullingMask} 深度模式={cam.depthTextureMode}");
             }
+            // 逐效果 ON/OFF：Volume 的挂/摘由调用方控制（见 RenderTo(cam, path, volume) 的说明）。
+            // ⚠ 必须在 cam.Render() **之前**设：`Camera.Render()` 是同步的，
+            //   渲染完再改就已经晚了（这一点我第一版写反过）。
+            if (volume != null) volume.enabled = volume.profile != null;
             cam.Render();
             var tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
             RenderTexture.active = rt;

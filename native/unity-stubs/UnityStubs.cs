@@ -1111,6 +1111,21 @@ namespace UnityEngine.Rendering
     public class BoolParameter : VolumeParameter<bool> { }
     public class FloatParameter : VolumeParameter<float> { }
     public class Vector2Parameter : VolumeParameter<Vector2> { }
+
+    /// <summary>
+    /// 文档：Rendering.Volume — 场景里的后处理体积（`isGlobal` / `priority` / `profile`）。
+    ///
+    /// 【为什么补这个桩】逐效果 ON/OFF 取证必须**显式建一个 Volume 并挂 profile**，
+    /// 否则"效果不生效"与"管线没配"无法区分 —— 而区分不了就等于没有判据。
+    /// 补桩后本机门禁会真校验这几个成员名，而不是归入"允许的 Unity 缺失"。
+    /// </summary>
+    public class Volume : MonoBehaviour
+    {
+        public bool isGlobal { get; set; }
+        public float priority { get; set; }
+        public VolumeProfile profile { get; set; }
+        public float weight { get; set; }
+    }
 }
 
 namespace UnityEngine.Rendering.Universal
