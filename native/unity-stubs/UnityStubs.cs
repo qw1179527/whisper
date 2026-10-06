@@ -1327,6 +1327,11 @@ namespace UnityEditor
         public static T LoadAssetAtPath<T>(string assetPath) where T : UnityEngine.Object => null;
         /// <summary>文档：AssetDatabase.LoadAssetAtPath(string, Type) — **非泛型重载**（按运行时类型取资产）。</summary>
         public static UnityEngine.Object LoadAssetAtPath(string assetPath, System.Type type) => null;
+        /// <summary>文档：AssetDatabase.FindAssets(string filter, string[] searchInFolders) — 按类型/名字搜资产（返回 GUID）。</summary>
+        public static string[] FindAssets(string filter) => System.Array.Empty<string>();
+        public static string[] FindAssets(string filter, string[] searchInFolders) => System.Array.Empty<string>();
+        /// <summary>文档：AssetDatabase.GUIDToAssetPath(string guid) — GUID → 资产路径。</summary>
+        public static string GUIDToAssetPath(string guid) => "";
         public static void CreateAsset(UnityEngine.Object asset, string path) { }
         public static string GetAssetPath(UnityEngine.Object asset) => "";
         public static void AddObjectToAsset(UnityEngine.Object objectToAdd, UnityEngine.Object assetObject) { }

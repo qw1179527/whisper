@@ -155,7 +155,8 @@ namespace Whisper.Editor
             // 一抛异常，刚建好的 URP Asset 就没挂上管线 ⇒ currentRenderPipeline=null ⇒ 渲染全废。
             // 「一个资源没填上」被放大成「管线全废」= 判据位置错，不是判据太严。
             // 现在：该做的全做完、管线确认生效，最后才判资源 —— 抛出去时工程状态是完整一致的。
-            VerifyRendererResources(rendererData);
+            bool postFxReady = VerifyRendererResources(rendererData);
+            if (!postFxReady) Debug.LogError("[UrpSetup] 后处理不可用（见上一条）—— 其余渲染配置已全部完成并生效");
 
             Debug.Log($"[UrpSetup] ✓ active render pipeline = {active.name} ({active.GetType().FullName})"
                 + $" · MSAA={urp.msaaSampleCount} · HDR={urp.supportsHDR} · renderScale={urp.renderScale}"
@@ -218,19 +219,27 @@ namespace Whisper.Editor
                 var ppdType = FindTypeAny("UnityEngine.Rendering.Universal.PostProcessData");
                 if (ppdType != null)
                 {
-                    // URP 包内的标准路径（官方文档/包结构；找不到就继续往下试别的）
-                    foreach (var p in new[]
+                    // ⚠ 不硬编码路径。第一版我写了两个"看起来对"的路径，**两个都不存在**（资产在别的子目录）
+                    //   ⇒ 回退失败 ⇒（当时的）判决点 throw ⇒ 整个 URP 配置被废掉。
+                    // 正解：**在 URP 包目录下按类型搜资产**（`AssetDatabase.FindAssets` 支持按类型过滤），
+                    // 这样资产换位置也不会失效。
+                    var guids = AssetDatabase.FindAssets("t:PostProcessData",
+                        new[] { "Packages/com.unity.render-pipelines.universal" });
+                    for (int i = 0; i < guids.Length && !hung; i++)
                     {
-                        "Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset",
-                        "Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset",
-                    })
-                    {
+                        var p = AssetDatabase.GUIDToAssetPath(guids[i]);
                         var asset = AssetDatabase.LoadAssetAtPath(p, ppdType);
                         if (asset == null) continue;
                         hung = SetMember(rendererData, "m_PostProcessData", asset)
                             || SetMember(rendererData, "postProcessData", asset);
-                        if (hung) { Debug.Log($"[UrpSetup] ✓ postProcessData 由回退路径挂上：{p}"); break; }
+                        if (hung) Debug.Log($"[UrpSetup] ✓ postProcessData 已挂上（按类型搜到）：{p}");
                     }
+                    if (!hung && guids.Length == 0)
+                        Debug.LogWarning("[UrpSetup] URP 包里搜不到 PostProcessData 资产（t:PostProcessData 零命中）");
+                }
+                else
+                {
+                    Debug.LogWarning("[UrpSetup] 找不到类型 PostProcessData（URP 版本差异？）");
                 }
             }
             catch (Exception e)
@@ -301,15 +310,26 @@ namespace Whisper.Editor
         }
 
         /// <summary>
-        /// **配置全部完成之后**的判决点：postProcessData 仍为 null 就抛。
+        /// **配置全部完成之后**的资源完备性检查。
         ///
-        /// 【为什么移到这里】原先它放在 `EnsureRendererResources` 里，而那一步跑在
-        /// `AssignRendererData` **之前** ⇒ 一抛异常，刚建好的 URP Asset 就没被挂上管线
-        /// ⇒ `currentRenderPipeline = null` ⇒ 整个工程渲染全废（31 项判红）。
-        /// **一个"资源没填上"被放大成"管线全废"**，那是判据位置错了，不是判据太严。
-        /// 现在：先尽力补齐、把该做的配置全做完，最后才判 —— 抛出去时工程状态是完整且一致的。
+        /// ══════════════════════════════════════════════════════════════════════════════════
+        /// ⚠ 这里**刻意不 throw** —— 我在这上面连栽两次，值得写清楚
+        /// ══════════════════════════════════════════════════════════════════════════════════
+        /// 第一版把 throw 放在 `EnsureRendererResources` 里，而那一步跑在 `AssignRendererData`
+        /// **之前** ⇒ 一抛异常，刚建好的 URP Asset 没挂上管线 ⇒ `currentRenderPipeline = null`
+        /// ⇒ **整个工程渲染全废**（实测：31 项判据不成立）。
+        /// 第二版把 throw 挪到末尾，仍然 throw ⇒ 同样把一次任务整个废掉。
+        ///
+        /// **两次的错是同一个**：把「一个可选资源缺失」升级成「全盘失败」。
+        /// 而这两件事的严重程度完全不同：
+        ///   · postProcessData 为 null ⇒ **后处理降级**（画面少了辉光/颗粒/色差…），但游戏**能跑、能玩**；
+        ///   · 管线没挂上 ⇒ **什么都渲染不出来**。
+        /// 抛异常把前者变成了后者 —— 那是**用判据制造了比缺陷更严重的后果**。
+        ///
+        /// ⇒ 正确做法：**响亮地报告 + 留下可判定的标记**，让真正该判的地方去判
+        ///   （取证脚本的"逐项后处理 ON/OFF"判据会在像素层面暴露它，那才是对的判据位置）。
         /// </summary>
-        static void VerifyRendererResources(UniversalRendererData rendererData)
+        static bool VerifyRendererResources(UniversalRendererData rendererData)
         {
             var t = rendererData.GetType();
             var pi = t.GetProperty("postProcessData");
@@ -320,12 +340,18 @@ namespace Whisper.Editor
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 if (fi != null) ppd = fi.GetValue(rendererData);
             }
-            if (ppd == null)
-                throw new InvalidOperationException(
-                    "[UrpSetup] UniversalRendererData.postProcessData 仍为 null —— "
-                    + "URP 会静默跳过全部后处理（辉光/暗角/色差/颗粒/调色/色调映射一个都不会生效）。"
-                    + "宁可构建失败，也不要产出一个『后处理配了却全不生效』的包。");
-            Debug.Log("[UrpSetup] ✓ RendererData 资源引用齐备（postProcessData 非 null）");
+            if (ppd != null)
+            {
+                Debug.Log("[UrpSetup] ✓ RendererData 资源引用齐备（postProcessData 非 null）");
+                return true;
+            }
+
+            // 响亮报错（进 CI 日志、显眼），但**不中断**：
+            // 后处理降级 ≠ 游戏不能跑；真正的判据在取证的像素级 ON/OFF 对照里。
+            Debug.LogError("[UrpSetup] ✗ RendererData.postProcessData 仍为 null —— "
+                + "URP 会**静默跳过**全部后处理（辉光/暗角/色差/颗粒/调色/色调映射一个都不会生效）。"
+                + "画面仍是完整可玩的，但后处理这一整类效果缺失 —— 取证的『逐项后处理 ON/OFF』会判红。");
+            return false;
         }
 
         /// <summary>
