@@ -1,0 +1,9 @@
+view,phase,file,mean,stddev
+entrance,lightOn,lobby_entrance_lightOn.png,77.8,56.4
+entrance,lightOff,lobby_entrance_lightOff.png,11.2,6.1
+orbit,lightOn,lobby_orbit_lightOn.png,60.1,25.2
+orbit,lightOff,lobby_orbit_lightOff.png,9.1,3.7
+truck,lightOn,lobby_truck_lightOn.png,100.6,64.9
+truck,lightOff,lobby_truck_lightOff.png,10.7,3.9
+board,lightOn,lobby_board_lightOn.png,92.0,55.8
+board,lightOff,lobby_board_lightOff.png,10.5,3.7

@@ -60,19 +60,46 @@ namespace Whisper.Editor
             Debug.Log($"[LOBBY] 大厅建好：{hall.WidthM:F1}m × {hall.LengthM:F1}m");
 
             // ── 取景点（覆盖 P1 要看的四件事）────────────────────────────────
-            // 坐标一律由大厅实测尺寸推导，不写死 —— 大厅改尺寸后取景点自动跟着走。
+            // ⚠ 【第一版的错，记下来】原来我按"大厅是矩形、四角取景"的思路写死了坐标，
+            //   结果 `truck` 那张拍到的是菜单板那面墙 —— **车在对角线上，完全没入镜**。
+            //   根因：写死坐标 = 我对场景布局的猜测；而 `HallScene` **本来就暴露了真实位置**
+            //   （`MenuBoardPos` / `Truck.WorldBounds` / `ViewPos` / `ViewLookAt`）。
+            //   ⇒ 现在一律**从场景实测位置反推相机位姿**，布局改了取景点自动跟着走。
             float hx = hall.WidthM * 0.5f, hz = hall.LengthM * 0.5f;
+
+            // ① 入口：直接问大厅"玩家该站哪、该看哪" —— 这是它自己的语义，不是我猜的
+            Vector3 entryPos = hall.ViewPos.sqrMagnitude > 0.01f
+                ? hall.ViewPos
+                : new Vector3(0f, 1.7f, -hz * 0.75f);
+            Vector3 entryLook = hall.ViewPos.sqrMagnitude > 0.01f
+                ? hall.ViewLookAt
+                : new Vector3(0f, 1.6f, -hz);
+
+            // ② 货车：用它的世界包围盒中心 —— 车挪到哪都能拍到
+            Vector3 truckAt = hall.Truck != null
+                ? hall.Truck.WorldBounds.center
+                : new Vector3(hall.WidthM * 0.30f, 1.5f, hall.LengthM * 0.22f);
+
+            // ③ 菜单板：同上
+            Vector3 boardAt = hall.MenuBoardPos.sqrMagnitude > 0.01f
+                ? hall.MenuBoardPos
+                : new Vector3(0f, 2.55f, -hz);
+
             var views = new[]
             {
                 // 入口视角：官方要求"玩家一进来就面对菜单板"
-                new View { name = "entrance", pos = new Vector3(0f, 1.7f, -hz * 0.75f), yaw = 0f, judged = true },
-                // 俯视全景：看整体布局与套件拼接
-                new View { name = "orbit",    pos = new Vector3(hx * 0.55f, hz * 0.55f, -hz * 0.85f), yaw = 205f, judged = true },
-                // 货车特写（§三 的重点对象）
-                new View { name = "truck",    pos = new Vector3(-hx * 0.25f, 1.8f, -hz * 0.15f), yaw = 155f, judged = true },
-                // 菜单板正视
-                new View { name = "board",    pos = new Vector3(0f, 1.6f, hz * 0.15f), yaw = 180f, judged = true },
+                new View { name = "entrance", pos = entryPos, yaw = YawTo(entryPos, entryLook), judged = true },
+                // 俯视全景：从高处斜看整个仓库（位置固定在高处一角，朝场心）
+                new View { name = "orbit",    pos = new Vector3(hx * 0.70f, hz * 0.85f, -hz * 0.95f),
+                            yaw = YawTo(new Vector3(hx * 0.70f, 0f, -hz * 0.95f), Vector3.zero), judged = true },
+                // 货车特写：站在车的斜前方回望它（距离按车长推，保证整车入镜）
+                new View { name = "truck",    pos = truckAt + new Vector3(-hx * 0.55f, 1.4f, -hz * 0.70f),
+                            yaw = YawTo(truckAt + new Vector3(-hx * 0.55f, 0f, -hz * 0.70f), truckAt), judged = true },
+                // 菜单板正视：站到板前一段距离平视它
+                new View { name = "board",    pos = boardAt + new Vector3(0f, -0.9f, hz * 0.85f),
+                            yaw = YawTo(boardAt + new Vector3(0f, 0f, hz * 0.85f), boardAt), judged = true },
             };
+            Debug.Log($"[LOBBY] 取景点：入口({entryPos.x:F1},{entryPos.z:F1}) · 货车({truckAt.x:F1},{truckAt.z:F1}) · 菜单板({boardAt.x:F1},{boardAt.z:F1})");
 
             // ── 灯光相位：唯一变量是灯 ──────────────────────────────────────
             // HallScene.BuildLights 建的光存在 root 下；关灯相位把它们 enabled=false。
@@ -174,6 +201,20 @@ namespace Whisper.Editor
             }
             Object.DestroyImmediate(ta); Object.DestroyImmediate(tb);
             return 100f * diff / pa.Length;
+        }
+
+        /// <summary>
+        /// 从 <paramref name="from"/> 看向 <paramref name="to"/> 的水平朝向（度）。
+        ///
+        /// 为什么要有这个：第一版我把 yaw 写死成数字，结果相机朝着菜单板却起名 "truck"。
+        /// **角度是人最容易写错、也最难一眼看出的东西** —— 而"从 A 看向 B"是场景自己就知道的事实。
+        /// Unity 里相机前向是 +Z，故 yaw = atan2(dx, dz)。
+        /// </summary>
+        static float YawTo(Vector3 from, Vector3 to)
+        {
+            float dx = to.x - from.x, dz = to.z - from.z;
+            if (Mathf.Abs(dx) < 1e-4f && Mathf.Abs(dz) < 1e-4f) return 0f;   // 重合：不转
+            return Mathf.Atan2(dx, dz) * Mathf.Rad2Deg;
         }
 
         static string ArgValue(string name)
