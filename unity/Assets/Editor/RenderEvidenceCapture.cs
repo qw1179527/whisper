@@ -383,6 +383,15 @@ namespace Whisper.Editor
                     + $" · 组件 {vol.profile.components.Count} 个");
             }
 
+            // ── 诊断：URP 渲染器数据的关键字段（反射读，不引 URP 程序集）──
+            // 【为什么必须实测】今天已经三次证明"配置对 ≠ 生效"：
+            //   ① ShadowCaster 缺 bias（pass 在、几何却自遮蔽）② 相机没开 renderPostProcessing
+            //   ③ profile 没被 VolumeManager 拾取。
+            // 现在三个诊断值全对、测量自检也 0.000%（地基可靠），后处理却仍完全不动 ——
+            // 于是必须问最底层那个问题：**URP 的后处理资源本身在不在**。
+            // `postProcessData` 为 null 时 URP 会**静默跳过**后处理 pass，正是现在这个形态。
+            DumpRendererDataDiag(urpAsset);
+
             // ══════════════════════════════════════════════════════════════════
             // 【自检 A：我的测量地基可靠吗】
             // 我连续三轮都在对比"我改完之后的两张图"，却**从没验证过"不改任何东西的两张图"是否真的相同**。
@@ -480,6 +489,52 @@ namespace Whisper.Editor
             // 还原：把探针期间的强值退掉，避免影响后续（当前是最后一步，但保持函数可重入）
             vol.enabled = false;
             UnityEngine.Object.DestroyImmediate(volGo);
+        }
+
+        /// <summary>
+        /// 把 URP Asset 的 Renderer Data 关键字段打出来（全反射，不引 URP 程序集）。
+        ///
+        /// 关心三件事，都是"会让后处理静默不生效"的开关：
+        ///   · `postProcessData` —— 后处理资源（shader/LUT）。为 null 时 URP **静默跳过**后处理 pass；
+        ///   · `renderingMode` —— Deferred 在移动端带宽贵，但那是性能问题，不影响是否生效；
+        ///   · `depthPrimingMode` —— 与"深度纹理是否可用"相关。
+        /// 打不出来就说明**反射路径本身**有问题（那也是一条有用的信息，不能静默）。
+        /// </summary>
+        static void DumpRendererDataDiag(RenderPipelineAsset urpAsset)
+        {
+            if (urpAsset == null) { Debug.LogWarning("[RENDER][URP诊断] 没有 currentRenderPipeline"); return; }
+            try
+            {
+                var t = urpAsset.GetType();
+                var listProp = t.GetProperty("rendererDataList");
+                var arr = listProp != null ? listProp.GetValue(urpAsset) as System.Collections.IEnumerable : null;
+                object data0 = null;
+                if (arr != null) foreach (var x in arr) { data0 = x; break; }
+                if (data0 == null)
+                {
+                    // rendererDataList 是 ReadOnlySpan（反射拿不到）→ 退回序列化字段 m_RendererDataList
+                    var f = t.GetField("m_RendererDataList", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var arr2 = f != null ? f.GetValue(urpAsset) as Array : null;
+                    if (arr2 != null && arr2.Length > 0) data0 = arr2.GetValue(0);
+                }
+                if (data0 == null) { Debug.LogWarning("[RENDER][URP诊断] 拿不到 RendererData 元素"); return; }
+
+                var dt = data0.GetType();
+                var ppd = dt.GetProperty("postProcessData") ?? dt.GetField("postProcessData") as MemberInfo;
+                object ppdValue = null;
+                if (ppd is PropertyInfo pi) ppdValue = pi.GetValue(data0);
+                else if (ppd is FieldInfo fi) ppdValue = fi.GetValue(data0);
+                var mode = dt.GetProperty("renderingMode");
+                var depth = dt.GetProperty("depthPrimingMode");
+                Debug.Log($"[RENDER][URP诊断] RendererData={dt.Name}"
+                    + $" · postProcessData={(ppdValue != null ? "有" : "**null（后处理会被静默跳过）**")}"
+                    + $" · renderingMode={(mode != null ? mode.GetValue(data0).ToString() : "?")}"
+                    + $" · depthPriming={(depth != null ? depth.GetValue(data0).ToString() : "?")}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[RENDER][URP诊断] 读 RendererData 失败：{e.GetType().Name}: {e.Message}");
+            }
         }
 
         /// <summary>把所有已知后处理效果都设成中性值（用于测量地基自检：确保两张图状态一致）。</summary>
