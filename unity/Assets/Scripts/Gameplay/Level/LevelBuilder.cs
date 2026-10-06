@@ -67,6 +67,18 @@ namespace Whisper.Gameplay.Level
             // 10 对完全同位共面的门板（z-fighting）。几何层已按几何重合合并，这里按它的洞口清单建。
             BuildDoorLeaves();
             foreach (var room in level.Rooms) BuildProps(room);
+
+            // ── **房间点光源**（2026-10-06 修复一处产品级缺陷）──────────────────────
+            // 【为什么必须在这里建】`LightRig.Build(...)` 早就写好了（含分区强度、闪烁相位、
+            // 停电按房间关灯），但**全仓只有 `HallScene`（大厅/菜单场景）调过它** ——
+            // **调查关卡里一盏灯都没有**。实测取证读数（`[RENDER][灯]`）原文：
+            //   > 场景灯 0 盏：点光 0 · 平行光 0 · 聚光 0 · 关闭/零强度 0
+            // 后果：`morgue_deep` 渲成**纯黑（亮度 0.2 · 颜色数 2）** —— 它离主光最远、
+            // 又没有房间点光；走廊靠近入口区的方向光，所以只是"偏暗"而不是纯黑。
+            // 这正是本项目反复出现的失效形态：**能力已存在，但没接上**。
+            // （`LevelBuilder.LightRig.cs` 类注释第 24 行原本就写着
+            //   `var rig = LightRig.Build(levelGo.transform, level);  // 布景后建灯` —— 我漏了这一句。）
+            LightRig.Build(transform, level);
         }
 
         public void Clear()
