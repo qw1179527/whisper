@@ -199,6 +199,24 @@ namespace Whisper.Editor
                     Debug.Log($"[RENDER] {roomId}({zone})/{view}/{phase} → {Path.GetFileName(file)} · 亮度 {s.mean:0.0} · 标准差 {s.std:0.0}"
                         + $" · 颜色数 {s.colors} · 洋红 {s.magentaPct:0.000}% · 相对基准变化 {changedPct:0.000}%");
                 }
+
+                // ── 【诊断 · 2026-10-06】主光阴影 A/B：同一次运行内直接对照，不靠推断 ──────────
+                // 背景：`entrance_safe/orbit33` 出现「开灯 1.94 << 关灯 23.69」（中央区均值），
+                // 而**同一取景点关雾时开灯 39.68 > 关灯** —— 说明几何/着色器没问题，
+                // 差异只在"雾 + 开灯"这一组合上。我先后用离线复算验过"雾 lerp 写反""阴影全黑"两个假说，
+                // 三次都与实测对不上 ⇒ 停止推断，改成**同一次运行内做 A/B**：
+                // 把主光的 `shadows` 从 Soft 改成 None（唯一变量），其余全不动，再拍一张。
+                // 判读：若 A/B 两数差很大 → 阴影是主因；若几乎相同 → 阴影无关，继续查别的。
+                // 这比"改配置再等一轮 CI"快一个数量级，而且不会把"猜"写进产品。
+                if (view == "orbit33" && key.type == LightType.Directional)
+                {
+                    var keepShadows = key.shadows;
+                    key.shadows = LightShadows.None;
+                    var sNoShadow = RenderTo(cam, Path.Combine(_outDir, $"{roomId}_{view}_DIAG_noShadow.png"));
+                    key.shadows = keepShadows;
+                    Debug.Log($"[RENDER][诊断] {roomId}/{view} 开灯+默认雾：带阴影 {baseShot.mean:0.00} vs 关阴影 {sNoShadow.mean:0.00}"
+                        + $"（差 {(sNoShadow.mean - baseShot.mean):0.00}）—— 差大 = 阴影是主因，差≈0 = 阴影无关");
+                }
             }
 
             // ── ⑤ 相对判据：光照必须可分辨；雾必须只压暗不提亮 ──
