@@ -107,12 +107,13 @@ namespace Whisper.Editor
             if (rendererData == null)
             {
                 rendererData = ScriptableObject.CreateInstance<UniversalRendererData>();
-                // OnEnable 里 ResourceReloader 会填好默认 shader 资源
                 AssetDatabase.CreateAsset(rendererData, RendererPath);
                 AssetDatabase.SaveAssets();
                 Debug.Log($"[UrpSetup] 新建 RendererData → {RendererPath}");
             }
             else Debug.Log($"[UrpSetup] 复用已有 RendererData → {RendererPath}");
+            // ⚠ **必须**在建好资产之后补资源引用（见方法注释：新建的实例不会走 OnEnable）
+            EnsureRendererResources(rendererData);
 
             // ── ② URP Asset（**必须用官方工厂方法**，官方 API 页明确列出）──
             var urp = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
@@ -153,6 +154,88 @@ namespace Whisper.Editor
                 + $" · MSAA={urp.msaaSampleCount} · HDR={urp.supportsHDR} · renderScale={urp.renderScale}"
                 + $" · shadowDistance={urp.shadowDistance} · cascades={urp.shadowCascadeCount}"
                 + $" · additionalLights={urp.maxAdditionalLightsCount}");
+        }
+
+        /// <summary>
+        /// 补上 UniversalRendererData 的**资源引用**（后处理资源、shader 资源）。
+        ///
+        /// ══════════════════════════════════════════════════════════════════════════════════
+        /// 为什么必须显式做（2026-10-06 逐项 ON/OFF 取证挖到的最底层原因）
+        /// ══════════════════════════════════════════════════════════════════════════════════
+        /// 取证诊断（第 31 轮）：
+        /// ```
+        /// [RENDER][URP诊断] RendererData=UniversalRendererData
+        ///   · postProcessData=**null（后处理会被静默跳过）** · renderingMode=Forward
+        /// ```
+        /// `UniversalRendererData` 的 `OnEnable` 会调
+        /// `ResourceReloader.TryReloadAllNullIn(this, packagePath)` 把 `postProcessData` 等填上 ——
+        /// **但那只在"资产被导入 / 域重载"时发生**。我们用 `CreateInstance` + `CreateAsset`
+        /// 在**运行中的编辑器里**新建它，走不到那条路径 ⇒ 资源保持 null ⇒ **URP 静默跳过整个后处理 pass**。
+        ///
+        /// 后果正是前几轮看到的现象：相机开了后处理、profile 挂上了、6 个组件都在、
+        /// 测量地基可靠（连拍 0.000%），而后处理**一个都不生效、且不报任何错**。
+        ///
+        /// 教训（本项目第 N 次）：「配了 ≠ 生效」。这次失效点在**最底层**：
+        /// 不是效果参数、不是相机开关、不是 profile 挂载，而是"渲染器数据缺资源"。
+        /// ⇒ 排查"效果不生效"应**从最底层的资源引用往上查**，而不是从参数往下猜。
+        ///
+        /// 实现：用官方 `ResourceReloader.TryReloadAllNullIn`（可能是 internal → 反射调用）。
+        /// 它只填**为 null** 的字段、已有值不动 ⇒ 天然幂等、可重复调用。
+        /// 拿不到时**不静默**：打印警告并明确说明后果。
+        /// </summary>
+        static void EnsureRendererResources(UniversalRendererData rendererData)
+        {
+            if (rendererData == null) return;
+            const string urpPackagePath = "Packages/com.unity.render-pipelines.universal";
+            try
+            {
+                System.Type reloader = null;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    reloader = asm.GetType("UnityEditor.Rendering.ResourceReloader", false);
+                    if (reloader != null) break;
+                }
+                if (reloader == null)
+                {
+                    Debug.LogWarning("[UrpSetup] 找不到 ResourceReloader —— 无法补渲染器资源引用；"
+                        + "postProcessData 若为 null，URP 会**静默跳过**后处理（效果全不生效且无报错）");
+                }
+                else
+                {
+                    var m = reloader.GetMethod("TryReloadAllNullIn",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
+                        | System.Reflection.BindingFlags.Static);
+                    if (m == null) Debug.LogWarning("[UrpSetup] ResourceReloader.TryReloadAllNullIn 不存在（版本漂移？）");
+                    else
+                    {
+                        m.Invoke(null, new object[] { rendererData, urpPackagePath });
+                        EditorUtility.SetDirty(rendererData);
+                        AssetDatabase.SaveAssets();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[UrpSetup] 补渲染器资源引用失败：{e.GetType().Name}: {e.Message}"
+                    + " —— 若 postProcessData 仍为 null，后处理会静默不生效");
+            }
+
+            // ── 判决点：postProcessData 为 null 就是"后处理一定不生效" ──
+            var t = rendererData.GetType();
+            var pi = t.GetProperty("postProcessData");
+            object ppd = pi != null ? pi.GetValue(rendererData) : null;
+            if (ppd == null)
+            {
+                var fi = t.GetField("m_PostProcessData",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (fi != null) ppd = fi.GetValue(rendererData);
+            }
+            if (ppd == null)
+                throw new InvalidOperationException(
+                    "[UrpSetup] UniversalRendererData.postProcessData 仍为 null —— "
+                    + "URP 会静默跳过全部后处理（辉光/暗角/色差/颗粒/调色/色调映射一个都不会生效）。"
+                    + "宁可构建失败，也不要产出一个『后处理配了却全不生效』的包。");
+            Debug.Log("[UrpSetup] ✓ RendererData 资源引用齐备（postProcessData 非 null）");
         }
 
         /// <summary>
