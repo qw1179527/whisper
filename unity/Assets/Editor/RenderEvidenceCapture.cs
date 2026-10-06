@@ -654,6 +654,32 @@ namespace Whisper.Editor
                 problems.Add("【阴影质量】URP Asset 上没有可写的 mainLightShadowmapResolution");
                 return;
             }
+            // ── 先做一个**必然可见**的对照：主光阴影 开(Soft) vs 关(None) ─────────────
+            // 【为什么先做这个】分辨率对照实测 0.000%（两轮，QualitySettings 已确认为 Ultra/shadows=All）。
+            // 若"关掉主光阴影"也毫无变化，那结论就是**阴影根本没参与渲染**，
+            // 而不是"分辨率差异太小" —— 这两者的修法完全不同，必须先分开。
+            var keepShadows = mainLight != null ? mainLight.shadows : LightShadows.Soft;
+            if (mainLight != null)
+            {
+                mainLight.shadows = LightShadows.Soft;
+                var shOn = RenderTo(cam, Path.Combine(outDir, "shadow_MainLight_ON.png"), null);
+                mainLight.shadows = LightShadows.None;
+                var shOff = RenderTo(cam, Path.Combine(outDir, "shadow_MainLight_OFF.png"), null);
+                written += 2;
+                double dMain = ChangedPct(shOn.pixels, shOff.pixels);
+                index.AppendLine(string.Join(",", "shadow", "corridor_main", "MainLight_ON",
+                    "shadow_MainLight_ON.png", shOn.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                    shOn.std.ToString("0.00", CultureInfo.InvariantCulture), shOn.colors.ToString(CultureInfo.InvariantCulture),
+                    shOn.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), dMain.ToString("0.000", CultureInfo.InvariantCulture)));
+                Debug.Log($"[RENDER][阴影开关] 主光 Soft vs None 变化 {dMain:0.000}%"
+                    + $"（亮度 {shOn.mean:0.0} vs {shOff.mean:0.0} · 颜色数 {shOn.colors} vs {shOff.colors}）");
+                // 这条**也**用 0.05%：连"有没有阴影"都不可辨，就等于阴影完全没进画面。
+                if (dMain < 0.05)
+                    problems.Add($"【阴影判据不成立】主光阴影 Soft vs None 只变化 {dMain:0.000}%（<0.05%）"
+                        + " —— 阴影完全没有参与渲染（不是分辨率问题，是整条阴影链没生效）");
+                mainLight.shadows = keepShadows;
+            }
+
             int original = (int)prop.GetValue(urp);
             try
             {
