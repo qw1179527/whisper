@@ -823,6 +823,21 @@ namespace Whisper.Editor
                         + $" y[{bb.min.y:0.00},{bb.max.y:0.00}] z[{bb.min.z:0.00},{bb.max.z:0.00}] 部件几何中心y={bb.center.y:0.00}");
                 }
             }
+            {
+                var all = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+                int point = 0, dir = 0, spot = 0, off = 0;
+                var samples = new StringBuilder();
+                foreach (var lt in all)
+                {
+                    if (!lt.enabled || lt.intensity <= 0.001f) { off++; continue; }
+                    if (lt.type == LightType.Point) point++;
+                    else if (lt.type == LightType.Directional) dir++;
+                    else if (lt.type == LightType.Spot) spot++;
+                    if (samples.Length < 150)
+                        samples.Append(lt.name + "=" + lt.intensity.ToString("0.00", CultureInfo.InvariantCulture) + " ");
+                }
+                Debug.Log("[RENDER][灯] 场景灯 " + all.Length + " 盏：点光 " + point + " · 平行光 " + dir + " · 聚光 " + spot + " · 关闭/零强度 " + off + " · 样例 " + samples);
+            }
             Debug.Log($"[RENDER][几何] 空房间 {emptyRooms} / {level.Rooms.Count} 个"
                 + (emptyRooms > 0 ? " —— 空房间在渲染里必然是纯黑（与相机/光照无关）" : ""));
             foreach (var kv in perRoomFirst) Debug.Log($"[RENDER][几何]   父链归属 {kv.Key}: {kv.Value}");

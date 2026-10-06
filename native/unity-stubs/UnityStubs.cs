@@ -547,10 +547,15 @@ namespace UnityEngine
         public static Color Lerp(Color a, Color b, float t) => new Color(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t);
     }
 
+    /// <summary>文档：FindObjectsSortMode — FindObjectsByType 的排序选项。</summary>
+    public enum FindObjectsSortMode { None = 0, InstanceID = 1 }
+
     public partial class Object
     {
         /// <summary>文档：Object.FindObjectOfType — 按类型找场景对象（Unity 6 已过时，但仍在）。</summary>
         public static T FindObjectOfType<T>() where T : Object => default;
+        /// <summary>文档：Object.FindObjectsByType&lt;T&gt;(FindObjectsSortMode) — 取场景中全部同类型对象。</summary>
+        public static T[] FindObjectsByType<T>(FindObjectsSortMode sortMode) where T : Object => System.Array.Empty<T>();
     }
 
     /// <summary>
