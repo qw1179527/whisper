@@ -54,6 +54,15 @@ on:
 
 jobs:
   agent:
+    # ── 权限：清理缓存需要 actions: write（2026-10-06 实测）──────────────────────
+    # 【为什么必须有】默认的 GITHUB_TOKEN 权限不含 actions:write ⇒
+    # `node tools/prune-caches.mjs` 列举缓存时 **403 Resource not accessible by integration**
+    # （实测 #36 日志原文）。而"清理陈旧缓存"正是"编辑器缓存能存下"的前提：
+    # 编辑器 tar 8.2 GB + Library 1.76 GB ≈ 10 GB，正好撞上 GitHub 的 10 GB 上限 ⇒
+    # 不先腾空间，**cache action 会直接不保存**（实测 #36：tar 建好了却没进缓存）。
+    permissions:
+      contents: read
+      actions: write
     name: Unity 任务
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -80,50 +89,47 @@ jobs:
             xvfb x11-utils mesa-utils libgl1-mesa-dri libglu1-mesa libvulkan1 mesa-vulkan-drivers xz-utils
           echo "✓ 显示栈就绪"
 
-      # ── Unity Linux 编辑器：**带缓存**（2026-10-06 加速）────────────────────────
-      # 【实测依据】单次成功作业 11.7 分钟的分步计时：
+      # ── Unity Linux 编辑器：**缓存官方 xz 压缩包**（2026-10-06 加速）────────────
+      # 【实测依据】一次**成功**作业 11.7 分钟的分步计时：
       #   释放磁盘 189s · **编辑器下载解压 269s** · 许可证自检 189s · 真正干活 **31s**
-      # ⇒ 95% 是固定开销。这一步是最大的一块。
+      # ⇒ 95% 是固定开销。
       #
-      # 【为什么之前否决过、现在又能做了】上一版我直接加缓存 —— 那是错的：
-      #   仓库缓存已用 10.55 GB（6 个陈旧 Library 缓存 × 1.76 GB），而上限就是 10 GB，
-      #   加 5~8 GB 的编辑器缓存必然触发 LRU，把**构建用的 Library 缓存挤掉**（得不偿失）。
-      #   ⇒ 正确顺序是：**先清理陈旧缓存腾出空间，再加编辑器缓存**（配套的清理步骤见文件末尾）。
+      # 【为什么缓存官方 xz 而不是"解压后再打包"】我第一版把解压后的 /opt/unity 重打成 tar
+      # ⇒ **8.2 GB**，而 GitHub 每仓库缓存上限 10 GB，加上 Library 缓存(1.76 GB)正好撞顶
+      # ⇒ **cache action 直接拒绝保存**（实测 #36：tar 建好了、日志里出现 Cache not found、
+      #   作业结束 0.0s —— 缓存压根没存）。而官方的 Unity-<ver>.tar.xz **本身就是 4.5 GB**，
+      # 缓存它既省空间、又不需要额外压缩工具，还能与 Library 缓存共存（4.5+1.76 ≈ 6.3 GB）。
+      # 代价：每次仍要解压（约 60~90s），但省掉 4.5 GB 下载（约 180s）⇒ 净赚。
       #
-      # ⚠ key 带版本号且**不设 restore-keys**：编辑器版本必须精确匹配，
+      # ⚠ key 带版本号且**不设 restore-keys**：编辑器必须精确匹配版本，
       #   宁可 miss 重下，也不要拿"版本接近"的编辑器去跑（那会产出难以解释的失败）。
-      - name: Unity 编辑器缓存（命中则跳过 4.5GB 下载 + 解压）
+      - name: Unity 编辑器缓存（命中则省 4.5GB 下载）
         id: unitycache
         uses: actions/cache@v4
         with:
-          path: .unity-editor-cache/unity-editor.tar
-          key: unity-editor-6000.3.25f1-e1dba0a9aba4-v2
+          path: dl/editor.tar.xz
+          key: unity-editor-xz-6000.3.25f1-e1dba0a9aba4-v1
 
       - name: 下载并解压 Unity Linux 编辑器
         run: |
           set -e
           VER=6000.3.25f1; HASH=e1dba0a9aba4
           BASE="https://download.unity3d.com/download_unity/${HASH}"
-          CACHE="${GITHUB_WORKSPACE}/.unity-editor-cache/unity-editor.tar"
-          mkdir -p dl "${GITHUB_WORKSPACE}/.unity-editor-cache"
+          mkdir -p dl
           sudo mkdir -p /opt/unity
-          if [ -x /opt/unity/Editor/Unity ]; then
-            echo "✓ 编辑器已就位（缓存命中）→ 跳过本步"
-          elif [ -f "${CACHE}" ]; then
-            echo "缓存命中 → 只需解压（替代 269s 的下载+解压）"
-            time sudo tar -xf "${CACHE}" -C /opt/unity
-            test -x /opt/unity/Editor/Unity || { echo "::error::缓存里的编辑器不可用"; exit 1; }
+          if [ -s dl/editor.tar.xz ]; then
+            S=$(stat -c%s dl/editor.tar.xz)
+            echo "✓ 缓存命中（${S} 字节）→ 跳过 4.5GB 下载"
+            # 体积校验照做：缓存损坏时必须当场发现，而不是让后面报一个看不懂的错
+            test "$S" -eq 4536554312 || { echo "::error::缓存里的包体积不符 $S → 删掉重下"; rm -f dl/editor.tar.xz; exit 1; }
           else
             echo "缓存未命中 → 下载 4.5GB（本次较慢，下次命中）"
             time curl -fL --retry 3 -o dl/editor.tar.xz "${BASE}/LinuxEditorInstaller/Unity-${VER}.tar.xz"
             S=$(stat -c%s dl/editor.tar.xz)
             test "$S" -eq 4536554312 || { echo "::error::体积不符 $S"; exit 1; }
-            time sudo tar -xJf dl/editor.tar.xz -C /opt/unity
-            test -x /opt/unity/Editor/Unity || { echo "::error::没有 /opt/unity/Editor/Unity"; exit 1; }
-            # 存一份未压缩 tar 供下次缓存（cache 对目录逐文件处理，单文件更快）
-            time sudo tar -cf "${CACHE}" -C /opt unity
-            echo "✓ 缓存源已写入 $(du -sh "${CACHE}" | cut -f1)"
           fi
+          time sudo tar -xJf dl/editor.tar.xz -C /opt/unity
+          test -x /opt/unity/Editor/Unity || { echo "::error::没有 /opt/unity/Editor/Unity"; exit 1; }
           echo "✓ $(du -sh /opt/unity | cut -f1)"
 
       - name: Android Build Support（出包/部分取证需要）
@@ -330,16 +336,16 @@ jobs:
       # 后果：任何新缓存（如 Unity 编辑器）一加进来就触发 LRU，把 Library 挤掉 ——
       # 构建时长变差且不可预测。
       #
-      # 策略：同前缀只留**最近 1 个**（前缀匹配命中的就是最近那个；更早的本就命中不到精确 key）。
+      # 策略：**同前缀全部清掉**（前缀匹配命中的就是最近那个；更早的本就命中不到精确 key）。
       # 逻辑抽在 tools/prune-caches.mjs：workflow 只留一行调用，且该脚本**本机可跑可测**。
       # ⚠ 第一版把清理逻辑（含多行 Python）直接写进 run: 块 → **YAML 解析失败**
       #   （块内换行让 import 语句被当成新键）。这就是抽成脚本的直接原因。
-      - name: 清理陈旧 Library 缓存（只留最近 1 个）
+      - name: 清理陈旧 Library 缓存（腾空间给编辑器缓存）
         if: always()
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node tools/prune-caches.mjs --prefix Library-Android-v2- --keep 1
+        run: node tools/prune-caches.mjs --prefix Library-Android-v2- --keep 0
       - name: 上传产物（PNG/XML/APK/日志）
         if: always()
         uses: actions/upload-artifact@v4
