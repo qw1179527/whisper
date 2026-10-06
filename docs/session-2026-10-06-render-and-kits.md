@@ -165,3 +165,67 @@
 而日志显示那次构建实际走的是 **IL2CPP** 的 Bee 管线（`Prj/IL2CPP/...`）。
 ⇒ 待查：`WHISPER_DEV_MONO=1` 是否真的传到了 `BuildConfigurator`，以及产物落点是否一致。
 **不在当前关键路径上**（取证与出货包都不走它），但它挡住了"手机端 Mono 热插拔"这条路。
+
+---
+
+# 附二：ShadowCaster 缺 bias（全黑真因）· 材质层（"PBR 混合用"的落点）
+
+## 十、全黑根因：ShadowCaster pass 少了 shadow bias（我上一轮引入的）
+
+**症状**：`entrance_safe/orbit33/lightOn_fogDefault` 判为全黑（亮度 2.9 · 颜色数 2），
+且**开灯 2.9 < 关灯 17.6** —— 开灯反而更暗，自相矛盾。
+
+**我是怎么绕了三圈才找到的（这段比结论值钱）**：
+| 轮次 | 我的假说 | 离线复算预测 | 实测 | 结论 |
+|---|---|---|---|---|
+| 1 | 雾 `lerp` 参数写反 | —— | 修完数值**一字不差** | 不是它（但那个 bug 是真的，已修） |
+| 2 | 阴影 `shadowAttenuation=0` | 开灯 22.3 | 1.94 | 对不上 |
+| 3 | 相机在几何内部/被裁剪 | 相机实测 pos(8.4,6.5,−5) forward(−0.60,−0.52,0.61) mask=−1 | —— | 排除 |
+| 4 | **同轮 A/B**（把主光 shadows 由 Soft 改 None，其余不动） | —— | **带阴影 2.93 vs 关阴影 17.92** | **命中** |
+
+⇒ **教训**：我把 `shadow` 当干净的 0/1 代进公式，两次都对不上实测 ——
+因为真实发生的是"阴影贴图深度错位 → 大面积误判"，不是一个 0/1。
+**推断到第二次对不上时就该停止，改成同轮测量**（A/B 一次定位，成本还比再猜一轮低）。
+
+**根因**：我按官方迁移清单"补 ShadowCaster pass"时写成了最朴素的
+`positionCS = TransformObjectToHClip(positionOS.xyz)`，**漏掉 shadow bias**。
+官方 `ShadowCasterPass.hlsl` 里的 `ApplyShadowBias` 正是这一段；漏了它，
+几何就把自己投进自己的阴影，主光贡献整片归零。
+
+**为什么"关灯"反而是亮的**：关灯时 `lightTerm = 0`，像素走 `albedo × ambient`（≈17.6）；
+开灯时走 `albedo × (ambient + lightTerm × shadow)`，而 `shadow ≈ 0` ⇒ 比关灯还暗。
+
+## 十一、材质层：用户说的"PBR 混合用"
+
+**先纠正一个常见误解**：`LevelBuilder.GeometryShader` **首选就是 PBR**（`Whisper/LitPbr`），
+`Whisper/UnlitColor` 只是编译失败时的回退。所以"着色器有没有混合用"—— 早就是了。
+
+**真正的缺口在材质层**：每个部件都是 `new Material(PBR){ color = 平面色 }` ——
+`_Metallic`/`_Glossiness` 全默认值、**没有任何贴图**。
+于是金属不像金属、玻璃不像玻璃、木裙线不像木（这就是"上色不行"的第二层根因）。
+
+**关键事实（实测，决定了实现方式）**：GLB 的**节点名**才是部件语义，材质名太粗 ——
+```
+role_trim     318 个节点   ← 墙裙/顶角线/门套/窗套 全在同一组
+role_detail   128 个节点
+role_structure 111 个节点
+```
+只按材质名选不出材质 ⇒ 必须按**节点名**判角色。
+
+**实现链（每环都落到了代码）**：
+```
+GLB 节点名  →  GlbReader.Primitive.NodeName      （遍历节点时记下）
+            →  KitMeshLibrary.GetPartNames        （与 GetParts 同序）
+            →  LevelPalette.MaterialRoleOf        （纯逻辑层判 13 种角色）
+            →  LevelBuilder.FamilyForRole         （Unity 侧翻成 7 个材质族）
+            →  ProceduralTextures.Get(family)     （程序化细节/法线/遮蔽贴图 + PBR 参数）
+            →  Material（按 族+色+自发光 缓存，不是每部件一份）
+```
+角色：floor / drain / ceiling / beam / light / skirt / wall / pipe /
+doorframe / window / radiator / rack / unknown。
+
+**一处架构纠正（值得记住）**：`MaterialFamily` 枚举原本住在 `Gameplay/Render`，
+而 `LevelPalette` 属于**纯逻辑层**（`native/csharp-verify` 链接它做真编译真跑断言），
+那个工程**不包含**依赖 UnityEngine 的 Render 层 ⇒ 引用即 CS0234。
+最终做法：**让纯逻辑层只返回角色名字符串**，由 Unity 侧翻译成材质族 ——
+依赖方向干净（Level 不反向依赖 Render），且枚举只有一份定义。
