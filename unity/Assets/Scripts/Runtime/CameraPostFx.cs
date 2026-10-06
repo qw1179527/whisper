@@ -107,7 +107,9 @@ namespace Whisper.Runtime
             object fxaa = null;
             foreach (var name in new[] { "FastApproximateAntialiasing", "FXAA", "FastApproximate" })
             {
-                try { fxaa = System.Enum.Parse(modeType, name); break; } catch { }
+                // 期望路径：名字不匹配会抛 ArgumentException，那是**预期内**的探测失败，不是错误
+                try { fxaa = System.Enum.Parse(modeType, name); break; }
+                catch (ArgumentException) { /* 该名字不在这个枚举里，试下一个 */ }
             }
             if (fxaa == null)
             {
@@ -121,7 +123,9 @@ namespace Whisper.Runtime
             if (q != null && q.CanWrite)
             {
                 object med = null;
-                try { med = System.Enum.Parse(q.PropertyType, "Medium"); } catch { }
+                // 同上：质量档名可能随版本变化，取不到就保持默认（不算失败）
+                try { med = System.Enum.Parse(q.PropertyType, "Medium"); }
+                catch (ArgumentException) { /* 无 Medium 档则保持引擎默认 */ }
                 if (med != null) q.SetValue(data, med);
             }
         }
