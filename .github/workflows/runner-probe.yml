@@ -1,0 +1,23 @@
+# runner-probe —— **临时**诊断用：判断"账户能否拿到 runner"
+#
+# 【为什么存在】2026-10-06 15:45 起 `unity-agent` 连续 4 次在 **2 秒内失败、runner_id=0、steps=[]**；
+#
+#   ⇒ 症状是"**没能分配到 runner**"，而不是"任务跑失败"。
+#   本文件用一个**最小作业**做对照实验：
+#     · 本探针**能**跑 → 账户/额度正常，问题在 `unity-agent` 的 workflow 定义
+#     · 本探针**也** 2 秒失败 → 账户级问题（额度/限额），与 workflow 无关
+#   定论后**立即删除本文件**（它不是产品的一部分）。
+name: runner-probe
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    name: 探测 runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 打印环境
+        run: |
+          echo "PROBE OK"
+          uname -a
+          echo "runner=$RUNNER_NAME os=$RUNNER_OS"
