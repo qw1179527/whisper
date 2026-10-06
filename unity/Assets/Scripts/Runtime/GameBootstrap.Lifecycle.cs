@@ -48,6 +48,12 @@ namespace Whisper.Runtime
             // 刻意不设 tag="MainCamera"：渲染不需要它，而它依赖 TagManager
             // （本工程同样没有 ProjectSettings 真源）——启动期不为零收益的东西引入风险。
             _camera = camGo.GetComponent<Camera>();
+            // ── 【2026-10-06 真缺陷修复】把主相机接进 URP 后处理 ─────────────────────
+            // 全仓此前**零引用** `renderPostProcessing`（URP 默认 false）⇒
+            // UrpSetup 配的 6 个 Volume 效果（辉光/暗角/色差/颗粒/调色/色调映射）
+            // **一个都没生效**。逐项 ON/OFF 取证实测：6 项全部 0.000%。
+            // 详见 CameraPostFx.cs 的说明（含"配了 ≠ 生效"这条失效形态的记录）。
+            CameraPostFx.Enable(_camera, needDepth: true);
             _camera.clearFlags = CameraClearFlags.SolidColor;
             _camera.backgroundColor = HexToColor(DesignTokens.ColorInk);   // 墨色背景，走廊尽头不至于惨白
             _camera.fieldOfView = 70f;

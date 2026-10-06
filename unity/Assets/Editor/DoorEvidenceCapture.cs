@@ -89,6 +89,9 @@ namespace Whisper.Editor
             // ── 相机 ──
             var camGo = new GameObject("DoorCam");
             var cam = camGo.AddComponent<Camera>();
+            // 取证相机同样必须接 URP 后处理：否则"取证看不到后处理"会被误读成
+            // "后处理无效" —— 那是假证据（2026-10-06 逐项 ON/OFF 判据抓到的正是这个）。
+            Whisper.Runtime.CameraPostFx.Enable(cam);
             cam.fieldOfView = 60f;
             cam.nearClipPlane = 0.05f;
             cam.farClipPlane = 200f;

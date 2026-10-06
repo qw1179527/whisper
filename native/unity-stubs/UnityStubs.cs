@@ -1231,6 +1231,37 @@ namespace UnityEngine.Rendering.Universal
     {
         public ClampedFloatParameter intensity = new ClampedFloatParameter();
     }
+
+    /// <summary>
+    /// 文档：UniversalAdditionalCameraData — URP 的**逐相机**设置（挂在相机上）。
+    /// https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@17.0/api/UnityEngine.Rendering.Universal.UniversalAdditionalCameraData.html
+    ///
+    /// 【为什么补这个桩 · 这条是本轮抓到的真缺陷的核心】
+    /// `renderPostProcessing` **默认 false** —— URP 里"相机是否参与后处理"由它决定。
+    /// 本工程此前**全仓零引用**，于是 6 个 Volume 效果全都配了、却一个都没生效
+    /// （逐项 ON/OFF 取证实测：6 项全部 0.000%）。
+    /// 补桩后本机门禁会真校验这个成员名，而不是归入"允许的 Unity 缺失"——
+    /// 拼错它的后果是"后处理永远不生效"，属于最难查的一类静默失效。
+    /// </summary>
+    public class UniversalAdditionalCameraData : MonoBehaviour
+    {
+        public bool renderPostProcessing { get; set; }
+        public bool requiresDepthTexture { get; set; }
+        public bool requiresColorTexture { get; set; }
+        public AntialiasingMode antialiasing { get; set; }
+    }
+
+    /// <summary>文档：AntialiasingMode — 相机级抗锯齿（None / FXAA / SMAA / TAA）。</summary>
+    public enum AntialiasingMode { None = 0, FastApproximateAntialiasing = 1, SubpixelMorphologicalAntiAliasing = 2, TemporalAntiAliasing = 3 }
+
+    /// <summary>
+    /// 文档：CameraExtensions.GetUniversalAdditionalCameraData(Camera) — URP 官方扩展方法。
+    /// **没有就自动加、有就返回现有的**（天然幂等）；自己 AddComponent 会在 URP 已加过时得到第二个实例。
+    /// </summary>
+    public static class CameraExtensions
+    {
+        public static UniversalAdditionalCameraData GetUniversalAdditionalCameraData(this Camera camera) => null;
+    }
 }
 
 namespace UnityEngine.EventSystems
