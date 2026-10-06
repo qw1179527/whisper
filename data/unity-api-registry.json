@@ -314,6 +314,10 @@
     "AssetDatabase.GUIDToAssetPath": {
       "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/AssetDatabase.GUIDToAssetPath.html",
       "note": "FindAssets 返回 GUID，需转成路径才能 LoadAssetAtPath"
+    },
+    "LightType.Point": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/LightType.html",
+      "note": "灯类型枚举（点光/平行光/聚光）—— 诊断场景实际有几盏灯要用"
     }
   }
 }
