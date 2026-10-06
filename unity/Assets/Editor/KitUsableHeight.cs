@@ -89,9 +89,28 @@ namespace Whisper.Editor
             }
             if (kit != null && TryGet(kit, out var range))
             {
-                if (range.Height >= 1.2f)
-                    return range.Center + range.Height * 0.18f;   // 中部偏上
-                return range.Center;                              // 极矮套件：就取中心
+                // ══════════════════════════════════════════════════════════════════
+                // 【2026-10-06 更正：我在这上面栽了一整条错误链路，代价 5 轮 CI】
+                // 我原先假定两件事，**两件都错**：
+                //   ① "glTF 是 Y-up，所以 accessor 的 Y 是高度" —— 错。
+                //      实测（Blender 世界 Z + 部件命名交叉验证）：`skirt_*`（踢脚线）Z∈[-0.01,0.10]、
+                //      `cornice_*`/`ceiling` 在 Z≈3.1 ⇒ **垂直轴是 Z**。
+                //      我把 `morgue` 高度读成 **1.69m** —— 那是它的**水平进深**。
+                //   ② "套件原点在几何中心、上下对称" —— 也错。实测 yMin≈0 ⇒ **原点在底面**。
+                //
+                // 由此连锁出的假结论（**全部作废**）：
+                //   · `kit-heights.json` 33 个套件高度全错（量的是水平尺寸）
+                //   · "房间↔套件高度不匹配"审计报的 3 个缺陷是我自己造的
+                //   · 为绕开假高度把相机放到 y=0.30（荒谬高度）
+                //   · 而 morgue 纯黑的真因**始终没被碰到**
+                //
+                // 现在数据由 `tools/measure_kit_heights.py` 用 Blender 量**世界 Z** 生成。
+                // 取景口径回到最朴素的那个：**人眼 1.6m**，再夹进套件竖向范围内。
+                // ══════════════════════════════════════════════════════════════════
+                const float HumanEyeM = 1.60f;
+                float lo = range.YMin, hi = range.YMax;
+                if (hi - lo < 0.8f) return (lo + hi) * 0.5f;   // 极矮构件：取中部
+                return Mathf.Clamp(HumanEyeM, lo + 0.3f, hi - 0.3f);
             }
             return Mathf.Max(0.6f, declaredRoomHeightM * 0.5f);
         }
@@ -108,6 +127,7 @@ namespace Whisper.Editor
             foreach (var r in level.Rooms)
             {
                 if (!TryGet(r.Kit, out var range)) continue;
+                // 套件原点在**底面**（实测 yMin≈0）⇒ 可用高度就是套件自身高度，与房间声明高度直接比。
                 float gap = r.SizeY - range.Height;
                 if (gap > toleranceM)
                     problems.Add($"房间 {r.Id}（kit={r.Kit}）声明高 {r.SizeY:0.00}m，"

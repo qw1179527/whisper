@@ -1,134 +1,464 @@
 {
   "Hall_Barrel": {
     "yMin": 0,
-    "yMax": 0.893
+    "yMax": 0.893,
+    "height": 0.893,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.3074,
+      0.3074
+    ],
+    "yRange": [
+      -0.7474,
+      -0.1326
+    ]
   },
   "Hall_CrateWood": {
-    "yMin": -0.302,
-    "yMax": 0.302
+    "yMin": -0.3018,
+    "yMax": 0.3018,
+    "height": 0.6036,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.3018,
+      0.3018
+    ],
+    "yRange": [
+      -0.3015,
+      0.3015
+    ]
   },
   "Hall_DuctSection": {
     "yMin": -0.33,
-    "yMax": 0.33
+    "yMax": 0.33,
+    "height": 0.66,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.145,
+      1.145
+    ],
+    "yRange": [
+      -0.344,
+      0.21
+    ]
   },
   "Hall_ElectricPanel": {
     "yMin": -0.125,
-    "yMax": 0.08
+    "yMax": 0.08,
+    "height": 0.205,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.2355,
+      0.23
+    ],
+    "yRange": [
+      -0.336,
+      0.31
+    ]
   },
   "Hall_IBeamColumn": {
     "yMin": 0,
-    "yMax": 3.1
+    "yMax": 3.1,
+    "height": 3.1,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.17,
+      0.17
+    ],
+    "yRange": [
+      -1.72,
+      -1.38
+    ]
   },
   "Hall_LampIndustrial": {
     "yMin": 0,
-    "yMax": 1.076
+    "yMax": 1.0755,
+    "height": 1.0755,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.2984,
+      0.2984
+    ],
+    "yRange": [
+      0.1266,
+      0.7234
+    ]
   },
   "Hall_PalletWood": {
     "yMin": 0,
-    "yMax": 0.066
+    "yMax": 0.066,
+    "height": 0.066,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.6,
+      0.6
+    ],
+    "yRange": [
+      -0.455,
+      0.345
+    ]
   },
   "Hall_PipeFlange": {
     "yMin": -0.115,
-    "yMax": 0.115
+    "yMax": 0.115,
+    "height": 0.23,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.208,
+      1.208
+    ],
+    "yRange": [
+      -0.2,
+      0.115
+    ]
   },
   "Hall_RackBeam": {
-    "yMin": -0.034,
-    "yMax": 0.034
+    "yMin": -0.0338,
+    "yMax": 0.0338,
+    "height": 0.0675,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.203,
+      1.203
+    ],
+    "yRange": [
+      -0.0608,
+      0.0608
+    ]
   },
   "Hall_RackUpright": {
-    "yMin": 0,
-    "yMax": 1.802
+    "yMin": 0.042,
+    "yMax": 1.8441,
+    "height": 1.8021,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.066,
+      0.066
+    ],
+    "yRange": [
+      -1.356,
+      -1.328
+    ]
   },
   "bed_b": {
-    "yMin": -0.26,
-    "yMax": 0.26
+    "yMin": 0,
+    "yMax": 0.8,
+    "height": 0.8,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.45,
+      0.45
+    ],
+    "yRange": [
+      -1,
+      1
+    ]
   },
   "cabinet_a": {
-    "yMin": -0.58,
-    "yMax": 0.58
+    "yMin": -0.01,
+    "yMax": 1.25,
+    "height": 1.26,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -0.4,
+      0.4
+    ],
+    "yRange": [
+      -0.25,
+      0.25
+    ]
   },
   "hall_main": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -9,
+      9
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "hall_main_corridor2_f1": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1,
+      1
+    ],
+    "yRange": [
+      -2,
+      2
+    ]
   },
   "hall_main_corridor_f0": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -4,
+      4
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "hall_main_corridor_f1": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -4,
+      4
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "hall_main_corridor_link": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -2,
+      2
+    ],
+    "yRange": [
+      -1,
+      1
+    ]
   },
   "hall_main_corridor_main_f1": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -11,
+      11
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "hall_main_corridor_ward": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -7.5,
+      7.5
+    ],
+    "yRange": [
+      -0.5,
+      0.5
+    ]
   },
   "hall_main_entrance_safe": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -2,
+      2
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "hall_main_hall_main": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -3.5,
+      3.5
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "hall_main_lobby": {
-    "yMin": -1.705,
-    "yMax": 1.705
+    "yMin": -0.1,
+    "yMax": 3.4955,
+    "height": 3.5955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.5,
+      1.5
+    ],
+    "yRange": [
+      -4,
+      4
+    ]
   },
   "hospital_ward": {
-    "yMin": -1.705,
-    "yMax": 1.705
+    "yMin": -0.1,
+    "yMax": 3.4955,
+    "height": 3.5955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.5,
+      1.5
+    ],
+    "yRange": [
+      -2,
+      2
+    ]
   },
   "hospital_ward_bath": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.5,
+      1.5
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "hospital_ward_bedroom": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.5,
+      1.5
+    ],
+    "yRange": [
+      -2,
+      2
+    ]
   },
   "hospital_ward_kitchen": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.5,
+      1.5
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "hospital_ward_kitchen_f0": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -4,
+      4
+    ],
+    "yRange": [
+      -2,
+      2
+    ]
   },
   "hospital_ward_master_f1": {
-    "yMin": -1.455,
-    "yMax": 1.455
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1,
+      1
+    ],
+    "yRange": [
+      -2,
+      2
+    ]
   },
   "morgue": {
-    "yMin": -0.845,
-    "yMax": 0.845
+    "yMin": -0.1,
+    "yMax": 3.1955,
+    "height": 3.2955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1,
+      1
+    ],
+    "yRange": [
+      -1.5,
+      1.5
+    ]
   },
   "morgue_attic_f1": {
-    "yMin": -0.845,
-    "yMax": 0.845
+    "yMin": -0.1,
+    "yMax": 2.9955,
+    "height": 3.0955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -2,
+      2
+    ],
+    "yRange": [
+      -2,
+      2
+    ]
   },
   "morgue_boiler": {
-    "yMin": -0.845,
-    "yMax": 0.845
+    "yMin": -0.1,
+    "yMax": 3.4955,
+    "height": 3.5955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.5,
+      1.5
+    ],
+    "yRange": [
+      -4,
+      4
+    ]
   },
   "morgue_garage": {
-    "yMin": -0.845,
-    "yMax": 0.845
+    "yMin": -0.1,
+    "yMax": 3.1955,
+    "height": 3.2955,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -2,
+      2
+    ],
+    "yRange": [
+      -2,
+      2
+    ]
   },
   "truck_eurocargo": {
     "yMin": 0,
-    "yMax": 3.52
+    "yMax": 3.52,
+    "height": 3.52,
+    "upAxis": "Z(Blender world)",
+    "xRange": [
+      -1.35,
+      1.35
+    ],
+    "yRange": [
+      -7.62,
+      1.5325
+    ]
   }
 }
