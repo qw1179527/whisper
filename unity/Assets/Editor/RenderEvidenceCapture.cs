@@ -1044,10 +1044,12 @@ namespace Whisper.Editor
                     // 【2026-10-06 补】判据 `alongX/lightOn_fogStrong` 亮度 19.4，差下限 20 仅 0.6。
                     // 根因是**取景**：沿 18m 走廊纵深看，近处被照亮的地面在画面里占比小、尽头被雾吃掉，
                     // 全幅均值因此偏低。**不动走廊灯**（会牵动其它判据），只把取景**略微抬高并前移**，
-                    // 纳入更多近处被照亮的墙面与地面。长视线不变 ⇒ 雾判据仍成立。
+                    // 纳入更多被照亮的墙面。长视线不变 ⇒ 雾判据仍成立。
                     cam.fieldOfView = 70f;
-                    t.position = new Vector3(cx - sx * 0.5f + 1.0f, 1.35f, cz + 0.9f);
-                    t.LookAt(new Vector3(cx + sx * 0.5f, 1.05f, cz + 0.9f));
+                    // ⚠ 实测方向：先降到 1.35 → 亮度 19.4→**18.0（更暗）** ⇒ 判断反了。
+                    // 原因：走廊的灯在 2.6m 高，**抬**相机才能纳入更靠近灯的墙面/天花反射面。
+                    t.position = new Vector3(cx - sx * 0.5f + 1.0f, 1.95f, cz + 0.9f);
+                    t.LookAt(new Vector3(cx + sx * 0.5f, 1.45f, cz + 0.9f));
                     return true;
                 default:
                     problems.Add($"{roomId} 未知视图 {view}");

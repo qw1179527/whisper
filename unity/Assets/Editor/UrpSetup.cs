@@ -351,8 +351,27 @@ namespace Whisper.Editor
             // ⇒ **我验错了对象**：内存实例与已保存资产在 CreateInstance/Rebuild 后可能不是同一份。
             // 正解：**以盘上的资产为准**（那才是后续所有流程真正会加载的东西）。
             // 这与"配了 ≠ 生效"同族：**要验的是最终被使用的那个对象**。
-            var asset = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
-            var target = asset != null ? asset : rendererData;
+            // 先试**从 URP Asset 的渲染器列表里取**（那是管线真正会用的那份）；
+            // 取不到再退回按路径加载。原先只按路径加载 ⇒ 可能核对到另一个实例。
+            object target = null;
+            try
+            {
+                var urpAsset = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
+                if (urpAsset != null)
+                {
+                    var f = urpAsset.GetType().GetField("m_RendererDataList",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    var arr = f != null ? f.GetValue(urpAsset) as Array : null;
+                    if (arr != null)
+                        foreach (var x in arr) if (x != null) { target = x; break; }
+                }
+            }
+            catch { /* 取不到就走下面的回退 */ }
+            if (target == null)
+            {
+                var asset = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
+                target = asset != null ? asset : (object)rendererData;
+            }
             var t = target.GetType();
             object ppd = null;
             var pi = t.GetProperty("postProcessData");
