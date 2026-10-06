@@ -1,0 +1,289 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+
+namespace Whisper.Editor
+{
+    /// <summary>
+    /// URP 17 的**代码真源**：创建并挂载 `UniversalRenderPipelineAsset` + `UniversalRendererData`，
+    /// 填充 Volume Profile，并按"室内黑场恐怖 + 手机"配置画质档。
+    ///
+    /// ══════════════════════════════════════════════════════════════════════════════════
+    /// 为什么必须有这个脚本（不是"想升级"，是画质链的**根因**）
+    /// ══════════════════════════════════════════════════════════════════════════════════
+    /// 实测（2026-10-06）：`unity/ProjectSettings/GraphicsSettings.asset:40`
+    /// = `m_CustomRenderPipeline: {fileID: 0}` —— **没有分配任何 Render Pipeline Asset**，
+    /// 所以尽管 `com.unity.render-pipelines.universal@17.0.3` 在依赖里，**实际跑的是 Built-in**。
+    /// 官方定义：`GraphicsSettings.defaultRenderPipeline` 为 null 时默认管线即 Built-in。
+    ///
+    /// 后果（用户点名的 24 项画质）：抗锯齿/TAA、辉光、体积光、色差、颗粒、阴影质量、反射/折射
+    /// 这**一整片在架构上够不着** —— 它们全是 URP 的 Volume / renderer feature 能力。
+    /// 同时 `QualitySettings` 的当前档是 Very Low（`shadows: 0`、`pixelLightCount: 0`），
+    /// 连"手电筒照亮房间"都做不到。
+    ///
+    /// ══════════════════════════════════════════════════════════════════════════════════
+    /// 为什么是 Editor 脚本而不是手写 .asset（**这条不能妥协**）
+    /// ══════════════════════════════════════════════════════════════════════════════════
+    /// `unity/ProjectSettings/README.md` 明令："**不要手工创建 .asset/.unity/.meta 文件
+    /// （GUID 会错，Unity 打开即报错）**"。URP Asset / Renderer Data / Volume Profile 全是 .asset，
+    /// 所以只能由编辑器生成。本机没有 Unity Editor ⇒ 由云端 CI 的 `-executeMethod` 跑本脚本。
+    ///
+    /// ══════════════════════════════════════════════════════════════════════════════════
+    /// 设计纪律（对应本项目反复踩过的坑）
+    /// ══════════════════════════════════════════════════════════════════════════════════
+    /// ① **幂等**：已存在就复用（按路径 load），不重复创建 —— 否则每跑一次 CI 就多一个资产。
+    /// ② **只读字段找不到就抛异常，绝不静默跳过**：URP 17 里 `supportsMainLightShadows` 等一大票
+    ///    属性只有 getter，必须走 `SerializedObject` 改**序列化字段名**；而字段名会随版本漂移
+    ///    （官方源码里已有 `[Obsolete]` 的先例）。静默跳过 = "配了个看起来对、实际没生效的管线"，
+    ///    正是本项目最忌讳的"构建成功但产品不对"。找不到就 FAIL 并把真实字段名打进日志。
+    /// ③ **最后必须断言 `GraphicsSettings.currentRenderPipeline != null` 且类型正确**：
+    ///    这是唯一可信的"真的生效了"证据，也是本脚本的判决点。
+    /// ④ 数值全部标注为**工程建议**（官方只给"往哪调"的方向与少数平台硬条件），
+    ///    出处见 `docs/reference-urp17-setup.md` §10.2——不要把建议值当成官方推荐值引用。
+    /// </summary>
+    public static class UrpSetup
+    {
+        const string SettingsDir  = "Assets/Settings";
+        const string RendererPath = SettingsDir + "/WhisperUniversalRenderer.asset";
+        const string PipelinePath = SettingsDir + "/WhisperURPAsset.asset";
+        const string VolumePath   = "Assets/DefaultVolumeProfile.asset";
+
+        [MenuItem("Whisper/配置 URP 渲染管线（画质链根因修复）")]
+        public static void ConfigureUrp()
+        {
+            if (!AssetDatabase.IsValidFolder(SettingsDir))
+                AssetDatabase.CreateFolder("Assets", "Settings");
+
+            // ── ① Renderer Data ──
+            var rendererData = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
+            if (rendererData == null)
+            {
+                rendererData = ScriptableObject.CreateInstance<UniversalRendererData>();
+                // OnEnable 里 ResourceReloader 会填好默认 shader 资源
+                AssetDatabase.CreateAsset(rendererData, RendererPath);
+                AssetDatabase.SaveAssets();
+                Debug.Log($"[UrpSetup] 新建 RendererData → {RendererPath}");
+            }
+            else Debug.Log($"[UrpSetup] 复用已有 RendererData → {RendererPath}");
+
+            // ── ② URP Asset（**必须用官方工厂方法**，官方 API 页明确列出）──
+            var urp = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
+            if (urp == null)
+            {
+                urp = UniversalRenderPipelineAsset.Create(rendererData);
+                AssetDatabase.CreateAsset(urp, PipelinePath);
+                AssetDatabase.SaveAssets();
+                Debug.Log($"[UrpSetup] 新建 URP Asset → {PipelinePath}");
+            }
+            else Debug.Log($"[UrpSetup] 复用已有 URP Asset → {PipelinePath}");
+
+            // 渲染器列表（只读属性 → 走序列化字段）
+            AssignRendererData(urp, rendererData);
+            ConfigureRendererData(rendererData);
+            ConfigurePipelineSettings(urp);
+            FillDefaultVolumeProfile(urp);
+
+            EditorUtility.SetDirty(urp);
+            EditorUtility.SetDirty(rendererData);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            // ── ③ 挂载：默认管线 + 当前质量档 override ──
+            GraphicsSettings.defaultRenderPipeline = urp;
+            QualitySettings.renderPipeline = urp;
+
+            // ── ④ 判决点：currentRenderPipeline 是唯一可信的"生效"证据 ──
+            var active = GraphicsSettings.currentRenderPipeline;
+            if (active == null)
+                throw new InvalidOperationException(
+                    "[UrpSetup] URP 未生效：GraphicsSettings.currentRenderPipeline == null（仍是 Built-in）");
+            if (!(active is UniversalRenderPipelineAsset))
+                throw new InvalidOperationException(
+                    $"[UrpSetup] 生效的管线类型不是 URP，而是 {active.GetType().FullName}");
+
+            Debug.Log($"[UrpSetup] ✓ active render pipeline = {active.name} ({active.GetType().FullName})"
+                + $" · MSAA={urp.msaaSampleCount} · HDR={urp.supportsHDR} · renderScale={urp.renderScale}"
+                + $" · shadowDistance={urp.shadowDistance} · cascades={urp.shadowCascadeCount}"
+                + $" · additionalLights={urp.maxAdditionalLightsCount}");
+        }
+
+        /// <summary>
+        /// 把 RendererData 挂进 URP Asset 的渲染器列表。
+        /// 为什么走 SerializedObject：`rendererDataList` 在 URP 17 是 `ReadOnlySpan&lt;ScriptableRendererData&gt;`
+        /// ⇒ **没有 setter**，只能改 `m_RendererDataList` 字段。
+        /// </summary>
+        static void AssignRendererData(UniversalRenderPipelineAsset urp, UniversalRendererData data)
+        {
+            var so = new SerializedObject(urp);
+            var list = so.FindProperty("m_RendererDataList");
+            if (list == null) Fail(urp, "m_RendererDataList");
+            list.arraySize = Mathf.Max(1, list.arraySize);
+            list.GetArrayElementAtIndex(0).objectReferenceValue = data;
+            var idx = so.FindProperty("m_DefaultRendererIndex");
+            if (idx != null) idx.intValue = 0;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(urp);
+        }
+
+        /// <summary>
+        /// URP Asset 侧设置。
+        /// 【数值口径】下表为**工程建议**，官方只给"往哪调"的方向与平台硬条件
+        /// （见 `docs/reference-urp17-setup.md` §10.1/§10.2）。**任何数值都必须以真机帧率为准。**
+        /// </summary>
+        static void ConfigurePipelineSettings(UniversalRenderPipelineAsset urp)
+        {
+            // ── 可直接赋值的（API 页为 { get; set; }）──
+            urp.supportsHDR = true;                 // 恐怖游戏的 Bloom/自发光需要 >1 亮度
+            urp.msaaSampleCount = 2;                // 保守：4x 在移动端带宽吃紧
+            urp.renderScale = 1.0f;                 // 先 1.0，真机掉帧再降
+            urp.upscalingFilter = UpscalingFilterSelection.Linear;   // GLES3 安全（FSR 需 sm4.5）
+            urp.supportsCameraDepthTexture = true;  // 自研雾/遮挡淡出/水面泡沫需要
+            urp.supportsCameraOpaqueTexture = false;// 开了会与 MSAA 冲突；只有做水面折射才开
+            urp.useSRPBatcher = true;               // 前提：shader 已按 URP 改造出 CBUFFER（本轮已改）
+            urp.supportsDynamicBatching = false;    // 有 GPU instancing 时官方建议关
+            urp.shadowDistance = 20f;               // 室内：15~25m
+            urp.shadowCascadeCount = 2;             // 官方方向："reduce Cascade Count"
+            urp.mainLightShadowmapResolution = 1024;
+            urp.maxAdditionalLightsCount = 4;       // 手电 + 少量室内灯；逐物体上限压低
+            urp.colorGradingMode = ColorGradingMode.LowDynamicRange;   // 更省
+            urp.colorGradingLutSize = 32;
+
+            // ── 只读属性（API 页为 { get; }）→ 必须走序列化字段 ──
+            SetSerialized(urp, "m_MainLightShadowsSupported",    p => p.boolValue = true);
+            SetSerialized(urp, "m_AdditionalLightShadowsSupported", p => p.boolValue = false); // 手电不投影（官方方向）
+            SetSerialized(urp, "m_SoftShadowsSupported",         p => p.boolValue = true);
+            SetSerialized(urp, "m_SupportsLightCookies",         p => p.boolValue = true);   // 手电光锥
+            SetSerialized(urp, "m_SupportsLightLayers",          p => p.boolValue = true);   // 玩法用，成本≈0
+            SetSerialized(urp, "m_AdditionalLightsRenderingMode", p => p.intValue = 1);      // 1 = PerPixel
+            SetSerialized(urp, "m_AdditionalLightsPerObjectLimit", p => p.intValue = 4);
+            SetSerialized(urp, "m_VolumeFrameworkUpdateMode",     p => p.intValue = 0);      // 0 = EveryFrame
+            SetSerialized(urp, "m_RequireDepthTexture",           p => p.boolValue = true);
+            SetSerialized(urp, "m_RequireOpaqueTexture",          p => p.boolValue = false);
+        }
+
+        /// <summary>
+        /// Renderer Data 侧设置。
+        /// Depth Priming 取 `Disabled`：官方明说 `Auto` **不支持 Android**，且开了它自定义 shader
+        /// 必须有 DepthOnly/DepthNormals，否则**物体会不可见**（本轮已给两个着色器补上这两个 pass，
+        /// 但仍按官方建议在移动端关掉，少一个风险面）。
+        /// </summary>
+        static void ConfigureRendererData(UniversalRendererData data)
+        {
+            data.renderingMode = RenderingMode.Forward;      // Deferred 需 G-buffer，移动端带宽贵
+            data.depthPrimingMode = DepthPrimingMode.Disabled;
+            data.intermediateTextureMode = IntermediateTextureMode.Auto;
+            EditorUtility.SetDirty(data);
+        }
+
+        /// <summary>
+        /// 填充那个**空的** `Assets/DefaultVolumeProfile.asset`（实测 `components: []`）。
+        ///
+        /// 【用户点名的项直接落在这里】辉光(Bloom) · 色差(ChromaticAberration) · 颗粒(FilmGrain) ·
+        /// 氛围/色泽(ColorAdjustments / Tonemapping / Vignette) —— 它们全是 URP 的 Volume 组件，
+        /// 在 Built-in 下**没有位置**，这就是"辉光/颗粒/色差一直做不出来"的原因。
+        ///
+        /// 取舍（工程判断，依据 §10.2 末注）：移动端**慎用** DepthOfField / MotionBlur
+        /// （多次降采样 + 需要运动向量），故本轮不加；性价比最高的四件套先落地。
+        /// </summary>
+        static void FillDefaultVolumeProfile(UniversalRenderPipelineAsset urp)
+        {
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(VolumePath);
+            if (profile == null) throw new InvalidOperationException($"[UrpSetup] 找不到 {VolumePath}");
+
+            // 幂等：只补缺的，不清空已有的
+            var bloom = Ensure<Bloom>(profile);
+            var vig   = Ensure<Vignette>(profile);
+            var grade = Ensure<ColorAdjustments>(profile);
+            var tone  = Ensure<Tonemapping>(profile);
+            var grain = Ensure<FilmGrain>(profile);
+            var ca    = Ensure<ChromaticAberration>(profile);
+
+            // 【辉光】恐怖游戏的核心氛围手段：亮处（手电、荧光棒、鬼眼自发光）向四周溢出。
+            // threshold 偏高（0.9）是为了"只有真亮的东西才发光"，否则整个画面糊成一团。
+            bloom.intensity.value = 0.35f; bloom.intensity.overrideState = true;
+            bloom.threshold.value = 0.90f; bloom.threshold.overrideState = true;
+            bloom.scatter.value = 0.65f;   bloom.scatter.overrideState = true;
+            bloom.highQualityFiltering.value = false; bloom.highQualityFiltering.overrideState = true;  // 移动端省
+
+            // 【暗角】把视线压向画面中心 —— 恐怖游戏的基础构图手段
+            vig.intensity.value = 0.42f;  vig.intensity.overrideState = true;
+            vig.smoothness.value = 0.45f; vig.smoothness.overrideState = true;
+
+            // 【色泽】去饱和 + 提对比 + 略压曝光：恐怖片调色
+            grade.saturation.value = -18f;  grade.saturation.overrideState = true;
+            grade.contrast.value = 12f;     grade.contrast.overrideState = true;
+            grade.postExposure.value = -0.15f; grade.postExposure.overrideState = true;
+
+            // 【色调映射】ACES：高光滚降，自发光不会直接削顶成一片白
+            tone.mode.value = TonemappingMode.ACES; tone.mode.overrideState = true;
+
+            // 【颗粒】胶片质感；必须随帧变化，静止的颗粒看起来像脏屏幕
+            grain.intensity.value = 0.25f; grain.intensity.overrideState = true;
+            grain.response.value = 0.70f;  grain.response.overrideState = true;
+
+            // 【色差】边缘彩边：低强度是"镜头感"，高了是"坏了"，故只给 0.08
+            ca.intensity.value = 0.08f; ca.intensity.overrideState = true;
+
+            // 新建出来的 VolumeComponent 是 ScriptableObject（**子资产**），
+            // 不 AddObjectToAsset 持久化，下次打开工程 components 里的引用会变成 null。
+            foreach (var c in profile.components)
+                if (c != null && AssetDatabase.GetAssetPath(c) != VolumePath)
+                    AssetDatabase.AddObjectToAsset(c, profile);
+
+            EditorUtility.SetDirty(profile);
+            AssetDatabase.SaveAssets();
+
+            urp.volumeProfile = profile;   // 该属性可写
+            EditorUtility.SetDirty(urp);
+            AssetDatabase.SaveAssets();
+
+            var names = new StringBuilder();
+            foreach (var c in profile.components) names.Append(c != null ? c.GetType().Name + " " : "null ");
+            Debug.Log($"[UrpSetup] Volume Profile {VolumePath} → {profile.components.Count} 个组件：{names}");
+            if (profile.components.Count == 0)
+                throw new InvalidOperationException("[UrpSetup] Volume Profile 仍是空的 —— 后处理不会生效");
+        }
+
+        /// <summary>幂等地取一个 Volume 组件：已有就返回它，没有就新建。</summary>
+        static T Ensure<T>(VolumeProfile profile) where T : VolumeComponent
+        {
+            // 显式 for 循环而不是 List.Find + lambda：lambda 在这里会被推断成方法组，
+            // 报 CS1503/CS0019（本机语法门禁实测）。显式循环更好读，也没有推断歧义。
+            for (int i = 0; i < profile.components.Count; i++)
+            {
+                var c = profile.components[i];
+                if (c is T hit) return hit;
+            }
+            return profile.Add<T>(overrides: true);
+        }
+
+        /// <summary>
+        /// 改只读属性的序列化字段。**找不到就抛异常并 dump 出真实字段名** ——
+        /// 静默跳过会产出"看起来配好了、实际没生效"的管线（本项目最忌讳的失效形态）。
+        /// </summary>
+        static void SetSerialized(UnityEngine.Object asset, string propertyPath, Action<SerializedProperty> set)
+        {
+            var so = new SerializedObject(asset);
+            var p = so.FindProperty(propertyPath);
+            if (p == null) Fail(asset, propertyPath);
+            set(p);
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(asset);
+        }
+
+        static void Fail(UnityEngine.Object asset, string propertyPath)
+        {
+            var so = new SerializedObject(asset);
+            var it = so.GetIterator();
+            var sb = new StringBuilder();
+            while (it.NextVisible(true)) sb.Append(it.propertyPath).Append("  ");
+            throw new InvalidOperationException(
+                $"[UrpSetup] 序列化字段不存在：{propertyPath}（URP 版本漂移？）\n"
+                + $"资产 {asset.GetType().Name} 的真实字段：{sb}");
+        }
+    }
+}

@@ -7,6 +7,7 @@
 //
 // 纪律：这里只放**本项目实际用到**的成员；缺什么就补什么，不要凭空扩面。
 using System;
+using System.Collections.Generic;
 
 namespace UnityEngine
 {
@@ -536,6 +537,19 @@ namespace UnityEngine
         public static T FindObjectOfType<T>() where T : Object => default;
     }
 
+    /// <summary>
+    /// 文档：ScriptableObject — 可序列化资产基类（`UnityEngine.Object` 的子类）。
+    /// 【为什么补】`AssetDatabase.LoadAssetAtPath&lt;T&gt; where T : Object` 要求 URP 资产
+    /// （URP Asset / RendererData / VolumeProfile）**是 Object 的子类** —— 没有这个桩，
+    /// 本机语法门禁会报 CS0311（泛型约束不满足），而那**不是**产品的错，是桩不全。
+    /// 补上之后门禁才真的在校验"我写的 URP API 名对不对"。
+    /// </summary>
+    public partial class ScriptableObject : Object
+    {
+        /// <summary>文档：ScriptableObject.CreateInstance&lt;T&gt;() — 按类型创建资产实例。</summary>
+        public static T CreateInstance<T>() where T : ScriptableObject => default;
+    }
+
     public partial class Transform
     {
         /// <summary>文档：Transform.parent — 父物体（门拾取沿父链上溯）。
@@ -945,6 +959,12 @@ namespace UnityEngine
         public static float shadowDistance { get; set; }
         public static int antiAliasing { get; set; }
         public static AnisotropicFiltering anisotropicFiltering { get; set; }
+        /// <summary>
+        /// 文档：QualitySettings.renderPipeline — 按质量档覆盖渲染管线。
+        /// 【为什么必须一起挂】本工程当前档是 Very Low（`m_CurrentQuality: 5`）；
+        /// 只设 `GraphicsSettings.defaultRenderPipeline` 而不设这个，遇到"该档有覆盖"时会回落成 Built-in。
+        /// </summary>
+        public static RenderPipelineAsset renderPipeline { get; set; }
     }
 
     /// <summary>文档：ShadowQuality — 阴影质量档。</summary>
@@ -1028,6 +1048,162 @@ namespace UnityEngine.Rendering
 {
     /// <summary>文档：Rendering.AmbientMode — 环境光模式（大厅用 Flat + 单色天光）。</summary>
     public enum AmbientMode { Skybox = 0, Trilight = 1, Flat = 3, Custom = 4 }
+
+    /// <summary>文档：Rendering.GraphicsSettings — 全局渲染设置（挂 Render Pipeline Asset 的入口）。</summary>
+    /// <remarks>
+    /// 【为什么补这组桩 · 2026-10-06】`GraphicsSettings.defaultRenderPipeline` 为 null 时默认管线即
+    /// **Built-in** —— 这正是本工程画质链的根因（`m_CustomRenderPipeline: {fileID: 0}`）。
+    /// 补桩让 `UrpSetup.cs` 能被**本机语法门禁真校验**，而不是被归入"允许的 Unity 缺失"（那等于没校验）。
+    /// </remarks>
+    public static class GraphicsSettings
+    {
+        public static Rendering.RenderPipelineAsset defaultRenderPipeline { get; set; }
+        public static Rendering.RenderPipelineAsset currentRenderPipeline => defaultRenderPipeline;
+    }
+
+    /// <summary>文档：Rendering.RenderPipelineAsset — 渲染管线资产基类（UnityEngine.Object 的子类）。</summary>
+    public class RenderPipelineAsset : ScriptableObject { }
+
+    /// <summary>文档：Rendering.VolumeComponent — 后处理组件基类（VolumeProfile 里的一项）。</summary>
+    public class VolumeComponent : ScriptableObject { }
+
+    /// <summary>文档：Rendering.VolumeProfile — 后处理配置集合。</summary>
+    /// <remarks>
+    /// `Add&lt;T&gt;(bool overrides)` 的约束按**官方签名**只要求 `T : VolumeComponent`
+    /// （不要求 `new()`）。实现走 `ScriptableObject.CreateInstance&lt;T&gt;()`——
+    /// 这正是真实 URP 的做法，也是这里唯一不需要 `new()` 约束的构造方式。
+    /// </remarks>
+    public class VolumeProfile : ScriptableObject
+    {
+        public List<VolumeComponent> components = new List<VolumeComponent>();
+        /// <summary>文档：VolumeProfile.Has&lt;T&gt;() — 是否已含某类组件（幂等判断用）。</summary>
+        public bool Has<T>() where T : VolumeComponent
+        {
+            for (int i = 0; i < components.Count; i++) if (components[i] is T) return true;
+            return false;
+        }
+        /// <summary>文档：VolumeProfile.Add&lt;T&gt;(bool overrides) — 添加组件并返回它。</summary>
+        public T Add<T>(bool overrides = false) where T : VolumeComponent
+            => ScriptableObject.CreateInstance<T>();
+    }
+
+    /// <summary>文档：Rendering.ClampedFloatParameter 等 — Volume 参数（value + overrideState 成对写）。</summary>
+    public class VolumeParameter<T>
+    {
+        public T value { get; set; }
+        public bool overrideState { get; set; }
+    }
+    public class MinFloatParameter : VolumeParameter<float> { }
+    public class ClampedFloatParameter : VolumeParameter<float> { }
+    public class ColorParameter : VolumeParameter<Color> { }
+    public class BoolParameter : VolumeParameter<bool> { }
+    public class FloatParameter : VolumeParameter<float> { }
+    public class Vector2Parameter : VolumeParameter<Vector2> { }
+}
+
+namespace UnityEngine.Rendering.Universal
+{
+    /// <summary>
+    /// 文档：URP 17 API 页。
+    /// https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@17.0/api/UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset.html
+    /// </summary>
+    /// <remarks>
+    /// 【补桩理由】`UrpSetup.cs` 是画质链根因的修复脚本（把工程从 Built-in 切到 URP）。
+    /// 补桩后本机语法门禁会**真校验**我用到的每个成员名 —— 凭记忆写 URP API 正是 CI #18 的失效模式。
+    /// 属性可写性以官方 API 页的 Declaration 行为准：带 set 的写成属性，
+    /// 只读的（`supportsMainLightShadows` 等）**刻意不补** —— 它们在真实 URP 里只能走 SerializedObject，
+    /// 补成可写属性反而会诱导写出编译得过、真机不生效的代码。
+    /// </remarks>
+    public class UniversalRenderPipelineAsset : RenderPipelineAsset
+    {
+        public static UniversalRenderPipelineAsset Create(ScriptableRendererData rendererData = null) => new UniversalRenderPipelineAsset();
+        public bool supportsHDR { get; set; }
+        public int msaaSampleCount { get; set; }
+        public float renderScale { get; set; }
+        public UpscalingFilterSelection upscalingFilter { get; set; }
+        public bool supportsCameraDepthTexture { get; set; }
+        public bool supportsCameraOpaqueTexture { get; set; }
+        public bool useSRPBatcher { get; set; }
+        public bool supportsDynamicBatching { get; set; }
+        public float shadowDistance { get; set; }
+        public int shadowCascadeCount { get; set; }
+        public int mainLightShadowmapResolution { get; set; }
+        public int maxAdditionalLightsCount { get; set; }
+        public ColorGradingMode colorGradingMode { get; set; }
+        public int colorGradingLutSize { get; set; }
+        public VolumeProfile volumeProfile { get; set; }
+    }
+
+    /// <summary>文档：UniversalRendererData — URP 渲染器数据（URP 17 的 ScriptableRendererData 实现）。</summary>
+    public class UniversalRendererData : ScriptableRendererData
+    {
+        public RenderingMode renderingMode { get; set; }
+        public DepthPrimingMode depthPrimingMode { get; set; }
+        public IntermediateTextureMode intermediateTextureMode { get; set; }
+    }
+
+    /// <summary>文档：ScriptableRendererData — 渲染器数据基类。</summary>
+    public class ScriptableRendererData : ScriptableObject { }
+
+    /// <summary>文档：RenderingMode — Forward / Deferred 等。</summary>
+    public enum RenderingMode { Forward = 0, Deferred = 1, ForwardPlus = 2 }
+
+    /// <summary>文档：DepthPrimingMode — 深度预判（官方明说 Auto 不支持 Android）。</summary>
+    public enum DepthPrimingMode { Disabled = 0, Auto = 1, Forced = 2 }
+
+    /// <summary>文档：IntermediateTextureMode — 中间纹理模式。</summary>
+    public enum IntermediateTextureMode { Auto = 0, Always = 1 }
+
+    /// <summary>文档：UpscalingFilterSelection — 升频滤镜（FSR 需 shader model 4.5）。</summary>
+    public enum UpscalingFilterSelection { Auto = 0, Linear = 1, Point = 2, FSR = 3, STP = 4 }
+
+    /// <summary>文档：ColorGradingMode — 分级模式。</summary>
+    public enum ColorGradingMode { LowDynamicRange = 0, HighDynamicRange = 1 }
+
+    /// <summary>文档：Bloom — 辉光（Volume 组件；URP 17 参数名以 EffectList 为准）。</summary>
+    public class Bloom : VolumeComponent
+    {
+        public MinFloatParameter intensity = new MinFloatParameter();
+        public MinFloatParameter threshold = new MinFloatParameter();
+        public ClampedFloatParameter scatter = new ClampedFloatParameter();
+        public BoolParameter highQualityFiltering = new BoolParameter();
+    }
+
+    /// <summary>文档：Vignette — 暗角。</summary>
+    public class Vignette : VolumeComponent
+    {
+        public ClampedFloatParameter intensity = new ClampedFloatParameter();
+        public ClampedFloatParameter smoothness = new ClampedFloatParameter();
+    }
+
+    /// <summary>文档：ColorAdjustments — 色泽（饱和/对比/曝光）。</summary>
+    public class ColorAdjustments : VolumeComponent
+    {
+        public ClampedFloatParameter saturation = new ClampedFloatParameter();
+        public ClampedFloatParameter contrast = new ClampedFloatParameter();
+        public FloatParameter postExposure = new FloatParameter();
+    }
+
+    /// <summary>文档：Tonemapping — 色调映射。</summary>
+    public class Tonemapping : VolumeComponent
+    {
+        public TonemappingModeParameter mode = new TonemappingModeParameter();
+    }
+    public class TonemappingModeParameter : VolumeParameter<TonemappingMode> { }
+    public enum TonemappingMode { None = 0, Neutral = 1, ACES = 2 }
+
+    /// <summary>文档：FilmGrain — 胶片颗粒。</summary>
+    public class FilmGrain : VolumeComponent
+    {
+        public ClampedFloatParameter intensity = new ClampedFloatParameter();
+        public ClampedFloatParameter response = new ClampedFloatParameter();
+    }
+
+    /// <summary>文档：ChromaticAberration — 色差（URP 17 只有 intensity 一个参数）。</summary>
+    public class ChromaticAberration : VolumeComponent
+    {
+        public ClampedFloatParameter intensity = new ClampedFloatParameter();
+    }
 }
 
 namespace UnityEngine.EventSystems
@@ -1070,6 +1246,63 @@ namespace UnityEditor
         public static void SaveAssets() { }
         public static void ImportAsset(string path) { }
         public static void ImportAsset(string path, ImportAssetOptions options) { }
+
+        // ── URP 资产装配需要的一组（2026-10-06 补）──────────────────────────────
+        // 文档：AssetDatabase.IsValidFolder / CreateFolder / LoadAssetAtPath / CreateAsset /
+        //       GetAssetPath / AddObjectToAsset
+        // 为什么补：`UrpSetup.cs` 要在 CI 里**生成** URP 的 .asset（ProjectSettings 是编辑器生成的
+        // YAML，README 明令禁止手写）。补桩后本机语法门禁能真校验这些调用，而不是归入"允许的缺失"。
+        public static bool IsValidFolder(string path) => false;
+        public static string CreateFolder(string parentFolder, string newFolderName) => "";
+        public static T LoadAssetAtPath<T>(string assetPath) where T : UnityEngine.Object => null;
+        public static void CreateAsset(UnityEngine.Object asset, string path) { }
+        public static string GetAssetPath(UnityEngine.Object asset) => "";
+        public static void AddObjectToAsset(UnityEngine.Object objectToAdd, UnityEngine.Object assetObject) { }
+    }
+
+    /// <summary>
+    /// 文档：EditorUtility — 编辑器工具方法。
+    /// 【为什么补】`UrpSetup.cs` 用它把改过的 URP 资产标记为脏（不标就落不了盘）。
+    /// 补桩后本机语法门禁会真校验这个方法名，而不是归入"允许的 Unity 缺失"。
+    /// </summary>
+    public static class EditorUtility
+    {
+        /// <summary>文档：EditorUtility.SetDirty(Object) — 标记资产已修改，等待 SaveAssets 落盘。</summary>
+        public static void SetDirty(UnityEngine.Object target) { }
+    }
+
+    /// <summary>
+    /// 文档：SerializedObject — 绕过属性访问器直接读写序列化字段。
+    /// 【为什么必须补这个桩 · 这条是本轮最关键的"防假绿"】
+    /// URP 17 里 `supportsMainLightShadows`/`supportsSoftShadows`/`rendererDataList` 等**一大批关键开关
+    /// 只有 getter**，官方 API 页明确写 `{ get; }` ⇒ 只能改**序列化字段名**（`m_MainLightShadowsSupported` …）。
+    /// 而字段名会随版本漂移。如果本机门禁把它们归入"允许的 Unity 缺失"，那么
+    /// **我写错字段名的代码在本机永远是绿的**，只在真机静默不生效 —— 正是本项目最忌讳的失效形态。
+    /// 补桩之后，字段名通过字符串传入（那时才由 UrpSetup 自己在运行时抛异常），
+    /// 而**方法名与调用形态**则被真校验。
+    /// </summary>
+    public class SerializedObject
+    {
+        public SerializedObject(UnityEngine.Object obj) { }
+        /// <summary>文档：SerializedObject.FindProperty(string) — 找不到返回 null（UrpSetup 据此抛异常）。</summary>
+        public SerializedProperty FindProperty(string propertyPath) => null;
+        /// <summary>文档：SerializedObject.GetIterator() — 遍历全部可见字段（用于 dump 真实字段名）。</summary>
+        public SerializedProperty GetIterator() => null;
+        /// <summary>文档：SerializedObject.ApplyModifiedPropertiesWithoutUndo()。</summary>
+        public bool ApplyModifiedPropertiesWithoutUndo() => true;
+    }
+
+    /// <summary>文档：SerializedProperty — 序列化字段的读写句柄。</summary>
+    public class SerializedProperty
+    {
+        public string propertyPath => "";
+        public bool boolValue { get; set; }
+        public int intValue { get; set; }
+        public float floatValue { get; set; }
+        public int arraySize { get; set; }
+        public UnityEngine.Object objectReferenceValue { get; set; }
+        public bool NextVisible(bool enterChildren) => false;
+        public SerializedProperty GetArrayElementAtIndex(int index) => null;
     }
 
     /// <summary>文档：ImportAssetOptions — 资产导入选项（取证脚本用 ForceSynchronousImport 保证同步）。</summary>

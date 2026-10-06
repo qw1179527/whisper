@@ -30,6 +30,18 @@ namespace Whisper.Editor
             // 这些只能由代码表达；不先做这一步就会产出 "com.DefaultCompany.unity / 竖屏" 的包（真机事故）。
             BuildConfigurator.Configure();
 
+            // ── 再挂 URP 渲染管线（2026-10-06）────────────────────────────────────
+            // 【为什么必须在这里，而且必须在 BuildPlayer 之前】
+            // 实测 `GraphicsSettings.asset:40 m_CustomRenderPipeline: {fileID: 0}` —— 本工程此前
+            // **根本没有分配渲染管线资产**，实际跑的是 Built-in。而 `ProjectSettings/*.asset` 是
+            // 编辑器生成的 YAML（`unity/ProjectSettings/README.md` 明令禁止手写），所以只能由
+            // Editor 代码在构建前建好并挂上。**漏了这一步 = 包里的 URP 着色器全部变品红。**
+            //
+            // 它内部有**判决点**：最后断言 `GraphicsSettings.currentRenderPipeline` 非 null 且类型
+            // 为 `UniversalRenderPipelineAsset`，不成立就抛异常中断构建 —— 宁可构建失败，
+            // 也不要产出一个"构建成功但渲染管线是错的"包（本项目最忌讳的失效形态）。
+            UrpSetup.ConfigureUrp();
+
             var outDir = Path.Combine(Directory.GetCurrentDirectory(), "build", "Android");
             Directory.CreateDirectory(outDir);
             // 产物名区分出货与开发两种形态（后端由 BuildConfigurator 按 WHISPER_DEV_MONO 决定）：

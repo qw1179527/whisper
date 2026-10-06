@@ -201,7 +201,10 @@ if (failed > 0 && !/失败清单/.test(out)) bad('T4 失败但跑手未输出失
       t6.push(`着色器路径与代码常量不符：常量指向 ${want}，实际资产 ${shaderPath}`);
     const sh = fs.readFileSync(path.join(ROOT, shaderPath), 'utf8');
     // 必须暴露 _Color（Material.color 与 MaterialPropertyBlock 都写这个属性名）
-    if (!/^\s*_Color\s*\(/m.test(sh)) t6.push('着色器未声明 _Color 属性（Material.color 将无效）');
+    // 【2026-10-06 放宽：允许属性前缀】URP 官方迁移清单第 10 步要求把主色写成 `[MainColor] _Color`
+    // （让 `Material.color` 正确映射）。原正则 `^\s*_Color\s*\(` 只认行首直接跟 `_Color`，
+    // 于是**照官方要求加特性的写法反而被判红** —— 那是判据过窄，不是代码错。改为允许可选的 `[Attr]` 前缀。
+    if (!/^\s*(\[[^\]]+\]\s*)*_Color\s*\(/m.test(sh)) t6.push('着色器未声明 _Color 属性（Material.color 将无效）');
     if (!/Shader\s+"Whisper\/UnlitColor"/.test(sh)) t6.push('着色器名不是 "Whisper/UnlitColor"（与 LevelBuilder.UnlitShaderName 失去契约）');
   }
 

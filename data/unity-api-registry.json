@@ -24,7 +24,7 @@
     "其中 Shader.SetGlobalFloat / SetGlobalColor 走**反射**调用：native/** 不在构建 A 的写权内，无法补桩；",
     "  而 gate-editor-api.mjs 把反射式调用列为设计豁免形态（名字写错只会运行时报错 + 本脚本判红，不会让构建失败）。"
   ],
-  "verifiedAt": "2026-10-04",
+  "verifiedAt": "2026-10-06",
   "unityVersion": "6000.3.25f1",
   "apis": {
     "PlayerSettings.companyName": {
@@ -250,6 +250,62 @@
     "ScriptingImplementation.Mono2x": {
       "doc": "https://docs.unity3d.com/6000.0/Documentation/ScriptReference/ScriptingImplementation.html",
       "note": "Mono 后端（WHISPER_DEV_MONO=1 时启用）。选它的理由：IL2CPP 那段占构建 14.7/21.4 分，且 Mono 形态的游戏 DLL 是明文可换（手机热插拔的前提）。出货默认仍是 IL2CPP。"
+    },
+    "AssetDatabase.IsValidFolder": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/AssetDatabase.IsValidFolder.html",
+      "note": "URP 资产目录存在性（幂等创建前先问）"
+    },
+    "AssetDatabase.CreateFolder": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/AssetDatabase.CreateFolder.html",
+      "note": "建 Assets/Settings 放 URP 资产"
+    },
+    "AssetDatabase.LoadAssetAtPath": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/AssetDatabase.LoadAssetAtPath.html",
+      "note": "按路径复用已有 URP 资产（幂等，不重复创建）"
+    },
+    "AssetDatabase.CreateAsset": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/AssetDatabase.CreateAsset.html",
+      "note": "落盘 URP Asset / RendererData"
+    },
+    "AssetDatabase.GetAssetPath": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/AssetDatabase.GetAssetPath.html",
+      "note": "判断 VolumeComponent 是否已成为 profile 的子资产"
+    },
+    "AssetDatabase.AddObjectToAsset": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/AssetDatabase.AddObjectToAsset.html",
+      "note": "VolumeComponent 必须作为子资产持久化，否则下次打开引用变 null"
+    },
+    "SerializedObject.ApplyModifiedPropertiesWithoutUndo": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/SerializedObject.ApplyModifiedPropertiesWithoutUndo.html",
+      "note": "改 URP 只读属性的序列化字段后落盘"
+    },
+    "SerializedObject.FindProperty": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/SerializedObject.FindProperty.html",
+      "note": "URP 17 大量关键开关只有 getter（supportsMainLightShadows 等），必须走序列化字段"
+    },
+    "ScriptableObject.CreateInstance": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/ScriptableObject.CreateInstance.html",
+      "note": "创建 UniversalRendererData"
+    },
+    "Rendering.GraphicsSettings.defaultRenderPipeline": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Rendering.GraphicsSettings-defaultRenderPipeline.html",
+      "note": "挂默认渲染管线的唯一入口（null=Built-in，这正是本工程画质链的根因）"
+    },
+    "Rendering.GraphicsSettings.currentRenderPipeline": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Rendering.GraphicsSettings-currentRenderPipeline.html",
+      "note": "唯一可信的『管线真的生效了』证据（判决点，断言非 null 且类型为 URP）"
+    },
+    "QualitySettings.renderPipeline": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/QualitySettings-renderPipeline.html",
+      "note": "按质量档覆盖管线（当前档是 Very Low，必须一起挂否则等于没挂）"
+    },
+    "UniversalRenderPipelineAsset": {
+      "doc": "https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@17.0/api/UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset.html",
+      "note": "URP 17 管线资产；必须用官方工厂 Create(rendererData)，不要自己 CreateInstance 拼装"
+    },
+    "UniversalRendererData": {
+      "doc": "https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@17.0/api/UnityEngine.Rendering.Universal.UniversalRendererData.html",
+      "note": "URP 渲染器数据（renderingMode / depthPrimingMode / intermediateTextureMode）"
     }
   }
 }
