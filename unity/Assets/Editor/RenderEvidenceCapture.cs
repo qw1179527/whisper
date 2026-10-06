@@ -938,26 +938,42 @@ namespace Whisper.Editor
                     return true;
                 case "eye":
                     // ══════════════════════════════════════════════════════════════════
-                    // 【2026-10-06 第四次修正 —— 前三次都改错了地方，把真结论记下来】
+                    // 【2026-10-06 第五次修正，这次有**本机 Blender 的占据扫描**做依据】
                     // ══════════════════════════════════════════════════════════════════
-                    // 前三次依次改了：① 离远端墙的距离 ② 放进室内 ③ 相机高度=1.6m。
-                    // **都没解决 morgue 纯黑**。真根因是**房间与套件的尺寸不匹配**：
-                    //   套件几何**上下对称、原点在房间中心**（LevelBuilder 把套件挂在
-                    //   Room_<id> 下且 localPosition = 0，而该对象位于 (CenterX, Floor*3.5, CenterZ)）
-                    //   ⇒ 套件在房间里的实际竖向范围 = 中心 ± 套件高/2
-                    //   实测 GLB 顶点：hall_main 2.91 / hall_main_lobby 3.41 / **morgue 仅 1.69**
-                    //   而 morgue_deep 房间**声明**高 **3.2m** ⇒ 套件顶只到 **0.845m**
-                    //   ⇒ 相机放 1.6m 就**在顶棚之上**，拍到的是越过墙顶的雾 ⇒ 纯黑（颜色数=1）
+                    // 本机探针（`tools/probe_room_view.py`）把 `morgue` 套件按房间对齐后，
+                    // 在相机高度对房间做 6 向射线扫描，结果是**整间房都被占**：
+                    //   9×9 个采样点里，每个点 2m 内六向都至少命中 2 面几何，多数命中 6 面
+                    //   ⇒ `morgue` 是 2×3m 的小房间，停尸架顶到 1.74m、天花板 3.19m
+                    //   ⇒ 在 1.6m 高度上**没有任何"站在房间中间"的空位**
+                    // 这解释了为什么前四次调相机（离墙距离/放进室内/高度/按套件定高）都没用：
+                    // 我一直假定"房间中心是空的"，而它**从来不是**。
                     //
-                    // ⇒ 正确做法：相机高度按**套件实际竖向范围**取（不按房间声明高度、也不假定人眼 1.6m），
-                    //   取中部偏上，看得到地面与家具。套件数据缺失时才退回房间高度的一半。
+                    // ⇒ 正解：**先找空位再取景** —— 对若干候选点做短距遮挡探测，取最空的那个。
+                    //   术语上这是"相机避障"，小房间必须做。
                     cam.fieldOfView = 70f;
                     {
-                        float inset = Mathf.Clamp(sz * 0.18f, 0.5f, 1.2f);      // 离近端墙的安全距离
-                        float camZ = Mathf.Min(cz - sz * 0.5f + inset, cz);    // 绝不越过房间中线
                         float camY = KitUsableHeight.EyeHeightFor(roomId, sy);
-                        t.position = new Vector3(cx, camY, camZ);
-                        t.LookAt(new Vector3(cx, camY * 0.55f, cz + sz * 0.5f));
+                        float inset0 = Mathf.Clamp(sz * 0.18f, 0.4f, 1.0f);
+                        // 候选：沿进深从近端到中心排一列，并给高度两档 —— 取第一个"空"的
+                        Vector3 best = new Vector3(cx, camY, Mathf.Min(cz - sz * 0.5f + inset0, cz));
+                        int bestHits = int.MaxValue;
+                        for (int i = 0; i < 7; i++)
+                        {
+                            float frac = i / 6f;   // ⚠ 不能叫 t：外层参数 `Transform t` 已占用该名
+                            float zTry = Mathf.Lerp(cz - sz * 0.5f + inset0, cz + sz * 0.15f, frac);
+                            foreach (float yTry in new[] { camY, camY * 0.75f, camY * 1.15f })
+                            {
+                                var p = new Vector3(cx, yTry, zTry);
+                                int hits = OcclusionHits(p, 1.2f);
+                                if (hits < bestHits) { bestHits = hits; best = p; }
+                                if (hits == 0) break;
+                            }
+                            if (bestHits == 0) break;
+                        }
+                        t.position = best;
+                        t.LookAt(new Vector3(cx, best.y * 0.55f, cz + sz * 0.5f));
+                        Debug.Log($"[RENDER][相机] 取景避障：{roomId}/{view} 选中 ({best.x:0.00},{best.y:0.00},{best.z:0.00})"
+                            + $" 遮挡命中 {bestHits} 向（0 = 六向 1.2m 内无几何）");
                     }
                     return true;
                 case "alongX":
@@ -973,6 +989,31 @@ namespace Whisper.Editor
                     problems.Add($"{roomId} 未知视图 {view}");
                     return false;
             }
+        }
+
+        /// <summary>
+        /// 相机避障：从 <paramref name="p"/> 六向做短距射线，返回**命中方向的个数**（0 = 空位）。
+        ///
+        /// 【为什么需要】`morgue` 是 2×3m 的小房间、停尸架顶到 1.74m，
+        /// 本机 Blender 占据扫描（`tools/probe_room_view.py`）显示：
+        /// 在 1.6m 高度上**整间房没有任何"站在中间"的空位**。
+        /// 而取证相机一直假定房间中心是空的 ⇒ `morgue_deep/eye` 永远纯黑（相机在几何内部）。
+        /// ⇒ 小房间必须**先找空位再取景**。
+        ///
+        /// ⚠ 局限（如实写明）：它依赖**碰撞体**。若几何来自 GLB 且没有碰撞体，射线打不到，
+        ///   本函数会返回 0（"看起来空"）—— 那**不代表真的空**。
+        ///   本次能定论是因为本机 Blender 探针**直接读网格顶点**，不依赖碰撞体。
+        /// </summary>
+        static int OcclusionHits(Vector3 p, float dist)
+        {
+            var dirs = new[]
+            {
+                Vector3.forward, Vector3.back, Vector3.up, Vector3.down, Vector3.left, Vector3.right,
+            };
+            int hits = 0;
+            foreach (var d in dirs)
+                if (Physics.Raycast(p, d, out _, dist)) hits++;
+            return hits;
         }
 
         // ───────────────────────── 灯 / 雾 控制 ─────────────────────────

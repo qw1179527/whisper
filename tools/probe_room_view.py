@@ -26,8 +26,14 @@ a = sys.argv[sys.argv.index("--") + 1:]
 KIT = a[0]
 RMINX, RMINZ = float(a[1]), float(a[2])
 RSX, RSY, RSZ = float(a[3]), float(a[4]), float(a[5])
-CAM = Vector((float(a[6]), float(a[7]), float(a[8])))
-LOOK = Vector((float(a[9]), float(a[10]), float(a[11])))
+# ⚠ **坐标轴转换是这里最容易错的一步**（我第一版就错了，白出一张空图）：
+#   调用方按**产品/取证口径**给 (x, y=高度, z)；而 Blender 是 **Z-up** ⇒ 必须映射为 (x, z, y)。
+#   不转换的后果：相机被放到"高度 = 产品的 z"，直接飞出房间 ⇒ 渲出一张近空的图，
+#   而**它看起来像"房间真的没几何"** —— 又一个"错的诊断比没有诊断更糟"。
+def U2B(v):
+    return Vector((v[0], v[2], v[1]))
+CAM = U2B((float(a[6]), float(a[7]), float(a[8])))
+LOOK = U2B((float(a[9]), float(a[10]), float(a[11])))
 OUT = a[12]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -38,9 +44,29 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 # 所以这里按"房间最小角点 + 地面高度"摆，与产品一致。
 bpy.ops.import_scene.gltf(filepath=KIT)
 cx, cz = RMINX + RSX * 0.5, RMINZ + RSZ * 0.5
+
+# ⚠ **按实测包围盒对齐，不假定局部原点语义**（我又在这上面错过一次）
+# 实测 `morgue` 套件的局部包围盒 = X[19,21] Y[-1.50,1.50] Z[2.90,6.20]：
+#   · X 有 19 的偏移（不是"从 0 开始"）
+#   · Y 居中（不是"从 minZ 开始"）
+#   · Z（高度）从 2.90 起 —— 也就是说**这个 GLB 的原点含一个楼层高度偏移**
+# ⇒ 任何"按最小角点摆"或"按中心摆"的假定都会错。正确做法：
+#   把套件盒的**中心**对到房间中心、**最低点**对到地面。这与原点语义无关。
+def kit_bounds():
+    vs = [o.matrix_world @ v.co
+          for o in bpy.context.scene.objects if o.type == 'MESH'
+          for v in o.data.vertices]
+    mn = Vector((min(p.x for p in vs), min(p.y for p in vs), min(p.z for p in vs)))
+    mx = Vector((max(p.x for p in vs), max(p.y for p in vs), max(p.z for p in vs)))
+    return mn, mx
+
+mn, mx = kit_bounds()
+# Blender 里：X=房间 x，Y=房间 z（深度），Z=高度。房间地面在 Blender z = 0（floor 0）。
+shift = Vector((cx - (mn.x + mx.x) * 0.5, cz - (mn.y + mx.y) * 0.5, 0.0 - mn.z))
 for o in list(bpy.context.scene.objects):
     if o.type == 'MESH':
-        o.location = Vector((o.location.x + RMINX, o.location.y, o.location.z + RMINZ))
+        o.location = o.location + shift
+print("KIT_SHIFT=%.3f,%.3f,%.3f  (套件盒对齐到房间中心/地面)" % (shift.x, shift.y, shift.z))
 
 # ── 地面参照（便于判断"相机在地上还是在天上"）────────────────────────────────
 bpy.ops.mesh.primitive_plane_add(size=40, location=(cx, 0.0, cz))
@@ -81,7 +107,7 @@ for o in meshes:
         p = o.matrix_world @ v.co
         xs.append(p.x); ys.append(p.y); zs.append(p.z)
 print("PROBE={\"kit\":\"%s\",\"kitX\":[%.2f,%.2f],\"kitY\":[%.2f,%.2f],\"kitZ\":[%.2f,%.2f],"
-      "\"cam\":[%.2f,%.2f,%.2f],\"insideX\":%s,\"insideY\":%s,\"insideZ\":%s}"
+      "\"cam\":[%.2f,%.2f,%.2f],\"insideX\":%s,\"insideDepth\":%s,\"insideHeight\":%s}"
       % (os.path.basename(KIT), min(xs), max(xs), min(ys), max(ys), min(zs), max(zs),
          CAM.x, CAM.y, CAM.z,
          str(min(xs) <= CAM.x <= max(xs)).lower(),

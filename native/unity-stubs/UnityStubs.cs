@@ -33,6 +33,13 @@ namespace UnityEngine
         public Vector3(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         public static Vector3 zero => new Vector3(0, 0, 0);
         public static Vector3 one => new Vector3(1, 1, 1);
+        /// <summary>文档：Vector3.forward/back/up/down/left/right — 单位基向量（相机避障六向探测用）。</summary>
+        public static Vector3 forward => new Vector3(0, 0, 1);
+        public static Vector3 back => new Vector3(0, 0, -1);
+        public static Vector3 up => new Vector3(0, 1, 0);
+        public static Vector3 down => new Vector3(0, -1, 0);
+        public static Vector3 left => new Vector3(-1, 0, 0);
+        public static Vector3 right => new Vector3(1, 0, 0);
     }
 
     public partial struct Color
@@ -522,8 +529,6 @@ namespace UnityEngine
 
     public partial struct Vector3
     {
-        /// <summary>文档：Vector3.up — 世界 +Y 单位向量（货车安全区沿 Y 上抬用它）。</summary>
-        public static Vector3 up => new Vector3(0f, 1f, 0f);
         /// <summary>文档：Vector3.Min / Vector3.Max — 逐分量取小/大（取证量场景包围盒用它）。</summary>
         public static Vector3 Min(Vector3 a, Vector3 b) => new Vector3(Math.Min(a.x, b.x), Math.Min(a.y, b.y), Math.Min(a.z, b.z));
         public static Vector3 Max(Vector3 a, Vector3 b) => new Vector3(Math.Max(a.x, b.x), Math.Max(a.y, b.y), Math.Max(a.z, b.z));
