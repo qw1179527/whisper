@@ -839,6 +839,36 @@ namespace Whisper.Editor
                     if (samples.Length < 150)
                         samples.Append(lt.name + "=" + lt.intensity.ToString("0.00", CultureInfo.InvariantCulture) + " ");
                 }
+            // ── **每个房间用的材质/颜色**（排查"某间房纯黑"的最后一块）──────────────
+            // 【为什么加】morgue_deep 已逐一排除：几何在（世界盒 y[-0.10,3.20]）、
+            // 相机在几何内（本机 Blender 探针确认）、房间有灯（22 盏点光全开）、
+            // 运行时遮挡探测 0 命中。剩下的最大嫌疑是**材质/颜色**：
+            // 若该房间部件的 partName 未被 LevelPalette 识别，会落到某个默认角色色 —— 而它可能是黑的。
+            {
+                var seen = new System.Collections.Generic.HashSet<string>();
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    var r = renderers[i];
+                    if (r == null || r.name == null || !r.name.StartsWith("Kit_", StringComparison.Ordinal)) continue;
+                    string room = "?";
+                    var tt = r.transform.parent;
+                    while (tt != null)
+                    {
+                        if (tt.name != null && tt.name.StartsWith("Room_", StringComparison.Ordinal))
+                        { room = tt.name.Substring(5); break; }
+                        tt = tt.parent;
+                    }
+                    var mat = r.sharedMaterial;
+                    if (mat == null) continue;
+                    Color c = mat.HasProperty("_BaseColor") ? mat.GetColor("_BaseColor")
+                            : (mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.magenta);
+                    float em = mat.HasProperty("_WhisperEmission") ? mat.GetFloat("_WhisperEmission") : -1f;
+                    string key = room + " | " + mat.name + " | base(" + c.r.ToString("0.00") + "," + c.g.ToString("0.00")
+                        + "," + c.b.ToString("0.00") + ")" + (em >= 0f ? " | em=" + em.ToString("0.00") : "");
+                    if (seen.Add(key)) Debug.Log("[RENDER][材质] " + key);
+                }
+            }
+
                 Debug.Log("[RENDER][灯] 场景灯 " + all.Length + " 盏：点光 " + point + " · 平行光 " + dir + " · 聚光 " + spot + " · 关闭/零强度 " + off + " · 样例 " + samples);
                 Debug.Log("[RENDER][灯] 产品灯光装置建灯 " + _productLightCount + " 盏（0 = LightRig.Build 没被调用，房间会是黑的）");
             }

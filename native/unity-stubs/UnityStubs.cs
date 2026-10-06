@@ -49,6 +49,7 @@ namespace UnityEngine
         public static Color white => new Color(1, 1, 1);
         public static Color black => new Color(0, 0, 0);
         public static Color gray => new Color(.5f, .5f, .5f);
+        public static Color magenta => new Color(1, 0, 1);
         public static Color operator *(Color c, float k) => new Color(c.r * k, c.g * k, c.b * k, c.a);
     }
 
@@ -642,6 +643,9 @@ namespace UnityEngine
         public bool HasProperty(string name) => false;
         /// <summary>文档：Material.SetColor / SetFloat / SetVector / SetTexture / EnableKeyword。</summary>
         public void SetColor(string name, Color value) { }
+        /// <summary>文档：Material.GetColor/GetFloat — 读材质属性（诊断打印用）。</summary>
+        public Color GetColor(string name) => default;
+        public float GetFloat(string name) => 0f;
         public void SetFloat(string name, float value) { }
         public void SetVector(string name, Vector4 value) { }
         public void SetTexture(string name, Texture value) { }
