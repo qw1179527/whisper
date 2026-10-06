@@ -65,6 +65,90 @@ namespace Whisper.Runtime
         // ════════════════════════════════════════════════════════════════════════
         // 道具（官方大厅：喷漆罐可叠、篮球可投、白板附近有灵球粒子）
         // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════════
+        // 真实套件道具的装载（2026-10-06）
+        //
+        // 这批 `Hall_*` 工业道具是工程里**早就做好、却从未被用上**的资产（四重断链，
+        // 见 `docs/hall-props-orphaned-2026-10-06.md`）。补齐断链后，这里给它们一个统一入口。
+        //
+        // 走 `KitMeshLibrary` 而不是 `ModelLibrary.InstantiateSingleFile`，理由是**材质**：
+        // 前者按 GLB 自带的 PBR 参数（baseColor/metallic/roughness）建材质；
+        // 后者在 `ModelLibrary` 里把材质写死成 `MaterialFor("GEO-GhostTorso")`
+        // ⇒ 道具会全变成"鬼的躯干材质"，是错的颜色。
+        // ════════════════════════════════════════════════════════════════════════
+
+        readonly List<string> _kitMisses = new List<string>();
+        int _kitParts;
+
+        /// <summary>
+        /// 用真实套件 GLB 摆一个道具。**返回 null 表示套件不可用**，调用方应回退到程序化几何。
+        ///
+        /// 与 `TruckScene.TryBuildFromKit` 同一套做法（含非凸 `MeshCollider`）：
+        /// 静态陈设也要有碰撞体，否则玩家自由行走时会**直接穿过去**。
+        /// 非凸对静态物体是允许的，且只有它能表达"有外壳、内有空腔"的形状。
+        /// </summary>
+        GameObject PlaceKit(string kitId, string name, Transform parent, Vector3 localPos, float yawDeg = 0f)
+        {
+            var parts = Whisper.Gameplay.Level.KitMeshLibrary.GetParts(kitId);
+            if (parts == null || parts.Length == 0)
+            {
+                if (!_kitMisses.Contains(kitId)) _kitMisses.Add(kitId);
+                return null;
+            }
+            var matIdx = Whisper.Gameplay.Level.KitMeshLibrary.GetPartMaterials(kitId);
+            var mats = Whisper.Gameplay.Level.KitMeshLibrary.GetMaterials(kitId);
+
+            var root = new GameObject(string.IsNullOrEmpty(name) ? kitId : name);
+            root.transform.SetParent(parent != null ? parent : _root, false);
+            root.transform.localPosition = localPos;
+            root.transform.localRotation = Quaternion.Euler(0f, yawDeg, 0f);
+
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i] == null) continue;
+                var go = new GameObject(kitId + "_" + i);
+                go.transform.SetParent(root.transform, false);
+                go.AddComponent<MeshFilter>().sharedMesh = parts[i];
+                go.AddComponent<MeshRenderer>().sharedMaterial = KitMat(matIdx, mats, i);
+                var mc = go.AddComponent<MeshCollider>();
+                mc.sharedMesh = parts[i];
+                mc.convex = false;
+                _kitParts++;
+            }
+            return root;
+        }
+
+        /// <summary>部件材质：优先用套件自带 PBR 参数；缺则中性灰兜底（不出怪色）。</summary>
+        static Material KitMat(int[] matIdx, Whisper.Gameplay.Level.GlbReader.KitMaterial[] mats, int part)
+        {
+            if (matIdx == null || mats == null || part >= matIdx.Length) return KitFallback();
+            int mi = matIdx[part];
+            if (mi < 0 || mi >= mats.Length) return KitFallback();
+            var km = mats[mi];
+            return SceneMaterials.Lit(new Color(km.R, km.G, km.B, 1f),
+                                      Mathf.Clamp(km.Roughness, 0.05f, 1f),
+                                      FamilyOfKit(km.Name));
+        }
+
+        static Material KitFallback()
+            => SceneMaterials.Lit(new Color(0.50f, 0.50f, 0.52f), 0.6f, MaterialFamily.Metal);
+
+        /// <summary>
+        /// 套件材质名 → 本产品材质族。未知名字落 `Metal`（中性、不会出怪色）。
+        /// 用**名字**而不是下标：下标随导出顺序变，名字稳定（这条是 `TruckScene` 用血换来的）。
+        /// </summary>
+        static MaterialFamily FamilyOfKit(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return MaterialFamily.Metal;
+            string n = name.ToLowerInvariant();
+            if (n.Contains("wood") || n.Contains("crate") || n.Contains("pallet") || n.Contains("plank")) return MaterialFamily.Wood;
+            if (n.Contains("rust")) return MaterialFamily.RustMetal;
+            if (n.Contains("concrete") || n.Contains("cement") || n.Contains("plaster")) return MaterialFamily.Concrete;
+            if (n.Contains("tile")) return MaterialFamily.Tile;
+            if (n.Contains("fabric") || n.Contains("cloth") || n.Contains("canvas")) return MaterialFamily.Fabric;
+            return MaterialFamily.Metal;   // 金属是这批工业道具的默认语义
+        }
+
         void BuildProps()
         {
             var canMat = Mat(new Color(0.55f, 0.18f, 0.16f), 0.40f, MaterialFamily.Metal);
@@ -72,19 +156,53 @@ namespace Whisper.Runtime
             var ballMat = Mat(new Color(0.62f, 0.30f, 0.10f), 0.65f, MaterialFamily.Fabric);
             var crateMat = Mat(new Color(0.34f, 0.26f, 0.17f), 0.80f, MaterialFamily.Wood);
 
-            // 货架（沿左墙）
+            // ── 货架（沿左墙）：用**真实工业道具 GLB**，不再方盒子拼 ────────────
+            //
+            // 【为什么换】此前是 4 块 `Box(...)` 板 + 方盒子箱子 —— 这正是用户说的
+            // 「谁家医院这样」「看着还是几十个版本前的样子」的直接来源。
+            // 而工程里**早就做好了** `Hall_RackUpright` / `Hall_RackBeam` / `Hall_CrateWood`，
+            // 只因四重断链（清单没登记 / 目录不对 / 代码没引用 / 扩展名不是 .glb.bytes）从未被用上。
+            // 断链已在前几轮补齐（见 `docs/hall-props-orphaned-2026-10-06.md`）。
+            //
+            // **保留 Box 回退**：道具若某个设备上加载失败，退回方盒子至少"有货架"，
+            // 而不是空一片 —— 与货车 `TryBuildFromKit` 的取舍一致（宁可降级，不可缺件）。
             for (int s = 0; s < 3; s++)
             {
                 float z = -LengthM * 0.25f + s * (LengthM * 0.22f);
                 float x = -WidthM * 0.5f + 0.9f;
-                Box(_root, "Shelf", new Vector3(x, 0.9f, z), new Vector3(1.2f, 0.08f, 3.4f), crateMat);
-                Box(_root, "Shelf", new Vector3(x, 1.7f, z), new Vector3(1.2f, 0.08f, 3.4f), crateMat);
-                Box(_root, "ShelfSide", new Vector3(x - 0.56f, 1.0f, z), new Vector3(0.08f, 2.0f, 3.4f), crateMat);
-                Box(_root, "ShelfSide", new Vector3(x + 0.56f, 1.0f, z), new Vector3(0.08f, 2.0f, 3.4f), crateMat);
-                // 架上的箱子
+
+                // 立柱（1.802m 高）×4 + 横梁（2.406m 长）×2 —— 尺寸取自实测包围盒，不是估的
+                var rackRoot = new GameObject("RackRow");
+                rackRoot.transform.SetParent(_root, false);
+                rackRoot.transform.localPosition = new Vector3(x, 0f, z);
+                bool ok = true;
+                for (int e = 0; e < 2; e++)
+                for (int sgn = -1; sgn <= 1; sgn += 2)
+                    ok &= PlaceKit("Hall_RackUpright", "RackUpright", rackRoot.transform,
+                                   new Vector3(sgn * 0.55f, 0f, e * 3.0f - 1.5f)) != null;
+                for (int lv = 0; lv < 2; lv++)
+                    ok &= PlaceKit("Hall_RackBeam", "RackBeam", rackRoot.transform,
+                                   new Vector3(0f, lv == 0 ? 0.9f : 1.7f, 0f), 0f) != null;
+
+                if (!ok)
+                {
+                    // 回退：与旧版几何等价，保证"看得见货架"
+                    Box(_root, "Shelf", new Vector3(x, 0.9f, z), new Vector3(1.2f, 0.08f, 3.4f), crateMat);
+                    Box(_root, "Shelf", new Vector3(x, 1.7f, z), new Vector3(1.2f, 0.08f, 3.4f), crateMat);
+                    Box(_root, "ShelfSide", new Vector3(x - 0.56f, 1.0f, z), new Vector3(0.08f, 2.0f, 3.4f), crateMat);
+                    Box(_root, "ShelfSide", new Vector3(x + 0.56f, 1.0f, z), new Vector3(0.08f, 2.0f, 3.4f), crateMat);
+                }
+
+                // 架上的木箱（0.604³ 实测）—— 用真实货箱，回退方盒子
                 for (int c = 0; c < 3; c++)
-                    Box(_root, "Crate", new Vector3(x + (c % 2 == 0 ? -0.2f : 0.25f), 1.06f + (c == 2 ? 0.8f : 0f), z - 1.1f + c * 1.1f),
-                        new Vector3(0.7f, 0.55f, 0.7f), crateMat);
+                {
+                    var cp = new Vector3(x + (c % 2 == 0 ? -0.2f : 0.25f),
+                                         1.06f + (c == 2 ? 0.8f : 0f),
+                                         z - 1.1f + c * 1.1f);
+                    float cy = c == 2 ? 30f : -20f + c * 25f;   // 确定性朝向（不用 Random：gate-physics 要求可复现）
+                    if (PlaceKit("Hall_CrateWood", "Crate", _root, cp, cy) == null)
+                        Box(_root, "Crate", cp, new Vector3(0.7f, 0.55f, 0.7f), crateMat);
+                }
             }
 
             // 喷漆罐堆（官方彩蛋：可以叠喷漆罐）
