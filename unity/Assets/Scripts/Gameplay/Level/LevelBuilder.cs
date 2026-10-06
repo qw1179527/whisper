@@ -379,15 +379,45 @@ namespace Whisper.Gameplay.Level
         public const string UnlitShaderName = "Whisper/UnlitColor";
         const string UnlitShaderResourcePath = "Shaders/WhisperUnlitColor";
 
+        /// <summary>
+        /// 关卡几何的**首选**着色器：自研 PBR。
+        ///
+        /// ## 为什么改用 PBR（2026-10-06）
+        /// 用户反复反馈「建模上色都不行」。查下来根因很具体：
+        /// **本文件此前把【全部关卡几何】都挂 `Whisper/UnlitColor`** ——
+        /// 那是不吃光的平涂着色器，盒体因此永远是均匀一块色，没有明暗、没有体积、没有材质层次。
+        /// 而**同一目录下早就躺着一个完整的 PBR 着色器**（`WhisperLitPbr.shader`，392 行）：
+        /// 模型（`ModelLibrary`）和大厅（`HallScene` → `SceneMaterials.Lit`）**都已迁到它**，
+        /// 只剩关卡这一条没迁 —— 而关卡正是玩家待得最久的地方。
+        ///
+        /// ## 为什么可以直接换（逐条核对过，不是想当然）
+        /// · **要 NORMAL**：几何是 `CreatePrimitive(PrimitiveType.Cube)`，内置网格自带法线 ✓
+        /// · **不要 TANGENT**：着色器用屏幕空间导数重建切线（Mikkelsen 做法），
+        ///   其 162~163 行原话是"不需要网格带切线，任何从 Blender 导出的 glb 都能用"✓
+        /// · **认 `Material.color`**：顶点着色器写 `o.color = v.color * _Color`，
+        ///   而 `_Color` 正是 `Material.color` 与 `MaterialPropertyBlock` 写的名字（其 26 行注释）✓
+        /// · **顶点色默认值安全**：内置 Cube 无顶点色数组 ⇒ `v.color` 取 (1,1,1,1)
+        ///   ⇒ B 通道脏化项 = `1-_DirtAmount`、G 通道粗糙度项 = 0，都是设计内的中性值 ✓
+        ///
+        /// ## 回退链（与 `ModelLibrary` 既有做法逐字一致）
+        /// `Whisper/LitPbr` → `Whisper/UnlitColor` → 报错。
+        /// **保留回退不是偷懒**：万一 PBR 在某台设备上编译失败（GLES3 变体问题），
+        /// 退到 Unlit 至少还看得见画面，而不是整片洋红。
+        /// </summary>
+        public const string PbrShaderName = "Whisper/LitPbr";
+        const string PbrShaderResourcePath = "Shaders/WhisperLitPbr";
+
         static Shader _shader;
         public static Shader GeometryShader
         {
             get
             {
                 if (_shader != null) return _shader;
-                // ① Resources 资产（主路径：确定性进包）
-                _shader = Resources.Load<Shader>(UnlitShaderResourcePath);
-                // ② 兜底：按名字查（着色器已进包时必然命中）
+                // ① 首选：PBR（Resources 资产 = 确定性进包）
+                _shader = Resources.Load<Shader>(PbrShaderResourcePath);
+                if (_shader == null) _shader = Shader.Find(PbrShaderName);
+                // ② 回退：Unlit（老路径，保证"至少看得见"）
+                if (_shader == null) _shader = Resources.Load<Shader>(UnlitShaderResourcePath);
                 if (_shader == null) _shader = Shader.Find(UnlitShaderName);
                 return _shader;   // 仍为 null 时由调用方明确报错，不做沉默降级
             }
@@ -417,9 +447,15 @@ namespace Whisper.Gameplay.Level
             // 也不产出"构建成功但满屏粉红/全黑"的包（本项目反复强调的门禁精神）。
             if (shader == null)
                 throw new InvalidOperationException(
-                    $"关卡着色器缺失：Resources/{UnlitShaderResourcePath}.shader 与 Shader.Find(\"{UnlitShaderName}\") 都没找到。" +
-                    "几何无法上色——请确认该 .shader 资产已进包（Resources 目录无条件进包）。");
-            m = new Material(shader) { color = c };
+                    $"关卡着色器缺失：Resources/{PbrShaderResourcePath}.shader、Resources/{UnlitShaderResourcePath}.shader、" +
+                    $"Shader.Find(\"{PbrShaderName}\") 与 Shader.Find(\"{UnlitShaderName}\") 全都没找到。" +
+                    "几何无法上色——请确认这两个 .shader 资产已进包（Resources 目录无条件进包）。");
+            // ⚠ 【切 PBR 时新增的防线】强制 alpha=1。
+            // 为什么：Unlit 与 PBR 的片元都写 `return fixed4(..., i.color.a)` ——
+            // **顶点色的 A 通道直接当输出透明度**。若色板里某个色碰巧带着 a=0，
+            // 那块几何就会**完全隐形**（不是变暗，是看不见），而且不报任何错。
+            // 关卡几何一律不透明，所以这里统一钉死 1，把这类"静默消失"堵在源头。
+            m = new Material(shader) { color = new Color(c.r, c.g, c.b, 1f) };
             _matCache[c] = m;
             return m;
         }
