@@ -712,6 +712,53 @@ namespace Whisper.Editor
                 mainLight.intensity = keepI;
             }
 
+            // ── 【批次 A：三个候选原因一次测完】──────────────────────────────────────
+            // 已排除 6 条（QualitySettings/分辨率/点光源洗白/投射标志/主光照不到/设置未落盘）。
+            // 剩下三个，**一次运行内全部测**（不再一轮一个假设）：
+            //   A1 主光**方向朝上**？`Quaternion.Euler(50,-30,0)` 的 +50° 俯仰让光朝上照 ⇒
+            //      可能只照天花板、不投到可见面。测：把主光上下翻转 180° 看差异。
+            //   A2 **材质缺 shadow 关键字**？自定义着色器用 `shader_feature`/`multi_compile`，
+            //      变体可能没编进包。测：打印材质的 `IsKeywordEnabled`。
+            //   A3 **主光根本没投影**？测：直接读 `mainLight.shadows` 的**实测值**。
+            if (mainLight != null)
+            {
+                Debug.Log($"[RENDER][主光实测] type={mainLight.type} shadows={mainLight.shadows}"
+                    + $" intensity={mainLight.intensity:0.00} rot={mainLight.transform.rotation.eulerAngles}"
+                    + $" forward={mainLight.transform.forward}");
+
+                // A1：把主光翻转 180°（朝下照），看画面是否变化 —— 若变化大，说明原来朝上照
+                var keepRot = mainLight.transform.rotation;
+                var upShot = RenderTo(cam, Path.Combine(outDir, "key_DirAsAuthored.png"), null);
+                mainLight.transform.rotation = Quaternion.Euler(-50f, -30f, 0f);
+                var downShot = RenderTo(cam, Path.Combine(outDir, "key_DirFlipped.png"), null);
+                written += 2;
+                double dDir = ChangedPct(upShot.pixels, downShot.pixels);
+                Debug.Log($"[RENDER][主光方向] 作者值(+50°仰) vs 翻转(-50°俯) 变化 {dDir:0.000}%"
+                    + $"（亮度 {upShot.mean:0.0} vs {downShot.mean:0.0}）");
+                index.AppendLine(string.Join(",", "shadow", "corridor_main", "DirFlipped",
+                    "key_DirFlipped.png", downShot.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                    downShot.std.ToString("0.00", CultureInfo.InvariantCulture), downShot.colors.ToString(CultureInfo.InvariantCulture),
+                    downShot.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), dDir.ToString("0.000", CultureInfo.InvariantCulture)));
+                mainLight.transform.rotation = keepRot;
+            }
+
+            // A2：材质是否带 shadow 关键字（变体是否编进包）
+            {
+                var mats = new System.Collections.Generic.HashSet<string>();
+                var allR2 = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+                foreach (var r in allR2)
+                {
+                    var m = r != null ? r.sharedMaterial : null;
+                    if (m == null || m.shader == null) continue;
+                    if (mats.Count >= 3) break;
+                    mats.Add(m.shader.name + " | RECEIVE_SHADOWS_OFF=" + m.IsKeywordEnabled("_RECEIVE_SHADOWS_OFF")
+                        + " | MAIN_LIGHT_SHADOWS=" + m.IsKeywordEnabled("_MAIN_LIGHT_SHADOWS")
+                        + " | MAIN_LIGHT_SHADOWS_CASCADE=" + m.IsKeywordEnabled("_MAIN_LIGHT_SHADOWS_CASCADE"));
+                }
+                foreach (var x in mats) Debug.Log("[RENDER][材质关键字] " + x);
+                if (mats.Count == 0) Debug.LogWarning("[RENDER][材质关键字] 没取到材质");
+            }
+
             var keepShadowsOuter = mainLight != null ? mainLight.shadows : LightShadows.Soft;
             var frozen = _levelGo != null
                 ? _levelGo.GetComponentInChildren<Whisper.Gameplay.Level.LightRig>(true) : null;

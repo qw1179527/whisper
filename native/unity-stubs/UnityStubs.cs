@@ -655,6 +655,8 @@ namespace UnityEngine
         public void SetVector(string name, Vector4 value) { }
         public void SetTexture(string name, Texture value) { }
         public void EnableKeyword(string keyword) { }
+        /// <summary>文档：Material.IsKeywordEnabled(string) — 查关键字是否在该材质上启用（诊断着色器变体用）。</summary>
+        public bool IsKeywordEnabled(string keyword) => false;
     }
 
     public partial class Camera
