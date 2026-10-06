@@ -171,18 +171,34 @@ namespace Whisper.Runtime
                 float z = -LengthM * 0.25f + s * (LengthM * 0.22f);
                 float x = -WidthM * 0.5f + 0.9f;
 
-                // 立柱（1.802m 高）×4 + 横梁（2.406m 长）×2 —— 尺寸取自实测包围盒，不是估的
+                // 立柱（1.802m 高）×4 + 横梁（2.406m 长）×2
+                //
+                // ⚠ 【第一版摆错的地方，算式写在这，别再猜】我原先按"货架大概这么宽"放了
+                //   立柱 `±0.55m`、z 方向 `±1.5m`，结果图上立柱与横梁**各自悬空、连不起来**。
+                //   原因是**横梁的跨度我没读**：`Hall_RackBeam` 实测长轴 2.406m，
+                //   而立柱间距只有 1.1m ⇒ 梁比架宽一倍多，自然对不上。
+                //   ⇒ 正确做法是**由构件尺寸反推布局**，而不是先想个布局再往里塞构件：
+                //       · 立柱间距 = 梁长 2.406 ⇒ `±1.203`
+                //       · 货架进深 0.8m ⇒ 前后两排立柱 `z = ±0.4`（梁的 Z 厚只有 0.122，够放）
+                //       · 箱底必须落在**梁顶**，不是梁心：梁高 0.068 ⇒ 梁心 y=0.90 时梁顶 0.934
+                const float RackHalfSpan = 1.203f;   // = 2.406 / 2
+                const float RackDepth = 0.4f;
+                const float BeamY0 = 0.90f, BeamY1 = 1.70f;
+                const float BeamHalfT = 0.034f;      // = 0.068 / 2
+                const float CrateH = 0.604f;
+
                 var rackRoot = new GameObject("RackRow");
                 rackRoot.transform.SetParent(_root, false);
                 rackRoot.transform.localPosition = new Vector3(x, 0f, z);
                 bool ok = true;
-                for (int e = 0; e < 2; e++)
-                for (int sgn = -1; sgn <= 1; sgn += 2)
+                for (int sgnX = -1; sgnX <= 1; sgnX += 2)
+                for (int sgnZ = -1; sgnZ <= 1; sgnZ += 2)
                     ok &= PlaceKit("Hall_RackUpright", "RackUpright", rackRoot.transform,
-                                   new Vector3(sgn * 0.55f, 0f, e * 3.0f - 1.5f)) != null;
+                                   new Vector3(sgnX * RackHalfSpan, 0f, sgnZ * RackDepth)) != null;
                 for (int lv = 0; lv < 2; lv++)
+                for (int sgnZ = -1; sgnZ <= 1; sgnZ += 2)
                     ok &= PlaceKit("Hall_RackBeam", "RackBeam", rackRoot.transform,
-                                   new Vector3(0f, lv == 0 ? 0.9f : 1.7f, 0f), 0f) != null;
+                                   new Vector3(0f, lv == 0 ? BeamY0 : BeamY1, sgnZ * RackDepth)) != null;
 
                 if (!ok)
                 {
@@ -193,15 +209,19 @@ namespace Whisper.Runtime
                     Box(_root, "ShelfSide", new Vector3(x + 0.56f, 1.0f, z), new Vector3(0.08f, 2.0f, 3.4f), crateMat);
                 }
 
-                // 架上的木箱（0.604³ 实测）—— 用真实货箱，回退方盒子
+                // 架上的木箱（0.604³）—— **箱底落在梁顶**，不是"看着差不多的高度"
+                // 第一版写 y=1.06/1.86 是凭感觉，而梁顶在 0.934/1.734 ⇒ 箱子悬空半米。
                 for (int c = 0; c < 3; c++)
                 {
-                    var cp = new Vector3(x + (c % 2 == 0 ? -0.2f : 0.25f),
-                                         1.06f + (c == 2 ? 0.8f : 0f),
+                    bool top = c == 2;
+                    float beamTop = (top ? BeamY1 : BeamY0) + BeamHalfT;
+                    var cp = new Vector3(x + (c % 2 == 0 ? -0.62f : 0.62f),
+                                         beamTop,                       // ← 由梁顶推算，不写死
                                          z - 1.1f + c * 1.1f);
-                    float cy = c == 2 ? 30f : -20f + c * 25f;   // 确定性朝向（不用 Random：gate-physics 要求可复现）
+                    float cy = top ? 30f : -20f + c * 25f;   // 确定性朝向（不用 Random：gate-physics 要求可复现）
                     if (PlaceKit("Hall_CrateWood", "Crate", _root, cp, cy) == null)
-                        Box(_root, "Crate", cp, new Vector3(0.7f, 0.55f, 0.7f), crateMat);
+                        Box(_root, "Crate", cp + new Vector3(0f, CrateH * 0.5f - BeamHalfT, 0f),
+                            new Vector3(0.7f, 0.55f, 0.7f), crateMat);
                 }
             }
 
