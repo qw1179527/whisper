@@ -77,6 +77,8 @@ namespace UnityEngine
         public T GetComponent<T>() => default;
         public T GetComponentInParent<T>() => default;
         public T GetComponentInChildren<T>() => default;
+        /// <summary>文档：Component.GetComponent(Type) — **非泛型**重载（反射式调用要用它）。</summary>
+        public Component GetComponent(System.Type type) => null;
     }
 
     public class Behaviour : Component { public bool enabled { get; set; } }
@@ -103,6 +105,10 @@ namespace UnityEngine
         public Transform transform => null;
         public T AddComponent<T>() where T : Component => default;
         public T GetComponent<T>() => default;
+        /// <summary>文档：GameObject.AddComponent(Type) — **非泛型**重载（反射式调用要用它）。</summary>
+        public Component AddComponent(System.Type type) => null;
+        /// <summary>文档：GameObject.GetComponent(Type) — 非泛型重载。</summary>
+        public Component GetComponent(System.Type type) => null;
         public void SetActive(bool value) { }
         public bool activeSelf => false;
         public string tag { get; set; }
