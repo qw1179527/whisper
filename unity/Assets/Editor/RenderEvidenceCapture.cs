@@ -813,17 +813,21 @@ namespace Whisper.Editor
                     }
                     return true;
                 case "eye":
-                    // 【2026-10-06 实测修正】第一版：`cz - Mathf.Max(sz*0.5f - 0.6f, 0.1f)`
-                    // ——把相机放在**离远端墙 0.1~0.6m** 处。实测后果：entrance_safe（4×3×3）
-                    // 相机几乎贴在墙上/门框里，渲染出一圈同心色带（相机穿进几何体），
-                    // 绝对亮度只有 10.5（目标下限 20），害我误判成"光照不够"。
-                    // 正解：站在房间**进深 1/4 处**、朝房间中心偏上看；进深太小就退到中心线。
+                    // 【2026-10-06 实测修正（第二次）】第一版把相机放在**离远端墙 0.1~0.6m**，
+                    // 结果贴墙；第二版改成"进深 1/4 处"，**仍在房间边界上**：
+                    //   morgue_deep 房间 z[3.0,6.0]，相机被放到 z=**3.84**
+                    //   ⇒ 落在近端墙的实体盒内 ⇒ 背面剔除 ⇒ **纯黑（颜色数=1）**
+                    //   （日志原文：`✗ morgue_deep/eye/... 判为全黑：亮度 0.0 · 颜色数 1`）
+                    // ⇒ 正解：先把相机**放进房间内侧一段安全距离**（避开墙体厚度），再取景。
                     cam.fieldOfView = 70f;
                     {
-                        float back = Mathf.Clamp(sz * 0.28f, 0.35f, 2.0f);   // 离近端墙多远
-                        t.position = new Vector3(cx, Mathf.Min(sy * 0.55f, 1.6f), cz - sz * 0.5f + back);
-                        // 看向房间中心偏下一点：让地面/家具进画，避免整幅只剩天花板
-                        t.LookAt(new Vector3(cx, sy * 0.35f, cz + sz * 0.5f));
+                        float inset = Mathf.Clamp(sz * 0.18f, 0.5f, 1.2f);      // 离近端墙的安全距离
+                        float camZ = cz - sz * 0.5f + inset;
+                        // 双保险：绝不越过房间中线（中线以里一定是室内）
+                        camZ = Mathf.Min(camZ, cz);
+                        t.position = new Vector3(cx, Mathf.Clamp(sy * 0.55f, 1.2f, 1.7f), camZ);
+                        // 看向远端偏下：让地面/家具进画，避免整幅只剩天花板
+                        t.LookAt(new Vector3(cx, sy * 0.30f, cz + sz * 0.5f));
                     }
                     return true;
                 case "alongX":
