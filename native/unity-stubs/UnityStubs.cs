@@ -264,6 +264,8 @@ namespace UnityEngine
         public static float Min(float a, float b) => a < b ? a : b;
         public static float Abs(float a) => a < 0 ? -a : a;
         public static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
+        /// <summary>文档：Mathf.Clamp(int,int,int) — **整数重载**（真实 Unity 有；缺了会让重载解析落到 float 版并报 CS0266）。</summary>
+        public static int Clamp(int v, int lo, int hi) => v < lo ? lo : (v > hi ? hi : v);
         public static float Floor(float v) => (float)Math.Floor(v);
         public static float Sqrt(float v) => (float)Math.Sqrt(v);
         /// <summary>文档：Mathf.Sin(float f) — 参数为弧度，返回 [-1,1]。</summary>
@@ -618,6 +620,8 @@ namespace UnityEngine
 
     public partial class Material
     {
+        /// <summary>文档：Material.shader — 该材质用的着色器（复制材质时取它）。</summary>
+        public Shader shader { get; set; }
         /// <summary>文档：Material.HasProperty(string) — 先问再设，避免给不存在的属性赋值。</summary>
         public bool HasProperty(string name) => false;
         /// <summary>文档：Material.SetColor / SetFloat / SetVector / SetTexture / EnableKeyword。</summary>
@@ -888,6 +892,8 @@ namespace UnityEngine
         public TextureFormat format => TextureFormat.RGBA32;
         /// <summary>文档：Texture2D.SetPixels32(Color32[] colors, int miplevel = 0) / GetPixels32(int miplevel = 0)。</summary>
         public void SetPixels32(Color32[] colors) { }
+        /// <summary>文档：Texture2D.SetPixels(Color[] colors) — 整张写入（程序化贴图用它）。</summary>
+        public void SetPixels(Color[] colors) { }
         public Color32[] GetPixels32() => null;
         /// <summary>文档：Texture2D.GetPixel(int x, int y, int mipLevel = 0) — 1x1 亮度读回用它。</summary>
         public Color GetPixel(int x, int y) => default;

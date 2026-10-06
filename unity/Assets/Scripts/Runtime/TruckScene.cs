@@ -113,7 +113,20 @@ namespace Whisper.Runtime
             CommandCenter = L(new Vector3(0f, FloorHeight + 1.1f, BoxLength - 0.9f));
             GearCenter = L(new Vector3(0f, FloorHeight + 1.2f, 1.0f));
             RampCenter = L(new Vector3(0f, FloorHeight * 0.5f, -0.8f));
+
+            // ── 屏幕组（四屏）—— 官方布局（docs/reference-official/04-…§2.2）────────────
+            // 【为什么在这里而不是 BuildInterior 里】BuildInterior **只在程序化回退分支**被调用；
+            // 而四屏是**功能屏**（地图/理智/活动/声音），与几何走套件还是程序化无关 ——
+            // 放进分支里会让"套件可用时四屏消失"，那是典型的"走了另一条路就丢功能"。
+            Screens = new TruckScreens(_root, glass);
+            Screens.Build();
         }
+
+        /// <summary>
+        /// 车内**屏幕组（四屏）**——官方布局：左上地图 / 右上声音传感器 / 左下理智 / 右下活动强度。
+        /// 数据由组合根每 0.5 秒喂一次（`Screens.SetData`），见 TruckScreens 的说明。
+        /// </summary>
+        public TruckScreens Screens { get; private set; }
 
         /// <summary>本车几何是否来自已登记的套件（false = 走了程序化回退）。</summary>
         public bool KitBuilt { get; private set; }
