@@ -549,15 +549,21 @@ namespace Whisper.Editor
         }
 
         /// <summary>
-        /// 逐 CGPROGRAM pass 核对：**用到的每个 `_Whisper*` 全局量都必须在本 pass 内声明过**。
+        /// 逐 pass 核对：**用到的每个 `_Whisper*` 全局量都必须在本 pass 内声明过**。
         /// 判据只看代码（注释已剥离）。为什么需要它：真机 0.1.19 整屏品红就是这个坑
         /// （ForwardAdd pass 用了 `_WhisperFogOff` 却没声明，安卓 GLES3/Vulkan 编译失败）。
         /// 这条检查与平台无关，且比"渲染一张图看是不是品红"更早、更准。
+        ///
+        /// 【2026-10-06 扩到 URP】原来只匹配 `CGPROGRAM/ENDCG`。着色器迁到 URP 后代码块是
+        /// `HLSLPROGRAM/ENDHLSL`，于是本检查**一个块都找不到**，直接报"找不到任何 CGPROGRAM"
+        /// 并**不再做 uniform 核对** —— 那等于把这道防线丢了（而且报错信息还会误导人以为着色器坏了）。
+        /// 现在两种块都认：正则改成 `(?:CG|HLSL)PROGRAM ... END(?:CG|HLSL)`。
+        /// ⚠ 不要因为"迁移了所以注释掉这条"——多 pass 漏声明这个坑与管线无关，URP 一样踩。
         /// </summary>
         static void CheckPerPassUniforms(string src, System.Collections.Generic.List<string> problems)
         {
-            var blocks = Regex.Matches(src, @"CGPROGRAM(?<body>[\s\S]*?)ENDCG");
-            if (blocks.Count == 0) { problems.Add("着色器里找不到任何 CGPROGRAM/ENDCG 代码块"); return; }
+            var blocks = Regex.Matches(src, @"(?:CG|HLSL)PROGRAM(?<body>[\s\S]*?)END(?:CG|HLSL)");
+            if (blocks.Count == 0) { problems.Add("着色器里找不到任何 CGPROGRAM/ENDCG 或 HLSLPROGRAM/ENDHLSL 代码块"); return; }
             for (int i = 0; i < blocks.Count; i++)
             {
                 string body = blocks[i].Groups["body"].Value;
@@ -567,17 +573,23 @@ namespace Whisper.Editor
                 foreach (Match d in Regex.Matches(body, @"#define[ \t]+(WHISPER\w+)"))
                     declared.Add(d.Groups[1].Value);
 
-                foreach (Match u in Regex.Matches(body, @"\b(_Whisper\w*)\b"))
+                // 【2026-10-06 修正正则】原为 `\b(_Whisper\w*)\b`，它在 URP 版着色器里会**误报**：
+                // 文件里有个辅助函数 `WhisperFogK(...)`，上面的搜索串会命中其内部子串 `_WhisperFogK`，
+                // 而在 `\b` 之后取 `\w*` 得到 `_WhisperFog` —— 于是报"用了 _WhisperFog 但没声明"。
+                // 判据必须只认**完整的标识符**：前面是词边界、后面**不能**再跟标识符字符
+                // （`(?![A-Za-z0-9_])`）。这样 `_WhisperFogOff`/`_WhisperFogColor` 仍被正确核对，
+                // 而 `_WhisperFogK`/`WhisperFogK` 不再误命中。
+                foreach (Match u in Regex.Matches(body, @"(?<![A-Za-z0-9_])(_Whisper\w*)(?![A-Za-z0-9_])"))
                 {
                     string name = u.Groups[1].Value;
                     if (declared.Contains(name)) continue;
                     // 同一 pass 里重复出现只报一次
                     declared.Add(name);
-                    problems.Add($"第 {i + 1} 个 CGPROGRAM（{PassTagOf(src, blocks[i].Index)}）用了 `{name}` 但**本 pass 内没有声明** —— "
+                    problems.Add($"第 {i + 1} 个着色器代码块（{PassTagOf(src, blocks[i].Index)}）用了 `{name}` 但**本 pass 内没有声明** —— "
                         + "多 pass 着色器每个 pass 是独立编译单元，真机会报 undeclared identifier（0.1.19 整屏品红的根因）");
                 }
             }
-            Debug.Log($"[RENDER] 逐 pass uniform 核对：{blocks.Count} 个 CGPROGRAM 块全部通过");
+            Debug.Log($"[RENDER] 逐 pass uniform 核对：{blocks.Count} 个着色器代码块全部通过");
         }
 
         /// <summary>取某个 pass 代码块所属的 LightMode 标签（只用于报错信息可读）：取该块**之前最后一个** Tags 声明。</summary>

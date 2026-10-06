@@ -52,6 +52,50 @@ namespace Whisper.Editor
         const string PipelinePath = SettingsDir + "/WhisperURPAsset.asset";
         const string VolumePath   = "Assets/DefaultVolumeProfile.asset";
 
+        /// <summary>
+        /// 编辑器加载 / 脚本重编译后**自动**确保 URP 已启用。
+        ///
+        /// ══════════════════════════════════════════════════════════════════════════════
+        /// 为什么必须是 [InitializeOnLoad] 而不是"只在 BuildScript 里调一次"
+        /// ══════════════════════════════════════════════════════════════════════════════
+        /// 【2026-10-06 实测踩到的真事故，代价是一轮 CI 与一屏纯黑】
+        /// 我最初只在 `BuildScript.BuildAndroid()` 里调 `ConfigureUrp()`。结果：
+        ///   · `unity-android`（走 BuildScript）→ 构建成功，URP 正常；
+        ///   · `unity-agent` 的 **render-evidence**（走 `RenderEvidenceCapture.Run`，**不经过 BuildScript**）
+        ///     → URP **从未启用**，而新着色器已是 URP 专用（pass tag = `UniversalForward`）。
+        ///     在 Built-in 下没有**任何**兼容的颜色 pass（只剩 ShadowCaster/DepthOnly）⇒ **整屏纯黑**。
+        ///     取证日志：所有 30 张图都变成统一的 9 KB、平均亮度 5.2、开灯/关灯差异 0.000%。
+        ///
+        /// ⇒ 结论：**"管线已启用"必须是编辑器级不变量，而不是某条代码路径的副作用。**
+        ///    凡是能在 CI 里跑起来的东西（构建、取证、测试、任意 `-executeMethod`）都必须看到同一套设置。
+        ///    这也是本项目反复写下的纪律："能做成数据/代码保证的，不要靠记得。"
+        ///
+        /// 幂等：已挂对就立刻返回（不重复建资产、不做无意义的 AssetDatabase 写入）。
+        /// </summary>
+        [InitializeOnLoadMethod]
+        static void EnsureOnEditorLoad()
+        {
+            try
+            {
+                var urp = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
+                var active = GraphicsSettings.currentRenderPipeline;
+                if (urp != null && active == urp)
+                {
+                    // 已经是对的：不动任何东西（批量模式下 AssetDatabase 写入很贵）
+                    Debug.Log($"[UrpSetup] URP 已启用（编辑器加载检查）· {active.name}");
+                    return;
+                }
+                Debug.Log("[UrpSetup] 编辑器加载时发现 URP 未启用 —— 自动配置（本次运行的所有任务都需要它）");
+                ConfigureUrp();
+            }
+            catch (Exception e)
+            {
+                // 不静默：管线没配好会让**整屏纯黑/品红**，那必须留下可查的痕迹。
+                // 但不在这里 throw —— 让真正用到渲染的任务（取证/构建）自己失败并给出上下文。
+                Debug.LogError($"[UrpSetup] 编辑器加载时自动配置 URP 失败：{e.GetType().Name}: {e.Message}");
+            }
+        }
+
         [MenuItem("Whisper/配置 URP 渲染管线（画质链根因修复）")]
         public static void ConfigureUrp()
         {
