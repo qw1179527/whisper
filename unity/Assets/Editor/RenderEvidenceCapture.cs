@@ -96,6 +96,8 @@ namespace Whisper.Editor
         };
 
         static GameObject _levelGo;
+        /// <summary>产品灯光装置实际建了几盏（`LevelBuilder.SceneLights`）；0 = 没建灯。</summary>
+        static int _productLightCount;
         static string _outDir;
 
         public static void Run()
@@ -685,6 +687,7 @@ namespace Whisper.Editor
             _levelGo = new GameObject("Level");
             var lb = _levelGo.AddComponent<Whisper.Gameplay.Level.LevelBuilder>();
             lb.Build(level, knownKits);
+            _productLightCount = lb.SceneLights != null ? lb.SceneLights.Lights.Count : 0;
             Debug.Log($"[RENDER] 场景建好：套件房间 {lb.KitRooms.Count} 个 · 道具 {lb.PropObjects.Count} · 套件问题={Whisper.Gameplay.Level.LevelBuilder.KitProblem ?? "无"}");
             DumpSceneBounds(level);
 
@@ -837,6 +840,7 @@ namespace Whisper.Editor
                         samples.Append(lt.name + "=" + lt.intensity.ToString("0.00", CultureInfo.InvariantCulture) + " ");
                 }
                 Debug.Log("[RENDER][灯] 场景灯 " + all.Length + " 盏：点光 " + point + " · 平行光 " + dir + " · 聚光 " + spot + " · 关闭/零强度 " + off + " · 样例 " + samples);
+                Debug.Log("[RENDER][灯] 产品灯光装置建灯 " + _productLightCount + " 盏（0 = LightRig.Build 没被调用，房间会是黑的）");
             }
             Debug.Log($"[RENDER][几何] 空房间 {emptyRooms} / {level.Rooms.Count} 个"
                 + (emptyRooms > 0 ? " —— 空房间在渲染里必然是纯黑（与相机/光照无关）" : ""));
