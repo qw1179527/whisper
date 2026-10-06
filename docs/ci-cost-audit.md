@@ -102,3 +102,55 @@ probe #1  completed  failure   runner_id: 0   steps: 0
 ## 我这一侧要改的
 **减少轮数**才是根本（见第二节）。额度触顶把这件事从"效率问题"变成了"能力问题"：
 以后必须**一次运行回答多个问题**，且**同一症状不连续改两次**。
+
+---
+
+# 七、根因定论：**额度耗尽**（数字对得上）
+
+## 实测用量（最近 150 次运行）
+| 工作流 | 次数 | 约分钟 |
+|---|---|---|
+| **unity-android** | **81** | **~1403** |
+| unity-agent | 50 | ~505 |
+| 其他（build-dev-mono / unity-license / extract-* / probe） | 19 | ~117 |
+| **合计** | 150 | **~2025** |
+
+而仓库 `qw1179527/whisper` 是 **private**（Actions 按分钟计费），**免费额度 2000 分钟/月**，
+且**建于 2026-10-03** —— 今天是 **10-06**，也就是**第 4 天就超了**。
+
+## 元凶：`unity-android` 的 `push` 自动触发
+```
+unity-android 最近 100 次：push 自动触发 73 次 · 手动 8 次
+每次 **33 分钟**（"构建（GameCI）"一步 1719s）
+```
+我每改一个数值就 push ⇒ 每次都重建一遍 APK。**这是用法错误**：
+反馈信号应来自 `unity-agent` 的 sentinel，出包应是显式动作。
+
+## 症状与判据（可复核）
+```
+unity-agent   #48~#51   2 秒失败 · runner_id=0 · steps=[]
+unity-android #81       2 秒失败 · runner_id=0 · steps=[]
+runner-probe  #1        2 秒失败 · runner_id=0 · steps=[]   ← 最小探针也拿不到 runner
+```
+⇒ `runner_id=0` + `steps=[]` = **从未分配到 runner**，不是任务跑失败。
+最小探针同样失败 ⇒ **账户/仓库级**，与任何单个 workflow 定义无关。
+
+## 已做的修复
+`unity-android.yml` 的 `on:` 只保留 `workflow_dispatch`（`push` 已注释，并在注释里留了这段实测）。
+
+## 恢复路径
+| 方案 | 恢复时间 | 代价 |
+|---|---|---|
+| **仓库转 public** | 立即 | 公开源码；public 仓库 Actions **免费无限** |
+| 等额度重置 | **11 月 1 日** | 等 3+ 周 |
+| 提高 spending limit | 立即 | 约 $0.008/分钟；2000 分钟 ≈ $16 |
+
+## 额度用尽期间仍可用的验证通道
+| 通道 | 状态 |
+|---|---|
+| `bash unity-check.sh`（21 步门禁） | ✅ 本机 |
+| 170 条真断言（`gate-test`，本机真编译真跑） | ✅ 本机 |
+| Blender 建模 / 量测 / 渲染（`tools/probe_room_view.py` 等） | ✅ 本机 |
+| APK 出包 / 云端取证（像素证据） | ❌ 需 CI |
+
+⇒ **期间不得声称任何"已通过云端验证"**。
