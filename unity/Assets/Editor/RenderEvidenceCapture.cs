@@ -690,6 +690,28 @@ namespace Whisper.Editor
                     problems.Add($"【阴影判据不成立】{total} 个渲染器**没有一个接收阴影**（receiveShadows 全为 false）");
             }
 
+            // ── 【再退一步：主光**到底有没有照到几何**】────────────────────────────────
+            // 【为什么】三条对照全 0.000%，而投射/接收标志实测 **582/582 全部开启**（不是标志问题）。
+            // 若"主光强度 2.55 → 0"也毫无变化，那说明**主光在这两个视角里根本没照到东西** ——
+            // 那么"阴影无效"只是它的**推论**，真正的缺陷是"主光不参与照明"。
+            // ⇒ 必须先回答这一层，再谈阴影。
+            if (mainLight != null)
+            {
+                float keepI = mainLight.intensity;
+                mainLight.intensity = keepI;
+                var mLit = RenderTo(cam, Path.Combine(outDir, "key_LightON.png"), null);
+                mainLight.intensity = 0f;
+                var mDark = RenderTo(cam, Path.Combine(outDir, "key_LightOFF.png"), null);
+                written += 2;
+                double dLit = ChangedPct(mLit.pixels, mDark.pixels);
+                Debug.Log($"[RENDER][主光贡献] 主光 intensity {keepI:0.00} vs 0 变化 {dLit:0.000}%"
+                    + $"（亮度 {mLit.mean:0.0} vs {mDark.mean:0.0} · 颜色数 {mLit.colors} vs {mDark.colors}）");
+                if (dLit < 0.05)
+                    problems.Add($"【主光判据不成立】主光 intensity {keepI:0.00} vs 0 只变化 {dLit:0.000}%（<0.05%）"
+                        + " —— 主光在这两个视角里根本没照到几何（那'阴影无效'只是它的推论）");
+                mainLight.intensity = keepI;
+            }
+
             var keepShadowsOuter = mainLight != null ? mainLight.shadows : LightShadows.Soft;
             var frozen = _levelGo != null
                 ? _levelGo.GetComponentInChildren<Whisper.Gameplay.Level.LightRig>(true) : null;
