@@ -574,6 +574,9 @@ namespace UnityEngine
         public Transform parent { get; set; }
         /// <summary>文档：Transform.forward — 世界空间 +Z 朝向（相机自检与鬼体朝向用它）。</summary>
         public Vector3 forward => default;
+        /// <summary>文档：Transform.up / right — 世界空间基向量（遮挡探针按相机六向发射线要用）。</summary>
+        public Vector3 up => default;
+        public Vector3 right => default;
         /// <summary>文档：Transform.LookAt — 让 +Z 朝向目标点 / 目标物体。</summary>
         public void LookAt(Vector3 worldPosition) { }
         public void LookAt(Transform target) { }
@@ -856,6 +859,8 @@ namespace UnityEngine
     {
         /// <summary>文档：Physics.Raycast(Ray ray, out RaycastHit hitInfo, float maxDistance)。</summary>
         public static bool Raycast(Ray ray, out RaycastHit hitInfo, float maxDistance) { hitInfo = default; return false; }
+        /// <summary>文档：Physics.Raycast(Vector3 origin, Vector3 direction, out RaycastHit, float maxDistance)。</summary>
+        public static bool Raycast(Vector3 origin, Vector3 direction, out RaycastHit hitInfo, float maxDistance) { hitInfo = default; return false; }
     }
 
     /// <summary>文档：Sprite — 2D 精灵（Image.sprite 的圆形轮盘贴图）。</summary>

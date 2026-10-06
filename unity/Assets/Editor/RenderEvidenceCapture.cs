@@ -489,8 +489,17 @@ namespace Whisper.Editor
                     problems.Add($"【后处理缺失】{probe.Name} 不在 DefaultVolumeProfile 里 —— 该效果不可能生效");
                     continue;
                 }
+                // ⚠ 【2026-10-06 实测修正：探针必须**互相隔离**】
+                // 第一版连续跑探针，**前一个的 ON 状态会留给后一个**（我只关了当前这个）。
+                // 后果有实测证据：Tonemapping 把亮度从 56 压到 6.1 之后，
+                // 后面的 Bloom 拿到的是一个已经压暗的画面 ⇒ 没有超过阈值的亮部 ⇒
+                // 实测 Bloom "ON vs OFF 只变化 0.001%"，看着像"Bloom 无效"，
+                // **其实是上一个效果还在生效**（探针测序缺陷，不是产品缺陷）。
+                // ⇒ 每次测量前把**所有**效果归零，只让被测的那一个上场。
+                probeDisableAll(vol.profile);
                 probe.Disable(vol.profile);
                 var off = RenderTo(cam, Path.Combine(_outDir, $"postfx_{probe.Name}_OFF.png"), vol);
+                probeDisableAll(vol.profile);     // 再归零一次，确保只有本效果 ON
                 probe.Enable(vol.profile);
                 var on = RenderTo(cam, Path.Combine(_outDir, $"postfx_{probe.Name}_ON.png"), vol);
                 written += 2;
@@ -782,14 +791,40 @@ namespace Whisper.Editor
             switch (view)
             {
                 case "orbit33":
+                    // 【2026-10-06 实测修正】第一版写的是 `cx + Mathf.Max(sx*1.6f, 6.0f)` 等 ——
+                    // **硬编码的最小距离**。后果（有实测证据）：
+                    //   corridor_main 尺寸 18×3×3、中心 (13.0, 1.5)
+                    //   ⇒ 相机被放到 (8.40, 6.50, **-5.00**) —— z=-5 而房间 z 范围是 [0,3]
+                    //   ⇒ **在房间外 5 米、且在 6.5 米高处**（房间只有 3 米高）
+                    //   ⇒ 拍到的是雾与背景，画面近黑（实测 mean luma 10.5），
+                    //     害我一度以为是光照或后处理的问题。
+                    // 正解：偏移量**按房间尺寸缩放**，并夹在合理范围内 ——
+                    // 小房间不至于贴脸，大房间也能取到全景。
                     cam.fieldOfView = 55f;
-                    t.position = new Vector3(cx + Mathf.Max(sx * 1.6f, 6.0f), Mathf.Max(sy * 1.5f, 6.5f), cz - Mathf.Max(sz * 1.6f, 6.5f));
-                    t.LookAt(new Vector3(cx, 1.0f, cz));
+                    {
+                        float span = Mathf.Max(sx, sz);
+                        float diag = Mathf.Sqrt(sx * sx + sz * sz);
+                        float off = Mathf.Clamp(diag * 0.95f, 2.5f, 24f);
+                        float hgt = Mathf.Clamp(sy * 1.35f, 1.5f, 26f);
+                        t.position = new Vector3(cx + off, hgt, cz - off);
+                        t.LookAt(new Vector3(cx, sy * 0.4f, cz));
+                        // 小房间（如 3×3）用 55° 会取景过散，按跨度收一收
+                        cam.fieldOfView = Mathf.Clamp(60f - span * 1.2f, 40f, 70f);
+                    }
                     return true;
                 case "eye":
+                    // 【2026-10-06 实测修正】第一版：`cz - Mathf.Max(sz*0.5f - 0.6f, 0.1f)`
+                    // ——把相机放在**离远端墙 0.1~0.6m** 处。实测后果：entrance_safe（4×3×3）
+                    // 相机几乎贴在墙上/门框里，渲染出一圈同心色带（相机穿进几何体），
+                    // 绝对亮度只有 10.5（目标下限 20），害我误判成"光照不够"。
+                    // 正解：站在房间**进深 1/4 处**、朝房间中心偏上看；进深太小就退到中心线。
                     cam.fieldOfView = 70f;
-                    t.position = new Vector3(cx, 1.55f, cz - Mathf.Max(sz * 0.5f - 0.6f, 0.1f));
-                    t.LookAt(new Vector3(cx, 1.15f, cz + sz * 0.5f));
+                    {
+                        float back = Mathf.Clamp(sz * 0.28f, 0.35f, 2.0f);   // 离近端墙多远
+                        t.position = new Vector3(cx, Mathf.Min(sy * 0.55f, 1.6f), cz - sz * 0.5f + back);
+                        // 看向房间中心偏下一点：让地面/家具进画，避免整幅只剩天花板
+                        t.LookAt(new Vector3(cx, sy * 0.35f, cz + sz * 0.5f));
+                    }
                     return true;
                 case "alongX":
                     // 沿走廊长轴看：雾的判据需要 10m 以上的连续视线（3m 进深的房间按设计就没有雾）。
@@ -899,6 +934,31 @@ namespace Whisper.Editor
                     + $"forward({f.x:0.00},{f.y:0.00},{f.z:0.00}) fov={cam.fieldOfView:0} "
                     + $"near={cam.nearClipPlane:0.000} far={cam.farClipPlane:0} "
                     + $"正交={cam.orthographic} 裁剪mask={cam.cullingMask} 深度模式={cam.depthTextureMode}");
+
+                // ── 遮挡探针：相机是不是贴在/穿进几何体里 ──────────────────────────
+                // 【为什么必须加】2026-10-06 实测：`entrance_safe/eye` 渲出一圈同心色带、
+                // 绝对亮度只有 10.5（目标下限 20），我先怀疑"光照不够"，先后改了雾/后处理参数 ——
+                // 全是白费。真相是**相机贴在门框上、画面被近处几何糊满**。
+                // 这五个方向的最短命中距离能**一次性**判掉"相机在几何内部/贴墙/贴门框"这一整类原因，
+                // 不必再靠看图猜。forward 命中距离就是"视线被挡多远"。
+                {
+                    var origin = p;
+                    var dirs = new (string name, Vector3 d)[]
+                    {
+                        ("前", f), ("后", -f), ("上", cam.transform.up), ("下", -cam.transform.up),
+                        ("左", -cam.transform.right), ("右", cam.transform.right),
+                    };
+                    var sb = new StringBuilder("[RENDER][相机][遮挡] ");
+                    for (int i = 0; i < dirs.Length; i++)
+                    {
+                        float dist = 999f;
+                        if (Physics.Raycast(origin, dirs[i].d, out var hit, 60f)) dist = hit.distance;
+                        sb.Append(dirs[i].name).Append('=');
+                        sb.Append(dist >= 999f ? "无" : dist.ToString("0.00", CultureInfo.InvariantCulture));
+                        if (i < dirs.Length - 1) sb.Append(" · ");
+                    }
+                    Debug.Log(sb.ToString() + "（米；forward 很小 = 视线被近处几何挡住）");
+                }
             }
             // 逐效果 ON/OFF：Volume 的挂/摘由调用方控制（见 RenderTo(cam, path, volume) 的说明）。
             // ⚠ 必须在 cam.Render() **之前**设：`Camera.Render()` 是同步的，
