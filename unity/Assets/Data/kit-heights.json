@@ -1,0 +1,134 @@
+{
+  "Hall_Barrel": {
+    "yMin": 0,
+    "yMax": 0.893
+  },
+  "Hall_CrateWood": {
+    "yMin": -0.302,
+    "yMax": 0.302
+  },
+  "Hall_DuctSection": {
+    "yMin": -0.33,
+    "yMax": 0.33
+  },
+  "Hall_ElectricPanel": {
+    "yMin": -0.125,
+    "yMax": 0.08
+  },
+  "Hall_IBeamColumn": {
+    "yMin": 0,
+    "yMax": 3.1
+  },
+  "Hall_LampIndustrial": {
+    "yMin": 0,
+    "yMax": 1.076
+  },
+  "Hall_PalletWood": {
+    "yMin": 0,
+    "yMax": 0.066
+  },
+  "Hall_PipeFlange": {
+    "yMin": -0.115,
+    "yMax": 0.115
+  },
+  "Hall_RackBeam": {
+    "yMin": -0.034,
+    "yMax": 0.034
+  },
+  "Hall_RackUpright": {
+    "yMin": 0,
+    "yMax": 1.802
+  },
+  "bed_b": {
+    "yMin": -0.26,
+    "yMax": 0.26
+  },
+  "cabinet_a": {
+    "yMin": -0.58,
+    "yMax": 0.58
+  },
+  "hall_main": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_corridor2_f1": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_corridor_f0": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_corridor_f1": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_corridor_link": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_corridor_main_f1": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_corridor_ward": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_entrance_safe": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_hall_main": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hall_main_lobby": {
+    "yMin": -1.705,
+    "yMax": 1.705
+  },
+  "hospital_ward": {
+    "yMin": -1.705,
+    "yMax": 1.705
+  },
+  "hospital_ward_bath": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hospital_ward_bedroom": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hospital_ward_kitchen": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hospital_ward_kitchen_f0": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "hospital_ward_master_f1": {
+    "yMin": -1.455,
+    "yMax": 1.455
+  },
+  "morgue": {
+    "yMin": -0.845,
+    "yMax": 0.845
+  },
+  "morgue_attic_f1": {
+    "yMin": -0.845,
+    "yMax": 0.845
+  },
+  "morgue_boiler": {
+    "yMin": -0.845,
+    "yMax": 0.845
+  },
+  "morgue_garage": {
+    "yMin": -0.845,
+    "yMax": 0.845
+  },
+  "truck_eurocargo": {
+    "yMin": 0,
+    "yMax": 3.52
+  }
+}

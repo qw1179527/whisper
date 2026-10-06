@@ -134,7 +134,8 @@ namespace Whisper.Editor
             CheckShaderContract(problems);
 
             // ── ② 场景：产品代码装配（LevelLoader + LevelBuilder），失败即抛 ──
-            BuildScene();
+            // 装配期的问题（含房间↔套件高度不匹配）必须并入判据，否则"装配有缺陷但取证全绿"是假绿。
+            problems.AddRange(BuildScene());
 
             // ── ③ 相机 + 产品主光（反射调 GameBootstrap.BuildCamera）──
             var camGo = new GameObject("CaptureCam");
@@ -657,8 +658,11 @@ namespace Whisper.Editor
         // ───────────────────────── 场景与相机 ─────────────────────────
 
         /// <summary>用产品的 LevelLoader + LevelBuilder 装配（避免"验的不是产品"）。</summary>
-        static void BuildScene()
+        /// <summary>装配场景。**返回装配期发现的问题**（如房间与套件高度不匹配）——
+        /// 这些必须进判据，否则"装配有缺陷但取证全绿"又是一次假绿。</summary>
+        static System.Collections.Generic.List<string> BuildScene()
         {
+            var problems = new System.Collections.Generic.List<string>();
             var levelText = Resources.Load<TextAsset>("Levels/asylum_v1");
             if (levelText == null) throw new InvalidOperationException("缺 Resources/Levels/asylum_v1 —— 取证无法进行");
 
@@ -675,12 +679,26 @@ namespace Whisper.Editor
             }
 
             var level = Whisper.Gameplay.Level.LevelLoader.Load(levelText.text, knownKits);
+            // 供 KitUsableHeight 查"房间用哪个套件"（相机取景高度按**套件实际几何**定）
+            LevelCache.Current = level;
             if (_levelGo != null) UnityEngine.Object.DestroyImmediate(_levelGo);
             _levelGo = new GameObject("Level");
             var lb = _levelGo.AddComponent<Whisper.Gameplay.Level.LevelBuilder>();
             lb.Build(level, knownKits);
             Debug.Log($"[RENDER] 场景建好：套件房间 {lb.KitRooms.Count} 个 · 道具 {lb.PropObjects.Count} · 套件问题={Whisper.Gameplay.Level.LevelBuilder.KitProblem ?? "无"}");
             DumpSceneBounds(level);
+
+            // ── **套件高度落差审计**（判据，会判红）──────────────────────────────
+            // 【为什么是判据而不是日志】2026-10-06 我为 `morgue_deep` 纯黑改了**四次**相机才找到真因：
+            // 房间声明高 3.2m，而 `morgue` 套件实际只高 1.69m ⇒ 套件顶只到 0.845m
+            // ⇒ 任何按"人眼 1.6m"摆的相机都在**顶棚之上**，拍到越过墙顶的雾 ⇒ 纯黑，且**不报任何错**。
+            // 这是"两套尺寸各自都对、合起来对不上"的典型 ⇒ 必须由机器持续盯着，不能靠人看图发现。
+            foreach (var msg in KitUsableHeight.AuditHeightMismatch())
+            {
+                problems.Add($"【房间与套件高度不匹配】{msg}");
+                Debug.LogWarning($"[RENDER][几何] {msg}");
+            }
+            return problems;
         }
 
         /// <summary>
@@ -860,22 +878,25 @@ namespace Whisper.Editor
                     }
                     return true;
                 case "eye":
-                    // 【2026-10-06 实测修正（第三次，这次找到了真根因）】
-                    // 前两次都在调"相机离墙多远"，而真根因是**相机太高**：
-                    //   morgue 套件实际顶点范围 y∈[-0.85, 0.85] ⇒ **几何高只有 1.69m**
-                    //   而 morgue_deep 房间**声明**高 3.2m ⇒ 相机被放到 y=1.70
-                    //   ⇒ **相机在几何顶上 0.85m**，拍到的是越过墙顶的雾 ⇒ 纯黑（颜色数=1）
-                    // 也就是说：**房间声明高度 ≠ 套件实际高度**（套件是"墙+顶+地"的一间房，
-                    // 声明高度有时是为玩法留的净空）。相机高度必须按**几何**取，不能按声明取。
-                    // 1.60m 落在两个已知套件之内（morgue 1.69 / hall_main 2.91 / ward 3.41），
-                    // 且是人眼高度；再夹一次天花板，双保险。
+                    // ══════════════════════════════════════════════════════════════════
+                    // 【2026-10-06 第四次修正 —— 前三次都改错了地方，把真结论记下来】
+                    // ══════════════════════════════════════════════════════════════════
+                    // 前三次依次改了：① 离远端墙的距离 ② 放进室内 ③ 相机高度=1.6m。
+                    // **都没解决 morgue 纯黑**。真根因是**房间与套件的尺寸不匹配**：
+                    //   套件几何**上下对称、原点在房间中心**（LevelBuilder 把套件挂在
+                    //   Room_<id> 下且 localPosition = 0，而该对象位于 (CenterX, Floor*3.5, CenterZ)）
+                    //   ⇒ 套件在房间里的实际竖向范围 = 中心 ± 套件高/2
+                    //   实测 GLB 顶点：hall_main 2.91 / hall_main_lobby 3.41 / **morgue 仅 1.69**
+                    //   而 morgue_deep 房间**声明**高 **3.2m** ⇒ 套件顶只到 **0.845m**
+                    //   ⇒ 相机放 1.6m 就**在顶棚之上**，拍到的是越过墙顶的雾 ⇒ 纯黑（颜色数=1）
+                    //
+                    // ⇒ 正确做法：相机高度按**套件实际竖向范围**取（不按房间声明高度、也不假定人眼 1.6m），
+                    //   取中部偏上，看得到地面与家具。套件数据缺失时才退回房间高度的一半。
                     cam.fieldOfView = 70f;
                     {
-                        const float EyeH = 1.60f;
                         float inset = Mathf.Clamp(sz * 0.18f, 0.5f, 1.2f);      // 离近端墙的安全距离
-                        float camZ = cz - sz * 0.5f + inset;
-                        camZ = Mathf.Min(camZ, cz);                            // 绝不越过房间中线
-                        float camY = Mathf.Min(EyeH, sy * 0.5f);
+                        float camZ = Mathf.Min(cz - sz * 0.5f + inset, cz);    // 绝不越过房间中线
+                        float camY = KitUsableHeight.EyeHeightFor(roomId, sy);
                         t.position = new Vector3(cx, camY, camZ);
                         t.LookAt(new Vector3(cx, camY * 0.55f, cz + sz * 0.5f));
                     }
