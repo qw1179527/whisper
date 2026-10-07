@@ -8,7 +8,7 @@ config_version=5
 
 config/name="Whisper (Godot)"
 config/description="Project Whisper · Godot 迁移（引擎无关核心 + Godot 渲染层）"
-run/main_scene="res://Scenes/Main.tscn"
+run/main_scene="res://Probe/probe.tscn"
 config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 
 [dotnet]

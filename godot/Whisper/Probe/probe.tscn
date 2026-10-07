@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cwhisperprobe01"]
+
+[ext_resource type="Script" path="res://Probe/probe.gd" id="1_probe"]
+
+[node name="Probe" type="Node3D"]
+script = ExtResource("1_probe")
