@@ -974,6 +974,43 @@ namespace Whisper.Editor
             Debug.Log($"[RENDER] 场景建好：套件房间 {lb.KitRooms.Count} 个 · 道具 {lb.PropObjects.Count} · 套件问题={Whisper.Gameplay.Level.LevelBuilder.KitProblem ?? "无"}");
             DumpSceneBounds(level);
 
+            // ── **应用渲染档**（与 `GameBootstrap.TryLoadConfig` 同一条接线）──────────
+            // 【为什么取证也要走这一步】实测：取证**不走 Bootstrap**（日志里 `配置已载入` 0 命中）
+            // ⇒ 若只接在 Bootstrap 里，我新加的 `RenderTierApplier` 在取证里**根本不会执行**，
+            //    "接线了"就没有取证证据。取证必须与真实运行**同一条路径**，
+            //    否则取证证明的是另一套设置（本项目已有先例：取证手电与产品手电不是同一份参数）。
+            // 副作用（**明确写出，不藏着**）：取证自此用**配置的** pixelLightCount=4 /
+            //    shadowDistance=40 / antiAliasing=4，而不再是 UrpSetup 的兜底 8/20/2。
+            //    这会让此前的亮度读数**可能变化** —— 变化本身就是"接线生效了"的证据。
+            {
+                var cfgAsset = Resources.Load<TextAsset>("Data/config");
+                if (cfgAsset == null) cfgAsset = Resources.Load<TextAsset>("Data/Config");
+                if (cfgAsset == null)
+                {
+                    problems.Add("【渲染档】取证取不到 Resources/Data/config.json —— 无法验证渲染档接线");
+                }
+                else
+                {
+                    Whisper.Gameplay.Config.GameConfig.LoadFromJson(cfgAsset.text);
+                    var reader = new Whisper.Gameplay.Config.GameConfigReader();
+                    int applied = Whisper.Runtime.RenderTierApplier.Apply(reader);
+                    Debug.Log($"[RENDER][渲染档] {Whisper.Runtime.RenderTierApplier.LastApplied}");
+                    if (applied == 0)
+                        problems.Add("【渲染档判据不成立】RenderTierApplier 应用了 **0 项** —— 渲染设置全是硬编码默认值");
+                    else
+                    {
+                        // 判据：帧率必须真的被设上（这是此前**完全没接**的那一项）
+                        var want = reader.Int("render.defaultFrameRate", -1);
+                        if (want > 0 && Application.targetFrameRate != want)
+                            problems.Add($"【渲染档判据不成立】Application.targetFrameRate={Application.targetFrameRate}"
+                                + $" 与配置 defaultFrameRate={want} 不一致 —— 帧率接线没生效");
+                        else
+                            Debug.Log($"[RENDER][渲染档] 帧率已生效：targetFrameRate={Application.targetFrameRate}"
+                                + $"（配置 {want}）· vSync={QualitySettings.vSyncCount}");
+                    }
+                }
+            }
+
             // ── **套件高度落差审计**（判据，会判红）──────────────────────────────
             // 【为什么是判据而不是日志】2026-10-06 我为 `morgue_deep` 纯黑改了**四次**相机才找到真因：
             // 房间声明高 3.2m，而 `morgue` 套件实际只高 1.69m ⇒ 套件顶只到 0.845m
