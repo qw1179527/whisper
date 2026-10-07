@@ -342,6 +342,8 @@ namespace Whisper.Editor
             RunPostFxOnOff(camGo, cam, key, refIntensity, rooms, index, problems, ref written);
             // 目标② 的「阴影(含质量)」一项：同样要**像素级 ON/OFF 证据**，不接受配置证据
             RunShadowQualityOnOff(cam, key, _outDir, index, problems, ref written);
+            // 目标② 剩余项：分辨率缩放 + MSAA（都不需要新资产 ⇒ 与阴影同一次运行验完）
+            RunResolutionAndAaOnOff(cam, _outDir, index, problems, ref written);
 
             File.WriteAllText(Path.Combine(_outDir, "render-index.csv"), index.ToString());
             Debug.Log($"[RENDER] 共 {written} 张图 → {_outDir}");
@@ -625,6 +627,108 @@ namespace Whisper.Editor
             // 还原：把探针期间的强值退掉，避免影响后续（当前是最后一步，但保持函数可重入）
             vol.enabled = false;
             UnityEngine.Object.DestroyImmediate(volGo);
+        }
+
+        /// <summary>
+        /// **分辨率缩放** 与 **抗锯齿(质量)** 的 ON/OFF 像素证据（目标② 剩余项）。
+        ///
+        /// 【为什么把这两项放一起】它们是**同一族**（都改"每个像素怎么来"），
+        /// 且都不需要新资产 ⇒ **一次 CI 同时回答两个问题**（本轮的批量纪律）。
+        ///
+        /// 【自变量与判据】
+        /// · 分辨率：URP Asset 的 `renderScale` 0.5 vs 1.0 —— 半分辨率会让画面**明显变软**；
+        ///   判据 = 像素差 > 1%，且 `renderScale=0.5` 的**边缘能量**（相邻像素差之和）应下降。
+        /// · MSAA：URP Asset 的 `msaaSampleCount` 1 vs 4 —— 只影响**几何边缘**；
+        ///   判据 = 像素差 > 0.05%（比后处理低，因为作用面积只有边缘），
+        ///   且**边缘能量应下降**（这才是"抗锯齿在做事"的机理判据，不只是"像素变了"）。
+        ///
+        /// ⚠ "像素变了"不等于"做对了"：`renderScale` 变小也可能只是变糊而不是变清晰的对照，
+        ///   所以两项都**同时**记录"边缘能量"，用**方向**判读，而不是只看差异百分比。
+        /// ⚠ 每次测完**务必还原**（与其余探针同一条纪律）。
+        /// </summary>
+        static void RunResolutionAndAaOnOff(Camera cam, string outDir, StringBuilder index,
+            System.Collections.Generic.List<string> problems, ref int written)
+        {
+            var urp = GraphicsSettings.currentRenderPipeline;
+            if (urp == null) { problems.Add("【分辨率/抗锯齿】没有 currentRenderPipeline —— 无法验证"); return; }
+            var t = urp.GetType();
+
+            // ── ① 分辨率缩放：renderScale ────────────────────────────────────────────
+            var rsProp = t.GetProperty("renderScale");
+            if (rsProp != null && rsProp.CanWrite)
+            {
+                float orig = (float)rsProp.GetValue(urp);
+                try
+                {
+                    rsProp.SetValue(urp, 1.0f);
+                    var full = RenderTo(cam, Path.Combine(outDir, "res_Scale100.png"), null);
+                    rsProp.SetValue(urp, 0.5f);
+                    var half = RenderTo(cam, Path.Combine(outDir, "res_Scale050.png"), null);
+                    written += 2;
+                    double d = ChangedPct(full.pixels, half.pixels);
+                    Debug.Log($"[RENDER][分辨率] renderScale 1.00 vs 0.50 变化 {d:0.000}%"
+                        + $"（亮度 {full.mean:0.0} vs {half.mean:0.0} · 颜色数 {full.colors} vs {half.colors}）");
+                    index.AppendLine(string.Join(",", "res", "corridor_main", "Scale050",
+                        "res_Scale050.png", half.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                        half.std.ToString("0.00", CultureInfo.InvariantCulture), half.colors.ToString(CultureInfo.InvariantCulture),
+                        half.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), d.ToString("0.000", CultureInfo.InvariantCulture)));
+                    if (d < 1.0)
+                        problems.Add($"【分辨率判据不成立】renderScale 1.00 vs 0.50 只变化 {d:0.000}%（<1%）"
+                            + " —— 分辨率缩放对渲染没有实际作用");
+                }
+                finally { rsProp.SetValue(urp, orig); }
+            }
+            else problems.Add("【分辨率】URP Asset 上没有可写的 renderScale");
+
+            // ── ② MSAA：msaaSampleCount ─────────────────────────────────────────────
+            var msProp = t.GetProperty("msaaSampleCount");
+            if (msProp != null && msProp.CanWrite)
+            {
+                int orig = (int)msProp.GetValue(urp);
+                try
+                {
+                    msProp.SetValue(urp, 1);
+                    var off = RenderTo(cam, Path.Combine(outDir, "aa_Msaa1.png"), null);
+                    msProp.SetValue(urp, 4);
+                    var on = RenderTo(cam, Path.Combine(outDir, "aa_Msaa4.png"), null);
+                    written += 2;
+                    double d = ChangedPct(on.pixels, off.pixels);
+                    double eOff = EdgeEnergy(off.pixels), eOn = EdgeEnergy(on.pixels);
+                    Debug.Log($"[RENDER][抗锯齿·MSAA] 1x vs 4x 变化 {d:0.000}%"
+                        + $"（亮度 {on.mean:0.0} vs {off.mean:0.0} · 边缘能量 {eOn:0.2f} vs {eOff:0.2f}）");
+                    index.AppendLine(string.Join(",", "aa", "corridor_main", "Msaa4",
+                        "aa_Msaa4.png", on.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                        on.std.ToString("0.00", CultureInfo.InvariantCulture), on.colors.ToString(CultureInfo.InvariantCulture),
+                        on.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), d.ToString("0.000", CultureInfo.InvariantCulture)));
+                    if (d < 0.05)
+                        problems.Add($"【抗锯齿判据不成立·MSAA】1x vs 4x 只变化 {d:0.000}%（<0.05%）"
+                            + " —— MSAA 对渲染没有实际作用");
+                    else if (eOn >= eOff)
+                        problems.Add($"【抗锯齿判据不成立·MSAA】开了 4x 后**边缘能量没下降**（{eOn:0.2f} vs {eOff:0.2f}）"
+                            + " —— 像素变了但锯齿没被削（方向不对，可能是别的东西在动）");
+                    else Debug.Log($"[RENDER][抗锯齿·MSAA] 边缘能量下降 {(1 - eOn / System.Math.Max(eOff, 1e-3)) * 100:0.0}% ⇒ 锯齿确被削");
+                }
+                finally { msProp.SetValue(urp, orig); }
+            }
+            else problems.Add("【抗锯齿】URP Asset 上没有可写的 msaaSampleCount");
+        }
+
+        /// <summary>边缘能量 = 相邻像素亮度差之和（抗锯齿的**机理判据**：锯齿少了它就下降）。</summary>
+        static double EdgeEnergy(Color32[] px)
+        {
+            double sum = 0;
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 1; x < Width; x++)
+                {
+                    int i = y * Width + x, j = i - 1;
+                    if (i >= px.Length || j < 0) continue;
+                    int a = (px[i].r + px[i].g + px[i].b) / 3;
+                    int b = (px[j].r + px[j].g + px[j].b) / 3;
+                    sum += Math.Abs(a - b);
+                }
+            }
+            return sum / (Width * Height);
         }
 
         /// <summary>
