@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Godot 4.4 端（.NET 8）· 引擎无关核心
+    ─────────────────────────────────────────────────────────────
+    这里**只放不引用 UnityEngine 的文件**（移植自 unity/Assets/Scripts）。
+    判据：本机 `native/dotnet.sh build` 能编过 —— 那意味着这层真的与引擎无关，
+    将来换任何宿主（Godot / 裸 .NET / 测试跑手）都能直接编。
+    引用引擎的那部分（LevelBuilder / GlbReader / KitMeshLibrary / HudBuilder / LightShaft…）
+    不在此列，它们在 Godot 端要**用 Godot API 重写**，属于第二阶段。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Whisper.Core.Logic</AssemblyName>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- 引擎无关层不该出现任何警告噪声；有则说明耦合进来了 -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
