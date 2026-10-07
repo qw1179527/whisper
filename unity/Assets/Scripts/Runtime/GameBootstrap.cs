@@ -115,16 +115,38 @@ namespace Whisper.Runtime
             var lines = new System.Text.StringBuilder();
             try
             {
+                // 每步上报到阶段看板：⑦ 里到底断在哪一步，屏幕直接说
+                BootStageBoard.SetStage("⑦a 装配几何（TryBuildGeometry）");
                 var spawn = TryBuildGeometry(lines);
-                if (!spawn.HasValue) return;
-                if (!TrySpawnPlayer(lines, spawn.Value)) return;
-                if (!TrySpawnMonsters(lines)) return;
+                if (!spawn.HasValue)
+                {
+                    BootStageBoard.SetError("⑦a 装配几何失败 ⇒ 返回 null（真正的失败原因见启动失败看板）");
+                    return;
+                }
+                BootStageBoard.SetStage("⑦b 生成玩家（TrySpawnPlayer）");
+                if (!TrySpawnPlayer(lines, spawn.Value))
+                {
+                    BootStageBoard.SetError("⑦b 生成玩家失败（真正的失败原因见启动失败看板）");
+                    return;
+                }
+                BootStageBoard.SetStage("⑦c 实例化怪物（TrySpawnMonsters）");
+                if (!TrySpawnMonsters(lines))
+                {
+                    BootStageBoard.SetError("⑦c 实例化怪物失败（真正的失败原因见启动失败看板）");
+                    return;
+                }
                 AppendStatus(lines.ToString());
+                BootStageBoard.SetStage("✓ 对局已建（几何 + 玩家 + 怪物）· 应能看到画面了");
                 Debug.Log("[Whisper] 对局开始\n" + lines);
             }
             catch (System.Exception e)
             {
+                // 原先只写 `LastError` + LogError —— **屏幕上看不到**（而这正是排查期最需要的）
                 LastError = "对局启动失败：" + e.Message;
+                var stl = (e.StackTrace ?? "").Split('\n');
+                var sb2 = new System.Text.StringBuilder();
+                for (int i = 0; i < stl.Length && i < 8; i++) sb2.Append(stl[i].Trim()).Append('\n');
+                BootStageBoard.SetError("对局启动抛出未捕获异常\n" + e.GetType().FullName + ": " + e.Message + "\n\n" + sb2);
                 Debug.LogError("[Whisper] " + LastError);
             }
         }
@@ -348,6 +370,24 @@ namespace Whisper.Runtime
         bool TrySpawnPlayer(System.Text.StringBuilder lines, Spawn spawn)
         {
             if (!spawn.Ok) return true;   // 没有出生点也不该让整个 Boot 失败：HUD 仍要能显示
+
+            // ⚠ **前置条件显式检查**（2026-10-07 真机堆栈指向这里）
+            // 原先直接 `_player.Initialize(motion, _levelBuilder.Geometry, ...)` ——
+            // 若 `_levelBuilder` 为 null（⑦a 失败），这里抛的是一句
+            // "Object reference not set to an instance of an object"，
+            // **看不出真正缺的是什么**，而且它会覆盖掉 ⑦a 已经写好的失败原因。
+            // ⇒ 现在缺什么就说什么。
+            if (_levelBuilder == null)
+            {
+                Fail(lines, "生成玩家失败：`_levelBuilder` 为 null（⑦a 装配几何没成功）"
+                    + " —— 玩家需要几何做碰撞/寻路，缺它无法初始化");
+                return false;
+            }
+            if (_levelBuilder.Geometry == null)
+            {
+                Fail(lines, "生成玩家失败：`_levelBuilder.Geometry` 为 null（几何装配到一半失败）");
+                return false;
+            }
             try
             {
                 var playerGo = new GameObject("Player", typeof(PlayerController));
@@ -414,42 +454,6 @@ namespace Whisper.Runtime
             catch (System.Exception ex) { Fail(lines, $"怪物实例化失败（{ex.GetType().Name}）：{ex.Message}"); return false; }
         }
 
-        /// <summary>收尾：进入 Play 循环并把摘要打进 logcat（真机验收唯一要 grep 的一行）。</summary>
-        void FinishBoot(System.Diagnostics.Stopwatch t0, System.Text.StringBuilder lines)
-        {
-            Booted = true;
-            BootMs = t0.Elapsed.TotalMilliseconds;
-            // ⚠ `_status` 可能为 null（`BuildUi` 失败时）——与 `Fail()` 里刚补的守卫同类。
-            // 我在 `Fail()` 补了 `if (_status != null)` 却漏了这里，正是"同一类洞只补一处"。
-            // 排查构建里补上**可见的诊断**：看板直接告诉我们"HUD 文本没建出来"。
-            if (_status != null)
-            {
-                _status.color = HexToColor(DesignTokens.ColorPaper);
-                _status.text = lines.ToString();
-            }
-            else
-            {
-                BootStageBoard.SetError("FinishBoot：`_status` 为 null —— HUD 文本没建出来（BuildUi 失败）"
-                    + "\n这会让 Update() 每帧 NRE（堆栈看起来像 Start/Boot，实际是 Update）");
-                Debug.LogError("[Whisper] FinishBoot 时 _status 为 null —— BuildUi 没建出 HUD 文本");
-            }
-            BootLog = lines.ToString();
-            // 【为什么要把门/温度写进这一行】这些数值以前**只进 HUD 文本、不进日志**，
-            // 于是"开局到底开了几扇门""温度系统有没有装配"在真机上**无法核验**——
-            // 只能靠肉眼看截图，而那正是本工程反复踩的"汇报与事实不符"。
-            // 现在收进同一行，`adb logcat -s Unity:I` 就能直接读。
-            var geoSummary = _levelBuilder != null && _levelBuilder.Geometry != null
-                ? $" · 门扇 {_levelBuilder.DoorObjects.Count} · 门键 {_levelBuilder.Geometry.DoorCount}"
-                  + $" · 洞口 {_levelBuilder.Geometry.DoorOpeningCount}"
-                  + $" · 已开 {CountOpenDoors(_levelBuilder.Geometry)}/{_levelBuilder.Geometry.DoorOpeningCount}"
-                : "";
-            Debug.Log($"[Whisper] BOOT OK · {BootMs:0} ms · 房间 {Level.Rooms.Count} · 门 {_levelBuilder.DoorObjects.Count}"
-                + $" · 道具 {_levelBuilder.PropObjects.Count} · 可走格 {_levelBuilder.Geometry.PassableCount()}"
-                + geoSummary
-                + (_temperature != null ? " · 温度系统已装配" : " · 温度系统未装配")
-                + $" · 着色器 {LevelBuilder.UnlitShaderName}"
-                + (_player != null ? " · 玩家已就位" : ""));
-        }
 
         int CountMonsters()
         {
@@ -475,15 +479,6 @@ namespace Whisper.Runtime
             return set;
         }
 
-        static string DescribeServices()
-        {
-            string net = Services.HasNet ? "已注入" : "未注入";
-            string voice = Services.HasVoice ? "已注入" : "未注入";
-            string backend = Services.HasBackend
-                ? (Services.Backend.IsAvailable ? "已注入（可用）" : "已注入（无后端模式，§15.2）")
-                : "未注入";
-            return $"接口：INetService {net} · IVoiceService {voice} · IBackendService {backend}";
-        }
 
         /// <summary>
         /// 本局的鬼是否带「刺骨寒温」证据。取**任意一只**怪即可 —— 本作同一局只有一种鬼种
