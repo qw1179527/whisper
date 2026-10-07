@@ -1,0 +1,19 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Whisper", "Whisper.csproj", "{B1A2C3D4-5678-4E9F-A0B1-C2D3E4F5A6B7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B1A2C3D4-5678-4E9F-A0B1-C2D3E4F5A6B7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1A2C3D4-5678-4E9F-A0B1-C2D3E4F5A6B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1A2C3D4-5678-4E9F-A0B1-C2D3E4F5A6B7}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{B1A2C3D4-5678-4E9F-A0B1-C2D3E4F5A6B7}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{B1A2C3D4-5678-4E9F-A0B1-C2D3E4F5A6B7}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{B1A2C3D4-5678-4E9F-A0B1-C2D3E4F5A6B7}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+EndGlobal
