@@ -30,7 +30,9 @@ set -u
 
 PREFIX=/data/user/0/app.dsh.mobile/files/engine
 ROOTFS=/data/user/0/app.dsh.mobile/files/ubuntu2604
-GODOT_BIN=/data/user/0/app.dsh.mobile/files/dsh-home/whisper/tmp/godot/Godot_v4.4-stable_linux.arm64
+# ⚠ **必须用 .NET(mono) 版**：标准版不含 C# 运行时，跑不了 `godot/Whisper`（C# 工程）。
+#   本机实测：标准版 `--headless --build-solutions` 不可用；mono 版带 `GodotSharp/` API 程序集。
+GODOT_BIN=/data/user/0/app.dsh.mobile/files/dsh-home/whisper/tmp/godot/mono/Godot_v4.4-stable_mono_linux.arm64
 EXT="$PREFIX/extensions/openjdk-17"
 JAVA_HOME_R="$EXT/lib/jvm/java-17-openjdk"
 ANDROID_EXT="$PREFIX/extensions/android-buildtools"

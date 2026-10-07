@@ -56,3 +56,40 @@ bash native/dotnet.sh build godot/Whisper/Whisper.csproj
 `asset-manifest.json` 声明 **22 个套件**，磁盘上有 **21 个 `.glb`**；
 `truck_eurocargo` 在清单里、也在磁盘上（21 个之内）——
 差异需在清单门禁里核实（可能是有一个 id 对应非 kits 目录的资源）。
+
+---
+
+## 进度：C# 工程已在 Godot 里编译通过（2026-10-07）
+
+```bash
+bash native/dotnet.sh build godot/Whisper/Whisper.csproj
+# → Build succeeded.  0 Warning(s)  0 Error(s)
+```
+
+工程结构：
+```
+godot/Whisper/
+  project.godot                        Godot 4.4 · C# · mobile 渲染器
+  Whisper.csproj                       **不用 Godot.NET.Sdk**（避免 nuget 依赖），
+                                       改为 HintPath 直接引用 mono 版自带的 GodotSharp.dll
+  Scenes/Main.tscn                     主场景（挂 MainProbe）
+  Scripts/Runtime/MainProbe.cs         Godot 端探针：调引擎无关核心 + 画字到屏幕
+  Scripts/Core · Scripts/Gameplay      47 个引擎无关文件（搬自 unity/Assets/Scripts）
+```
+
+### 为什么不用 `Godot.NET.Sdk/4.4.0`
+它要走 nuget 还原，而本机（Termux/bionic + proot）**没验证过 nuget 可达**。
+mono 版编辑器**自带 API 程序集**（`GodotSharp/Api/Release/GodotSharp.dll`）
+⇒ 直接 `Reference + HintPath`，**零 nuget**，且路径是仓库内相对路径（可复核）。
+
+### 运行时的最后一个缺件：**glibc 的 .NET 运行时**
+Godot 的 C# 支持要靠 `hostfxr` 加载 .NET。而：
+| | 形态 | 能否给 Godot 用 |
+|---|---|---|
+| 宿主 `native/dotnet/root/dotnet` | **Android/bionic**（`/system/bin/linker64`）| ❌ Godot 在 glibc 的 proot 里，跨 libc |
+| rootfs | **无 .NET** | ❌ |
+⇒ 需要 **glibc 的 .NET 8 runtime**：
+`https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.11/dotnet-runtime-8.0.11-linux-arm64.tar.gz`（约 34 MB）
+
+装法（拿到后执行）：解到 rootfs 的 `/usr/share/dotnet`，
+并给 Godot 传 `DOTNET_ROOT=/usr/share/dotnet` + 把 `/usr/share/dotnet` 加进 `PATH`。

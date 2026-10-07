@@ -14,7 +14,7 @@
     "version": "1.0.0",
     "restore": {
       "projectUniqueName": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/Whisper.csproj",
-      "projectName": "Whisper.Core.Logic",
+      "projectName": "Whisper",
       "projectPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/Whisper.csproj",
       "packagesPath": "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/",
       "outputPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/obj/",

@@ -1,0 +1,21 @@
+; Project Whisper · Godot 端（方案 B：先搬引擎无关核心）
+;
+; 为什么用 Godot：Unity 一轮出包 22 分钟（CI），Godot 本机 39 秒（见 tools/godot.sh）。
+; 本工程只放**引擎无关**的 C# 核心 + 用 Godot API 写的渲染层。
+config_version=5
+
+[application]
+
+config/name="Whisper (Godot)"
+config/description="Project Whisper · Godot 迁移（引擎无关核心 + Godot 渲染层）"
+run/main_scene="res://Scenes/Main.tscn"
+config/features=PackedStringArray("4.4", "C#", "Forward Plus")
+
+[dotnet]
+
+project/assembly_name="Whisper"
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
