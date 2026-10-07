@@ -194,3 +194,32 @@
 现在五条假设已被**实测**逐一排除，方向已收敛到"URP 阴影链"这一层，
 但再往下需要**读盘上资产的序列化字段**与**核对 shader 变体**，
 那更适合作为**下一轮的第一件事**（有了明确的待查项，不是继续猜）。
+
+---
+
+## 阴影链第 2 项已查（批次 A4）：**全局 `_MAIN_LIGHT_SHADOWS_CASCADE=True`**
+```
+[RENDER][主光实测]   type=Directional **shadows=Soft** intensity=2.55
+[RENDER][全局关键字] _MAIN_LIGHT_SHADOWS=False · **_MAIN_LIGHT_SHADOWS_CASCADE=True** · _SHADOWS_SOFT=True
+[RENDER][材质关键字] Whisper/LitPbr | RECEIVE_SHADOWS_OFF=False | MAIN_LIGHT_SHADOWS=False | MAIN_LIGHT_SHADOWS_CASCADE=False
+```
+
+### 已确证的两件事
+1. **主光确实开了阴影**（`shadows=Soft`）—— 这是本轮修的真缺陷
+   （`GameBootstrap.BuildCamera` 从未给 KeyLight 设过 `shadows`，默认 `None`）。
+2. **URP 确实设了全局关键字**（`_MAIN_LIGHT_SHADOWS_CASCADE=True`、`_SHADOWS_SOFT=True`）
+   ⇒ 阴影链的"上游"是通的。
+
+### 剩下的疑点（下一步唯一要查的）
+**材质实例上三个关键字全为 False**（`_MAIN_LIGHT_SHADOWS` / `_MAIN_LIGHT_SHADOWS_CASCADE` /
+`_RECEIVE_SHADOWS_OFF=False`）。
+- `_RECEIVE_SHADOWS_OFF=False` 说明**没有**被显式关掉（好）；
+- 但 `IsKeywordEnabled` 对**全局**关键字在材质实例上**本就不一定为真**
+  （URP 用的是 `Shader.EnableKeyword` 的全局态，材质只反映"材质级"关键字）。
+⇒ 所以这**可能不是缺陷**，而是我读错了对象 —— 与前面"资源核验读错实例"是同一类错误。
+
+**下一步**：不再读材质关键字，改用**必然可判**的判据 ——
+在开着阴影的同一帧里，直接读**主光的阴影相关实测值**
+（`Light.shadowCustomResolution`、或经 `ShadowUtils` 的 `GetMainLightShadowParams`），
+或者**换一个必然投影的接收面**（把相机对准地面 + 一个明确遮挡物）。
+若这两条也无差异，则问题在**接收面的 shader 采样**（第 3 项：`shadowCoord` 有效性）。
