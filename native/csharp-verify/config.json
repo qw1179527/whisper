@@ -1743,7 +1743,7 @@
         "ssaoRadiusM": 0.6,
         "grainAmount": 0,
         "eyeAdaptSpeed": 0,
-        "_disabledWhy": "ssao/ssgi/eyeAdaptation/volumetricLight 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。"
+        "_disabledWhy": "ssao/ssgi/eyeAdaptation 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。【2026-10-07 更正】volumetricLight **不再是**这一类：那条理由只对**屏幕空间**体积光成立，而本工程改用**贴合光锥的锥体网格 + 附加混合**（`Whisper/LightShaft` + `LightShaft.cs`），不读深度、不读回、不走 Blit ⇒ 不会有黑屏那条失效路径，故置 true。"
       },
       "high": {
         "name": "高画质",
@@ -1761,13 +1761,13 @@
         "eyeAdaptation": false,
         "grain": true,
         "vignette": true,
-        "volumetricLight": false,
+        "volumetricLight": true,
         "bloomIntensity": 0.55,
         "ssgiIntensity": 0.35,
         "ssaoRadiusM": 0.6,
         "grainAmount": 0.04,
         "eyeAdaptSpeed": 1.2,
-        "_disabledWhy": "ssao/ssgi/eyeAdaptation/volumetricLight 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。"
+        "_disabledWhy": "ssao/ssgi/eyeAdaptation 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。【2026-10-07 更正】volumetricLight **不再是**这一类：那条理由只对**屏幕空间**体积光成立，而本工程改用**贴合光锥的锥体网格 + 附加混合**（`Whisper/LightShaft` + `LightShaft.cs`），不读深度、不读回、不走 Blit ⇒ 不会有黑屏那条失效路径，故置 true。"
       },
       "top": {
         "name": "顶级画质",
@@ -1785,13 +1785,13 @@
         "eyeAdaptation": false,
         "grain": true,
         "vignette": true,
-        "volumetricLight": false,
+        "volumetricLight": true,
         "bloomIntensity": 0.8,
         "ssgiIntensity": 0.55,
         "ssaoRadiusM": 0.75,
         "grainAmount": 0.055,
         "eyeAdaptSpeed": 1.1,
-        "_disabledWhy": "ssao/ssgi/eyeAdaptation/volumetricLight 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。"
+        "_disabledWhy": "ssao/ssgi/eyeAdaptation 默认关：它们在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏。见 docs/spec/supplement-2026-10-05-permanent.md 台账。【2026-10-07 更正】volumetricLight **不再是**这一类：那条理由只对**屏幕空间**体积光成立，而本工程改用**贴合光锥的锥体网格 + 附加混合**（`Whisper/LightShaft` + `LightShaft.cs`），不读深度、不读回、不走 Blit ⇒ 不会有黑屏那条失效路径，故置 true。"
       }
     }
   }

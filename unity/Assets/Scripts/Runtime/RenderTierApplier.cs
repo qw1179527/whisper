@@ -79,6 +79,14 @@ namespace Whisper.Runtime
                 cfg.Int(p + ".anisotropicFiltering", 1), 0, 2);
             n += 3;
 
+            // ── ④b 体积光（光柱）──────────────────────────────────────────────────
+            // ⚠ 这里接的是**产品侧总开关**：`LightShaft.Enabled`。
+            // 若只把配置改 true 而不接这一句，就又是一次"配了 ≠ 生效"（本类的成因）。
+            bool vol = cfg.Bool(p + ".volumetricLight", false);
+            Whisper.Gameplay.Level.LightShaft.Enabled = vol;
+            if (!vol) Whisper.Gameplay.Level.LightShaft.SetAllEnabled(false);   // 已建的也关掉
+            n++;
+
             // ── ⑤ 相机远裁剪（`farClipM`）────────────────────────────────────────
             // 由调用方把相机传进来更干净，但为了"一处应用"，这里直接取主相机；
             // 取不到就跳过（不报错 —— 相机可能还没建）。
@@ -90,6 +98,7 @@ namespace Whisper.Runtime
                 + $" · shadows {QualitySettings.shadows}/{QualitySettings.shadowResolution}"
                 + $" · shadowDistance {QualitySettings.shadowDistance:0}m"
                 + $" · pixelLight {QualitySettings.pixelLightCount} · AA {QualitySettings.antiAliasing}"
+                + $" · 体积光 {vol}"
                 + $" · 各向异性 {QualitySettings.anisotropicFiltering}"
                 + (cam != null ? $" · farClip {cam.farClipPlane:0}m" : " · (无主相机，跳过 farClip)")
                 + $" → 应用 {n} 项";

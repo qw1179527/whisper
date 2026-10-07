@@ -30,6 +30,10 @@
     <!-- 2026-10-06 新增：建灯的 partial（同样引用 UnityEngine 的 LightRig）。
          它承载"调查关卡一盏灯都没有"那处产品级缺陷的修复，见文件头注释。 -->
     <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LevelBuilder.Lights.cs" />
+    <!-- LightShaft 引用 UnityEngine（MonoBehaviour/Mesh/Material/Light）⇒ 与其余 Level 层同处置：
+         不进本机测试工程，由 tools/unity-syntax-check.sh（Roslyn + Unity 桩）覆盖编译。
+         它验证的是**渲染观感**，本机脚本工程也跑不了（没有 GPU）⇒ 归取证。 -->
+    <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/LightShaft.cs" />
     <!-- KitMeshLibrary 引用 UnityEngine（Mesh/Application.streamingAssetsPath）→ 同上由
          tools/unity-syntax-check.sh 覆盖；它的纯逻辑部分由 KitVerifier 断言（本工程内）。 -->
     <Compile Remove="../../unity/Assets/Scripts/Gameplay/Level/KitMeshLibrary.cs" />

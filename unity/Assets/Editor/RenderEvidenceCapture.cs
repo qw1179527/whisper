@@ -344,6 +344,8 @@ namespace Whisper.Editor
             RunShadowQualityOnOff(cam, key, _outDir, index, problems, ref written);
             // 目标② 剩余项：分辨率缩放 + MSAA（都不需要新资产 ⇒ 与阴影同一次运行验完）
             RunResolutionAndAaOnOff(cam, _outDir, index, problems, ref written);
+            // 目标② 的「体积光」：光柱 ON/OFF（本机可验，不依赖深度/多采样）
+            RunVolumetricOnOff(cam, _outDir, index, problems, ref written);
 
             File.WriteAllText(Path.Combine(_outDir, "render-index.csv"), index.ToString());
             Debug.Log($"[RENDER] 共 {written} 张图 → {_outDir}");
@@ -719,6 +721,73 @@ namespace Whisper.Editor
                 finally { msProp.SetValue(urp, orig); }
             }
             else problems.Add("【抗锯齿】URP Asset 上没有可写的 msaaSampleCount");
+        }
+
+        /// <summary>
+        /// **体积光（光柱）ON/OFF 像素证据**（目标② 的「体积光」一项）。
+        ///
+        /// 【为什么用"聚光灯 + 锥体网格"而不是屏幕空间体积光】
+        /// 配置里 `volumetricLight` 一直被关，原文理由是
+        /// "在 OnRenderImage 的 Blit 链里拿不到深度/读回数据（真机 raw=0.00），开启会黑屏"
+        /// —— 屏幕空间方案在本工程**已被实测证明会黑屏**。
+        /// 而光柱有一个**不需要深度**的做法：贴合光锥的锥体网格 + 附加混合（见 `LightShaft.cs`）。
+        /// **本机可验证**也是选它的理由：上一轮实测软件 GL 不支持多采样 RT（MSAA 验不了），
+        /// 而本方案只用"不透明几何 + 附加混合" ⇒ 在软件 GL 下同样出得了像素证据。
+        ///
+        /// ⚠ 如实界定：这是**几何光柱**（light shaft），不是参与介质散射的积分。
+        /// </summary>
+        static void RunVolumetricOnOff(Camera cam, string outDir, StringBuilder index,
+            System.Collections.Generic.List<string> problems, ref int written)
+        {
+            // ── 造一盏聚光灯：放在走廊上方、朝下偏前 —— 让"光柱"落在**看得见的几何**上 ──
+            // 位置不是随便取的：`corridor_main/eye` 取景在 (0,~1.6,0.9) 附近看向 +X，
+            // 所以灯放在相机前方偏上，光柱才会出现在画面里（而不是在身后）。
+            var go = new GameObject("ShaftSpot");
+            go.transform.position = new Vector3(4.0f, 3.0f, 0.9f);
+            go.transform.rotation = Quaternion.Euler(62f, 90f, 0f);   // 朝下偏 +X
+            var spot = go.AddComponent<Light>();
+            spot.type = LightType.Spot;
+            spot.spotAngle = 70f;
+            spot.range = 16f;
+            spot.intensity = 6f;
+            spot.color = new Color(1f, 0.94f, 0.82f, 1f);
+            spot.shadows = LightShadows.None;    // 光柱是发光体，投影会自遮蔽
+
+            bool attached = Whisper.Gameplay.Level.LightShaft.Attach(spot);
+            if (!attached)
+            {
+                problems.Add("【体积光判据不成立】LightShaft.Attach 返回 false —— 光柱没建起来");
+                UnityEngine.Object.DestroyImmediate(go);
+                return;
+            }
+            try
+            {
+                Whisper.Gameplay.Level.LightShaft.SetAllEnabled(true);
+                var on = RenderTo(cam, Path.Combine(outDir, "vol_LightShaft_ON.png"), null);
+                Whisper.Gameplay.Level.LightShaft.SetAllEnabled(false);
+                var off = RenderTo(cam, Path.Combine(outDir, "vol_LightShaft_OFF.png"), null);
+                written += 2;
+                double d = ChangedPct(on.pixels, off.pixels);
+                Debug.Log($"[RENDER][体积光] 光柱 ON vs OFF 变化 {d:0.000}%"
+                    + $"（亮度 {on.mean:0.0} vs {off.mean:0.0} · 颜色数 {on.colors} vs {off.colors}）");
+                index.AppendLine(string.Join(",", "vol", "corridor_main", "LightShaft_ON",
+                    "vol_LightShaft_ON.png", on.mean.ToString("0.00", CultureInfo.InvariantCulture),
+                    on.std.ToString("0.00", CultureInfo.InvariantCulture), on.colors.ToString(CultureInfo.InvariantCulture),
+                    on.magentaPct.ToString("0.000", CultureInfo.InvariantCulture), d.ToString("0.000", CultureInfo.InvariantCulture)));
+                // 判据：光柱是**加法**，所以 ON 必须比 OFF **更亮**（方向判据，不只看差异）
+                if (d < 0.5)
+                    problems.Add($"【体积光判据不成立】光柱 ON vs OFF 只变化 {d:0.000}%（<0.5%）"
+                        + " —— 光柱对渲染没有实际作用");
+                else if (on.mean <= off.mean)
+                    problems.Add($"【体积光判据不成立】开了光柱后平均亮度没上升（{on.mean:0.0} vs {off.mean:0.0}）"
+                        + " —— 附加混合方向不对（光柱应当只加不减）");
+                else Debug.Log($"[RENDER][体积光] 亮度上升 {(on.mean - off.mean):0.00}（附加混合方向正确）");
+            }
+            finally
+            {
+                Whisper.Gameplay.Level.LightShaft.Clear();
+                UnityEngine.Object.DestroyImmediate(go);      // 务必清掉，别污染后续判据
+            }
         }
 
         /// <summary>边缘能量 = 相邻像素亮度差之和（抗锯齿的**机理判据**：锯齿少了它就下降）。</summary>

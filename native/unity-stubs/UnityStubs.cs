@@ -276,6 +276,11 @@ namespace UnityEngine
 
     public static partial class Mathf
     {
+        /// <summary>文档：Mathf.PI / Mathf.Tan —— 三角函数常量与函数。</summary>
+        public const float PI = 3.14159265f;
+        public static float Tan(float f) => (float)System.Math.Tan(f);
+        public static float Atan(float f) => (float)System.Math.Atan(f);
+
         public static float Max(float a, float b) => a > b ? a : b;
         public static float Min(float a, float b) => a < b ? a : b;
         public static float Abs(float a) => a < 0 ? -a : a;
