@@ -21,6 +21,7 @@
           "net8.0"
         ],
         "sources": {
+          "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/nupkgs-flat": {},
           "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/tmp/godot/mono/GodotSharp/Tools/nupkgs": {}
         },
         "frameworks": {

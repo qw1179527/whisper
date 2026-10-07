@@ -96,6 +96,7 @@
         "net8.0"
       ],
       "sources": {
+        "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/nupkgs-flat": {},
         "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/tmp/godot/mono/GodotSharp/Tools/nupkgs": {}
       },
       "frameworks": {
@@ -158,16 +159,5 @@
         "#import": []
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1101",
-      "level": "Error",
-      "message": "Unable to find package Microsoft.NETCore.App.Runtime.Mono.android-arm64. No packages exist with this id in source(s): godot-local",
-      "libraryId": "Microsoft.NETCore.App.Runtime.Mono.android-arm64",
-      "targetGraphs": [
-        "net8.0"
-      ]
-    }
-  ]
+  }
 }

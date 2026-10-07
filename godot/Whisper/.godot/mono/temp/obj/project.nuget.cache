@@ -1,21 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "2QVTo/d/22o=",
-  "success": false,
+  "dgSpecHash": "RpZjuFATjiI=",
+  "success": true,
   "projectFilePath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/Whisper.csproj",
   "expectedPackageFiles": [
     "/root/.nuget/packages/godot.sourcegenerators/4.4.0/godot.sourcegenerators.4.4.0.nupkg.sha512",
-    "/root/.nuget/packages/godotsharp/4.4.0/godotsharp.4.4.0.nupkg.sha512"
+    "/root/.nuget/packages/godotsharp/4.4.0/godotsharp.4.4.0.nupkg.sha512",
+    "/root/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64/8.0.11/microsoft.netcore.app.runtime.mono.android-arm64.8.0.11.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "NU1101",
-      "level": "Error",
-      "message": "Unable to find package Microsoft.NETCore.App.Runtime.Mono.android-arm64. No packages exist with this id in source(s): godot-local",
-      "libraryId": "Microsoft.NETCore.App.Runtime.Mono.android-arm64",
-      "targetGraphs": [
-        "net8.0"
-      ]
-    }
-  ]
+  "logs": []
 }

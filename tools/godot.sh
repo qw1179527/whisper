@@ -31,7 +31,15 @@
 # ⇒ 必须装 **glibc 的 .NET 8 runtime** 到 rootfs：`/usr/share/dotnet`（已装 8.0.11）。
 # 这是本链路第三个"宿主工具是 bionic、Godot 在 glibc 里"的坑（前两个：JDK、Android SDK 工具）。
 #
-# ⚠ **第六次跨环境坑：JDK 扩展的 `libz.so.1` 遮蔽了 glibc 的**
+# ⚠ **第六次坑的最终解法：给 Java 一个"只有 bionic 库"的专用目录**
+# 冲突是**双向**的（同一个 `libz` 两边都要，但一个是 bionic 一个是 glibc）：
+#   · 把 `$EXT/lib` 放进 LD_LIBRARY_PATH → Java 能跑，但 **.NET 被 bionic libz 遮蔽** ⇒ NuGet 解析器起不来
+#   · 不放进 → **Java 起不来**（`exec: java: not found` / `dlopen failed`）
+# ⇒ 解法：`/opt/javalibs/`（rootfs 内）放 **184 个 bionic 库的符号链接**，**排在最前**：
+#      Java 拿它要的 bionic 库；.NET 在后面的 glibc 路径里拿它要的 glibc 库。
+#   两边各取所需，互不遮蔽。（JDK 的 `lib/` **不再**出现在 LD_LIBRARY_PATH 里。）
+#
+# ️ 原始记录：**第六次跨环境坑：JDK 扩展的 `libz.so.1` 遮蔽了 glibc 的**
 # 现象（Godot 导出日志原文）：
 #   `/usr/share/dotnet/.../libSystem.IO.Compression.Native.so: cannot open shared object file`
 #   `SDK resolver "Microsoft.DotNet.MSBuildWorkloadSdkResolver" returned null`
@@ -99,10 +107,10 @@ exec "$PREFIX/bin/proot" --link2symlink -0 -r "$ROOTFS" \
   -w /root \
   /usr/bin/env -i \
     HOME=/root \
-    PATH="$JAVA_HOME_R/bin:$ANDROID_EXT/bin:/usr/share/dotnet:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    PATH="$JAVA_HOME_R/bin:$EXT/bin:$ANDROID_EXT/bin:/usr/share/dotnet:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     LANG=C.UTF-8 TERM=xterm \
     JAVA_HOME="$JAVA_HOME_R" \
-    LD_LIBRARY_PATH="/opt/ssl11:/usr/lib/aarch64-linux-gnu:/usr/lib:/lib/aarch64-linux-gnu:/lib:$EXT/lib" \
+    LD_LIBRARY_PATH="/opt/javalibs:/opt/ssl11:/usr/lib/aarch64-linux-gnu:/usr/lib:/lib/aarch64-linux-gnu:/lib" \
     ANDROID_HOME="$ANDROID_EXT" \
     DOTNET_ROOT=/usr/share/dotnet \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
