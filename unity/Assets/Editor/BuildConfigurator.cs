@@ -143,15 +143,49 @@ namespace Whisper.Editor
         /// <summary>CI 里从 GITHUB_RUN_NUMBER 派生版本号，保证每次构建的包可区分（排障必需）。</summary>
         static string ResolveBundleVersion()
         {
-            var run = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
-            return int.TryParse(run, out int n) && n > 0 ? $"0.1.{n}" : FallbackBundleVersion;
+            int n = ReadRunNumber();
+            return n > 0 ? $"0.1.{n}" : FallbackBundleVersion;
         }
+
+        /// <summary>
+        /// 读 CI 的构建号。
+        ///
+        /// ⚠ **标记文件优先，环境变量兜底**（2026-10-07 实测教训）：
+        /// 真机装出来的包版本号是 **`0.1.1`（= FallbackBundleVersion）** ⇒
+        /// `GITHUB_RUN_NUMBER` **没传进 Unity 进程**。
+        /// 也就是说 GameCI 这条链上，**步骤级 `env:` 不会到达 Unity**（与 `WHISPER_DEV_MONO` 同一个问题，
+        /// 那次导致 32 分钟后才失败）。⇒ 同一个修法：CI 写一个标记文件，Unity 读它。
+        ///
+        /// 为什么版本号重要：没有它，"手上这个包是哪次构建的"就无法回答 ——
+        /// 而排障第一问永远是"你装的是哪一版"。静默回落到常量会让**所有包看起来都一样**。
+        /// </summary>
+        static int ReadRunNumber()
+        {
+            try
+            {
+                if (System.IO.File.Exists(RunNumberFile))
+                {
+                    var txt = System.IO.File.ReadAllText(RunNumberFile).Trim();
+                    if (int.TryParse(txt, out int fromFile) && fromFile > 0) return fromFile;
+                }
+            }
+            catch (System.Exception e) { Debug.LogWarning($"[Whisper] 读 {RunNumberFile} 失败：{e.Message}"); }
+            var env = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
+            if (int.TryParse(env, out int n) && n > 0) return n;
+            Debug.LogWarning($"[Whisper] 未读到构建号（{RunNumberFile} 与环境变量都没有）"
+                + $" ⇒ 版本号回落到 {FallbackBundleVersion} —— 这个包将无法与其它构建区分");
+            return 0;
+        }
+
+        /// <summary>CI 写入的构建号标记文件（相对 unity/ 工作目录）。</summary>
+        public const string RunNumberFile = "whisper-build-number.txt";
 
         static int ResolveVersionCode(System.Collections.Generic.List<string> problems)
         {
-            var run = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
-            if (int.TryParse(run, out int n) && n > 0) return n;
-            problems.Add("未读到 GITHUB_RUN_NUMBER，版本号回落到 " + FallbackVersionCode);
+            int n = ReadRunNumber();
+            if (n > 0) return n;
+            problems.Add("未读到构建号，versionCode 回落到 " + FallbackVersionCode
+                + "（Android 要求 versionCode 单调递增，回落会导致新包装不上旧包）");
             return FallbackVersionCode;
         }
 

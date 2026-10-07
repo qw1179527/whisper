@@ -119,6 +119,14 @@ jobs:
           key: Library-Android-v2-${{ hashFiles('unity/Assets/**', 'unity/ProjectSettings/**') }}
           restore-keys: Library-Android-v2-
 
+      # ⚠ **把构建号写进标记文件**（环境变量不达 Unity，实测：真机包版本是 0.1.1 = fallback）
+      # 环境变量要穿 action → docker → xvfb-run → Unity 四层；标记文件随工作区就在，且 ls 看得见。
+      - name: 写构建号标记（环境变量不达 Unity，走文件）
+        run: |
+          cd unity
+          printf '%s' "${{ github.run_number }}" > whisper-build-number.txt
+          echo "构建号标记：$(cat whisper-build-number.txt)"
+
       - name: 构建（GameCI）
         uses: game-ci/unity-builder@v4
         env:

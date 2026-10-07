@@ -38,3 +38,4 @@ Unity_lic.ulf
 .gh-token
 .gh-token.env
 unity/whisper-dev-mono.flag
+unity/whisper-build-number.txt

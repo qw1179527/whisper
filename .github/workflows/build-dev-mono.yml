@@ -71,7 +71,8 @@ jobs:
         run: |
           cd unity
           touch whisper-dev-mono.flag
-          echo "标记已建：$(ls -la whisper-dev-mono.flag)"
+          printf '%s' "${{ github.run_number }}" > whisper-build-number.txt
+          echo "标记已建：$(ls -la whisper-dev-mono.flag) · 构建号 $(cat whisper-build-number.txt)"
           # 出货包与开发包**共用同一个 Library 缓存键**会互相污染：
           # 上次失败日志里有 `Delete 22 artifact files that are no longer in use`，
           # 说明它吃到了 IL2CPP 的增量缓存还在做删除重编。开发包用**独立键**。

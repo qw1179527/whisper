@@ -529,9 +529,27 @@ namespace Whisper.Runtime
             lines.AppendLine("可能原因：① 着色器/资产未进包 ② Resources 路径写错 ③ 关卡 DSL 校验不通过");
             var body = lines.ToString();
             BootLog = body;
-            _status.color = new Color(1f, 0.35f, 0.3f, 1f);
-            _status.fontSize = 32;
-            _status.text = body;
+
+            // ══════════════════════════════════════════════════════════════════════════════
+            // **失败路径必须无条件可见**（2026-10-07 真机黑屏的根因就是这个洞）
+            // ══════════════════════════════════════════════════════════════════════════════
+            // 原实现只写 `_status.text`，而 `_status` 是 **HUD 建好之后**才有的。
+            // 启动链上 `TryLoadConfig → TryInstallServices → TryLoadLevel` 任何一步失败时
+            // `_status` 仍为 null ⇒ 这一整段**静默抛 NullReference 或什么都不做**
+            // ⇒ 用户看到的是"全黑、无提示"，我只能靠猜（真机截图证实：上半有探针白字、下半全黑）。
+            // ⇒ 进 `Fail()` 先挂**不依赖任何游戏对象**的看板（`OnGUI` 只要一个 GameObject）。
+            BootFailBoard.Show(body);
+
+            // HUD 若已建好，**同时**写进游戏内文本（保留原有行为，不替换）
+            if (_status != null)
+            {
+                _status.color = new Color(1f, 0.35f, 0.3f, 1f);
+                _status.fontSize = 32;
+                _status.text = body;
+            }
+            else Debug.LogWarning("[Whisper] Fail() 时 _status 仍为 null —— 已改由 BootFailBoard 显示"
+                + "（这正是真机『全黑无提示』的成因，不再是静默失败）");
+
             Debug.LogError($"[Whisper] BOOT FAILED · {message}\n{body}");
         }
     }
