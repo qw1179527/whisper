@@ -707,6 +707,14 @@ namespace Whisper.Editor
                         problems.Add($"【抗锯齿判据不成立·MSAA】开了 4x 后**边缘能量没下降**（{eOn:0.00} vs {eOff:0.00}）"
                             + " —— 像素变了但锯齿没被削（方向不对，可能是别的东西在动）");
                     else Debug.Log($"[RENDER][抗锯齿·MSAA] 边缘能量下降 {(1 - eOn / System.Math.Max(eOff, 1e-3)) * 100:0.0}% ⇒ 锯齿确被削");
+                    // ⚠ **回退必须判红**：`#77` 实测按管线 msaa 建 RT 会让主图全黑（软件 GL 不支持多采样 RT），
+                    // 于是我加了"全黑就回退 1x"。若回退**发生过**，那这个 MSAA 探针量的其实是 1x 之间的差异 ——
+                    // 即"MSAA 没有被验到"。不判红的话，0.948% 会被读成"MSAA 有效"。
+                    if (_rtMsaaFellBack)
+                        problems.Add("【抗锯齿判据不成立·MSAA】RT 因管线 msaa>1 渲出全黑而**回退到 1x**"
+                            + " —— 本次 MSAA 读数不是 1x vs 4x，而是 1x vs 1x（MSAA 未被验证到；"
+                            + "软件 GL 不支持多采样 RT，需真机验证）");
+                    else Debug.Log($"[RENDER][抗锯齿·MSAA] 本次 RT 实际采样数 = {_rtMsaaUsed}（未回退）");
                 }
                 finally { msProp.SetValue(urp, orig); }
             }
@@ -1570,6 +1578,9 @@ namespace Whisper.Editor
         /// 而不是"我的取证没接对"—— 那正是本项目最忌讳的"假证据"。
         /// 显式挂上之后，"效果无效"与"接线没做"才区分得开。
         /// </summary>
+        static int _rtMsaaUsed = 1;        // 本次实际用的 RT 采样数（回退后为 1）
+        static bool _rtMsaaFellBack;       // 是否发生过回退（探针据此判红）
+
         static Shot RenderTo(Camera cam, string path, Volume volume)
         {
             // ── 【2026-10-07 实测抓到的旁路】RT 的 antiAliasing **必须与管线设置一致** ──────
@@ -1587,7 +1598,15 @@ namespace Whisper.Editor
                 if (mp != null) msaa = Mathf.Clamp((int)mp.GetValue(urpNow), 1, 8);
             }
             catch { msaa = 1; }
-            var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, msaa);
+            // ⚠ **必须能回退**：实测（#77）按管线 msaa=4 建 RT 后**主图全黑**（luma 0.0、54 项判红）
+            // —— 软件 GL 下 4x MSAA 的 RT 渲不出内容。
+            // 但同一次运行里 MSAA 探针**拿到了真读数**（0.948%、边缘能量下降）⇒ 旁路确实是真因。
+            // ⇒ 折中：**试**管线 msaa，渲出来是黑的就退回 1x（1x 永远是已验证可用的那条路）。
+            //   回退事实会写进 `_rtMsaaFallback`，由探针**判红**报出来 ——
+            //   不静默降级（静默降级会让"MSAA 没验到"伪装成"MSAA 验过了"）。
+            var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32,
+                RenderTextureReadWrite.Default, msaa);
+            _rtMsaaUsed = msaa;
             var prevRt = cam.targetTexture;
             cam.targetTexture = rt;
             // 【诊断】把**实测**相机位姿打进日志：位置/朝向/远近裁剪面。
@@ -1637,6 +1656,36 @@ namespace Whisper.Editor
             tex.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
             tex.Apply();
             RenderTexture.active = null;
+
+            // ── **MSAA RT 黑屏回退**（2026-10-07 实测：软件 GL 下 4x MSAA 的 RT 渲不出内容）──
+            // 为什么必须回退：`#77` 按管线 msaa=4 建 RT 后**主图全黑**（luma 0.0 · 54 项判红）。
+            // 但 1x 是**已验证可用**的路 ⇒ 退回它，并**记下回退**让探针判红，
+            // 而不是静默降级 —— 静默降级会让"MSAA 没验到"伪装成"MSAA 验过了"。
+            if (msaa > 1)
+            {
+                var probe = tex.GetPixels32();
+                double s0 = 0; foreach (var c in probe) s0 += c.r + c.g + c.b;
+                if (s0 <= 0.0)          // 全黑 ⇒ 这张 RT 不可用
+                {
+                    _rtMsaaFellBack = true;
+                    UnityEngine.Object.DestroyImmediate(tex);
+                    cam.targetTexture = prevRt;
+                    RenderTexture.ReleaseTemporary(rt);
+                    rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32);  // 1x
+                    _rtMsaaUsed = 1;
+                    cam.targetTexture = rt;
+                    if (volume != null) volume.enabled = volume.profile != null;
+                    cam.Render();
+                    tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
+                    RenderTexture.active = rt;
+                    tex.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+                    tex.Apply();
+                    RenderTexture.active = null;
+                    Debug.LogWarning($"[RENDER][MSAA·RT] 管线 msaa={msaa} 的 RT 渲出全黑 ⇒ **已回退 1x**"
+                        + "（软件 GL 不支持多采样 RT；这条回退会由 MSAA 探针判红，不静默）");
+                }
+                else _rtMsaaUsed = msaa;
+            }
             cam.targetTexture = prevRt;
 
             var px = tex.GetPixels32();
