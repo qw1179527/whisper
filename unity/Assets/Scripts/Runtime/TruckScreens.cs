@@ -205,23 +205,41 @@ namespace Whisper.Runtime
             }
             // 世界范围 → 贴图范围（留 12% 边距）
             float minX = float.MaxValue, minZ = float.MaxValue, maxX = float.MinValue, maxZ = float.MinValue;
+            // ⚠ **只按当前楼层算范围**（原先用全关卡范围）。
+            // 后果（本机出图可见）：地图按楼层画，但范围含其它楼层的房间 ⇒
+            // 当前楼层的房间只占画布一部分，右侧留大片空白。
+            // 逐层算范围后，每层都能铺满屏幕（屏幕小、要看清，面积优先）。
             foreach (var r in d.Level.Rooms)
             {
+                if (r.Floor != d.Floor) continue;
                 if (r.MinX < minX) minX = r.MinX;
                 if (r.MinZ < minZ) minZ = r.MinZ;
                 if (r.MaxX > maxX) maxX = r.MaxX;
                 if (r.MaxZ > maxZ) maxZ = r.MaxZ;
             }
+            if (minX > maxX) { minX = minZ = 0f; maxX = maxZ = 1f; }   // 该层无房间（不要出现负跨度）
+            // ── 【2026-10-06 本机检出】各轴**独立**缩放，而不是共用一个 scale ──────────
+            // 缺陷：原先用 `scale = 0.76 / max(spanX, spanZ)`，两轴共用。
+            // 疗养院是 22×11（扁的），屏幕是 128×128（正方形）⇒ 地图只占画布**不到一半高度**，
+            // 浪费一半屏幕（而屏幕是玩家凑近看的物件，字号本来就紧张）。
+            // 本机把 C# 的绘制逻辑照搬到 node（`tmp/port-screen.mjs`）出图**看出来的**，
+            // 不占 CI —— 这是"UI 也能本机验证"的第一条通道。
+            // ⚠ 各轴**独立拉满**（不做等比缩放）。
+            // 真实宽高比是 **22:11 = 2:1**，而屏幕是 128×128 正方形 ——
+            // 等比缩放会让地图只占画布**下半部**（本机出图看得很清楚），浪费一半面积。
+            // 屏幕是玩家凑近看的 0.5m 物件、字号本来就紧张 ⇒ **铺满**比"保持比例"更重要。
+            // （取舍已写明：牺牲比例、换取面积。若将来屏幕变大可改回等比。）
             float spanX = Mathf.Max(maxX - minX, 1f), spanZ = Mathf.Max(maxZ - minZ, 1f);
-            float scale = 0.76f / Mathf.Max(spanX, spanZ);
-            float ox = (1f - spanX * scale) * 0.5f, oz = (1f - spanZ * scale) * 0.5f;
+            const float FillK = 0.96f;                       // 留 4% 边距，避免贴边被裁
+            float scaleX = FillK / spanX, scaleZ = FillK / spanZ;
+            float ox = (1f - spanX * scaleX) * 0.5f, oz = (1f - spanZ * scaleZ) * 0.5f;
 
             foreach (var r in d.Level.Rooms)
             {
-                int px = Mathf.RoundToInt((ox + (r.MinX - minX) * scale) * TexSize);
-                int py = Mathf.RoundToInt((oz + (r.MinZ - minZ) * scale) * TexSize);
-                int pw = Mathf.Max(1, Mathf.RoundToInt(r.SizeX * scale * TexSize));
-                int ph = Mathf.Max(1, Mathf.RoundToInt(r.SizeZ * scale * TexSize));
+                int px = Mathf.RoundToInt((ox + (r.MinX - minX) * scaleX) * TexSize);
+                int py = Mathf.RoundToInt((oz + (r.MinZ - minZ) * scaleZ) * TexSize);
+                int pw = Mathf.Max(1, Mathf.RoundToInt(r.SizeX * scaleX * TexSize));
+                int ph = Mathf.Max(1, Mathf.RoundToInt(r.SizeZ * scaleZ * TexSize));
                 // 光区配色：与 LevelPalette 的情绪梯度同源（危险区偏暖、安全区偏冷）
                 Color c = r.LightZone == "safe" ? new Color(0.35f, 0.75f, 0.55f)
                         : r.LightZone == "high-risk" ? new Color(0.75f, 0.45f, 0.30f)
@@ -245,9 +263,9 @@ namespace Whisper.Runtime
                 foreach (var r in d.Level.Rooms)
                 {
                     if (r.Id != d.Level.Extraction.Standard) continue;
-                    int px = Mathf.RoundToInt((ox + (r.MinX - minX) * scale) * TexSize);
-                    int pw = Mathf.Max(2, Mathf.RoundToInt(r.SizeX * scale * TexSize));
-                    int py = Mathf.RoundToInt((oz + (r.MinZ - minZ) * scale) * TexSize);
+                    int px = Mathf.RoundToInt((ox + (r.MinX - minX) * scaleX) * TexSize);
+                    int pw = Mathf.Max(2, Mathf.RoundToInt(r.SizeX * scaleX * TexSize));
+                    int py = Mathf.RoundToInt((oz + (r.MinZ - minZ) * scaleZ) * TexSize);
                     Rect(tex, px, py - 1, pw, 2, new Color(0.2f, 1f, 0.35f));
                 }
             }
