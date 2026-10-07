@@ -47,6 +47,27 @@ namespace Whisper.Runtime
             BootStageBoard.SetStage("⑥ 收尾（FinishBoot）");
             FinishBoot(t0, lines);
             BootStageBoard.SetStage("✓ 启动完成（应已显示主界面）");
+
+            // ── 排查构建：**直接进对局**（见 AutoEnterMatchOnBoot 的注释）────────────────
+            // 这是"真正建世界"那段的**第一次真机执行**：几何 + 房间灯 + 玩家 + 怪物。
+            // 包在 try/catch 里：它抛异常时也要进阶段看板，而不是静默变黑（那就白跑一轮）。
+            if (AutoEnterMatchOnBoot && Booted)
+            {
+                BootStageBoard.SetStage("⑦ 直接进对局（建几何 + 灯 + 玩家 + 怪物）");
+                try
+                {
+                    StartMatch();
+                    BootStageBoard.SetStage($"✓ 对局已建（几何/灯/玩家/怪物）· 应能看到画面了");
+                }
+                catch (System.Exception e)
+                {
+                    var lines2 = (e.StackTrace ?? "").Split('\n');
+                    var sb = new System.Text.StringBuilder();
+                    for (int i = 0; i < lines2.Length && i < 6; i++) sb.Append(lines2[i].Trim()).Append('\n');
+                    BootStageBoard.SetError("直接进对局抛异常\n" + e.GetType().FullName + ": " + e.Message + "\n\n" + sb);
+                    Debug.LogException(e);
+                }
+            }
         }
 
         /// <summary>
@@ -69,7 +90,30 @@ namespace Whisper.Runtime
         ///
         /// ⚠ 只在 `Booted == true` 且尚未开局时触发（`StartMatch` 自身幂等）。
         /// </summary>
-        public float AutoStartAfterSec = 15f;
+        public float AutoStartAfterSec = 0f;
+
+        /// <summary>
+        /// **排查构建：启动完成后立刻直接进对局**（`Boot()` 结束时同步调用 `StartMatch()`）。
+        ///
+        /// ══════════════════════════════════════════════════════════════════════════════
+        /// 为什么需要它（2026-10-07 真机三张截图逼出来的关键澄清）
+        /// ══════════════════════════════════════════════════════════════════════════════
+        /// 真机确认的现象：`Boot()` **成功**（阶段日志跑到出生点/相机/身体/联机视图），
+        /// 但**下半屏全黑**。查明原因是**设计如此**：
+        /// ```
+        /// Boot()   ：读配置 → 注入接口 → 载关卡 → 等级商店 → 主界面 → 收尾
+        /// StartMatch()：建几何 + 建玩家 + 建怪物  ← 必须玩家在主界面点「开始调查」才跑
+        /// ```
+        /// ⇒ **Boot 阶段世界里一盏灯都没有**（房间灯由 `LevelBuilder.BuildSceneLights` 在装配几何时建），
+        ///   相机对着没照明的几何 ⇒ 必然全黑。
+        ///
+        /// **真正建世界的那段代码（`StartMatch` → `TryBuildGeometry` → `TrySpawnMonsters`）
+        /// 至今没人在真机上跑过一次** —— 我不是在修一个 bug，是在**第一次执行它**。
+        ///
+        /// ⇒ 这个开关让排查构建跳过"等玩家点按钮"这一步，直接跑那段。
+        ///   正式构建保持 `false`（`false` 时行为与改动前**逐字一致**）。
+        /// </summary>
+        public bool AutoEnterMatchOnBoot;
 
         float _bootedAt = -1f;
 
@@ -81,7 +125,7 @@ namespace Whisper.Runtime
             if (Time.realtimeSinceStartup - _bootedAt < AutoStartAfterSec) return;
             // 只触发一次：把阈值清零，避免反复调用（虽然 StartMatch 幂等，但日志会刷屏）
             AutoStartAfterSec = 0f;
-            Debug.Log("[Whisper] 排查构建：15 秒无操作 ⇒ 自动开始对局（绕过主界面按钮）");
+            Debug.Log($"[Whisper] 排查构建：{AutoStartAfterSec:0} 秒无操作 ⇒ 自动开始对局（绕过主界面按钮）");
             AppendStatus("排查构建：自动开始对局（未等到按钮点击）");
             try { OnMenuStartRequested(); }
             catch (System.Exception e)

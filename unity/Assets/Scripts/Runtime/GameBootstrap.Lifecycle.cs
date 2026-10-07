@@ -45,6 +45,9 @@ namespace Whisper.Runtime
             // 未捕获异常既不完成、也不进 Fail ⇒ 屏幕全黑、无任何提示，只能靠猜。
             // 而这个 try/catch 把它变成屏幕上可读的类型 + 消息 + 堆栈首行。
             BootStageBoard.SetStage("Start() 进入，即将调用 Boot()");
+            // 把 Inspector 上的排查开关同步到 Boot 逻辑（"一个字段一处声明"：
+            // 声明在 Api 侧供 Inspector 序列化，Boot 侧只读这个副本，避免两处各有一个默认值）
+            AutoEnterMatchOnBoot = DiagnosticDirectEnterMatch;
             try
             {
                 Boot();

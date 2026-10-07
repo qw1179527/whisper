@@ -58,6 +58,13 @@ namespace Whisper.Runtime
         // ⚠ **排查构建期间默认 true**（2026-10-07 真机黑屏）。
         // 定稿前改回 false —— 用户明确要求"去掉所有小字"。
         public bool ShowDiagnostics = true;
+
+        [Tooltip("排查构建：Boot 完成后直接进对局（跳过主界面等待）。正式构建必须 false。")]
+        // ⚠ 为什么默认开：真机三张截图确认 `Boot()` 成功但世界全黑，
+        //   而**真正建几何/灯/玩家/怪物的是 `StartMatch()`** —— 那段代码至今没人在真机上跑过。
+        //   排查期必须让它自动执行，否则一直卡在"等玩家点按钮"这个中间环节。
+        //   `false` 时行为与改动前**逐字一致**（只多一个 if）。
+        public bool DiagnosticDirectEnterMatch = true;
         Canvas _canvas;
         Camera _camera;
         float _nextHudRefresh;
