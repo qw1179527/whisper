@@ -24,8 +24,12 @@ namespace Whisper.Runtime
             var lines = new System.Text.StringBuilder();
             AppendBootHeader(lines);
 
+            // 每步**即时上报**到阶段看板：真机黑屏时，这一行就是"断在哪"的唯一证据。
+            BootStageBoard.SetStage("① 读配置（TryLoadConfig）");
             if (!TryLoadConfig(lines)) return;
+            BootStageBoard.SetStage("② 注入接口（TryInstallServices）");
             if (!TryInstallServices(lines)) return;
+            BootStageBoard.SetStage("③ 载关卡（TryLoadLevel）");
             if (!TryLoadLevel(lines)) return;
 
             // ── 主界面先出：对局**等玩家点「开始调查」再建** ──
@@ -33,12 +37,61 @@ namespace Whisper.Runtime
             // 结果是"主界面标题与 HUD/走廊叠在一起"—— 两套 UI 同时活着，玩家看到的是混乱。
             // 正解：Boot 到"关卡已加载"为止 → 建主界面 → **停在这里**等 OnMenuStartRequested()。
             // 等级/商店/任务/电力/互动必须在**建主界面之前**就绪：主界面要读它们（否则面板显示"档案未就绪"）。
+            BootStageBoard.SetStage("④ 等级/商店/任务/电力（InitProgressionSystems）");
             InitProgressionSystems(lines);
+            BootStageBoard.SetStage("⑤ 建主界面（BuildMenu）");
             BuildMenu(lines);
             // 【可见性】BootLog 原先只在失败路径赋值 → 成功启动时 lines 没人看得到，
             // "玩法层已接线"这类证据等于没留。这里在成功路径也把它固化下来。
             lines.AppendLine(SessionStatus);
+            BootStageBoard.SetStage("⑥ 收尾（FinishBoot）");
             FinishBoot(t0, lines);
+            BootStageBoard.SetStage("✓ 启动完成（应已显示主界面）");
+        }
+
+        /// <summary>
+        /// **自动开始对局**（排查构建专用）：启动完成后 `AutoStartAfterSec` 秒内若没有玩家操作，
+        /// 自动调用 `OnMenuStartRequested()`。
+        ///
+        /// ══════════════════════════════════════════════════════════════════════════════
+        /// 为什么需要（2026-10-07 真机截图逼出来的）
+        /// ══════════════════════════════════════════════════════════════════════════════
+        /// 真机截图确认：
+        /// · `Boot()` **成功**（阶段日志跑到出生点/身体/联机视图）
+        /// · 但世界**全黑** —— 因为真正的几何/灯/怪物是在 `StartMatch()` 里建的，
+        ///   而 `StartMatch()` 要玩家在主界面点「开始调查」才触发
+        /// ⇒ **"黑屏"和"能不能进对局"是两件事**，而后者我只能靠"你去点一下按钮"来验证。
+        ///   如果按钮本身点不到（叠层压住/主界面没出/EventSystem 有问题），
+        ///   我就永远看不到真正建世界那一步的结果 —— 排查会卡在"用户点不到"这个中间环节。
+        ///
+        /// ⇒ 排查构建里让它在 15 秒后**自动开始**，把那个中间环节彻底移除。
+        ///   正式构建必须关（`AutoStartAfterSec <= 0`）。
+        ///
+        /// ⚠ 只在 `Booted == true` 且尚未开局时触发（`StartMatch` 自身幂等）。
+        /// </summary>
+        public float AutoStartAfterSec = 15f;
+
+        float _bootedAt = -1f;
+
+        void TickAutoStart()
+        {
+            if (AutoStartAfterSec <= 0f) return;
+            if (!Booted) { _bootedAt = -1f; return; }
+            if (_bootedAt < 0f) { _bootedAt = Time.realtimeSinceStartup; return; }
+            if (Time.realtimeSinceStartup - _bootedAt < AutoStartAfterSec) return;
+            // 只触发一次：把阈值清零，避免反复调用（虽然 StartMatch 幂等，但日志会刷屏）
+            AutoStartAfterSec = 0f;
+            Debug.Log("[Whisper] 排查构建：15 秒无操作 ⇒ 自动开始对局（绕过主界面按钮）");
+            AppendStatus("排查构建：自动开始对局（未等到按钮点击）");
+            try { OnMenuStartRequested(); }
+            catch (System.Exception e)
+            {
+                var head = (e.StackTrace ?? "").Split('\n');
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < head.Length && i < 6; i++) sb.Append(head[i].Trim()).Append('\n');
+                BootStageBoard.SetError("自动开始对局抛异常\n" + e.GetType().FullName + ": " + e.Message + "\n\n" + sb);
+                Debug.LogException(e);
+            }
         }
 
         /// <summary>把一段文字同时写进 HUD 与日志（HUD 可能尚未建好，故日志是兜底而不是唯一出路）。</summary>

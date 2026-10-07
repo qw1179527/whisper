@@ -33,7 +33,33 @@ namespace Whisper.Runtime
             // 而本工程相机/UI 全是代码建的、不会自建回来（真机日志：APP_CMD_TERM_WINDOW → destroySurface）。
             // 运行期也设一遍，防 ProjectSettings 被覆盖或换机后丢设置。
             Application.runInBackground = true;
-            Boot();
+
+            // ══════════════════════════════════════════════════════════════════════════════
+            // **必须捕获未处理异常**（2026-10-07 真机两张截图逼出来的结论）
+            // ══════════════════════════════════════════════════════════════════════════════
+            // 原先这里就是裸的 `Boot();`。而真机现象是：
+            //   · `BootProbeOverlay` **显示**（播放器活着、60fps、URP 正常）
+            //   · `BootFailBoard`（`Fail()` 里挂）**不显示** ⇒ 没走到 Fail
+            //   · `GameBootstrap.BootOverlay`（要 Boot 成功）**不显示** ⇒ 也没成功
+            // ⇒ 三种可能里唯一能同时解释的是：**`Boot()` 抛了未捕获异常，停在中途**。
+            // 未捕获异常既不完成、也不进 Fail ⇒ 屏幕全黑、无任何提示，只能靠猜。
+            // 而这个 try/catch 把它变成屏幕上可读的类型 + 消息 + 堆栈首行。
+            BootStageBoard.SetStage("Start() 进入，即将调用 Boot()");
+            try
+            {
+                Boot();
+                BootStageBoard.SetStage("Boot() 已正常返回");
+            }
+            catch (System.Exception ex)
+            {
+                // 只取前 6 帧堆栈：真机屏幕放不下，前几帧就足以定位
+                var st = ex.StackTrace ?? "";
+                var lines = st.Split('\n');
+                var head = new System.Text.StringBuilder();
+                for (int i = 0; i < lines.Length && i < 6; i++) head.Append(lines[i].Trim()).Append('\n');
+                BootStageBoard.SetError($"{ex.GetType().FullName}: {ex.Message}\n\n（堆栈前 6 帧）\n{head}");
+                Debug.LogException(ex);
+            }
         }
 
         /// <summary>

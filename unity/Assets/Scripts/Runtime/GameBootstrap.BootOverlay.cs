@@ -55,60 +55,35 @@ namespace Whisper.Runtime
             HandleHotCorner();
             if (!ShowDiagnostics) return;
 
+            // ══════════════════════════════════════════════════════════════════════════════
+            // **从"铺满屏的大面板"改为"一行状态"**（2026-10-07 真机截图暴露的问题）
+            // ══════════════════════════════════════════════════════════════════════════════
+            // 原实现：8px 起、占满屏高，内含启动日志滚动区 + 一个"开始对局"按钮。
+            // 真机后果：
+            //   · 它与 `BootFailBoard`（原 12%~98%）、`BootStageBoard`（现 48% 起）**三块互相压住**
+            //   · 那个"开始对局"按钮被压在最下面 → **点不到** → 我永远看不到 StartMatch 的结果
+            // ⇒ 信息交给三块**按垂直分区**的叠层（探针 0~22% / 失败 22~46% / 阶段 48~92%），
+            //   本类只保留**一行**：版本 · 帧 · 阶段 · 是否已开局 + 自动开局倒计时。
+            //   既不再互相压，也把"点按钮"这个中间环节彻底移除（见 `TickAutoStart`）。
             if (_diagStyle == null)
             {
                 _diagStyle = new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = Mathf.Max(16, Screen.height / 42),
+                    fontSize = Mathf.Max(16, Screen.height / 52),
                     richText = false,
-                    wordWrap = true,
+                    wordWrap = false,
                 };
-                _diagStyle.normal.textColor = Color.white;
+                _diagStyle.normal.textColor = new Color(0.65f, 1f, 0.72f, 1f);
             }
 
-            float w = Mathf.Min(Screen.width * 0.96f, 1100f);
-            var rect = new Rect(8f, 8f, w, Screen.height - 16f);
-            // 半透明底：黑屏时也要能看清字（纯黑背景 + 白字对比最强，但加一点底色能盖住杂色）
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.72f);
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
-            GUI.color = prev;
+            int remain = -1;
+            if (AutoStartAfterSec > 0f && Booted)
+                remain = Mathf.CeilToInt(Mathf.Max(0f, AutoStartAfterSec - (Time.realtimeSinceStartup - _bootedAt)));
 
-            var sb = new StringBuilder(2048);
-            sb.Append("Whisper 诊断叠层  v").Append(Application.version)
-              .Append("  ").Append(Application.platform).Append('\n');
-            sb.Append("帧 ").Append(Ticks)
-              .Append(" · 分辨率 ").Append(Screen.width).Append('x').Append(Screen.height)
-              .Append(" · 目标帧率 ").Append(Application.targetFrameRate)
-              .Append(" · 启动耗时 ").Append(BootMs.ToString("0")).Append("ms\n");
-            sb.Append("Booted=").Append(Booted)
-              .Append(" · Win=").Append(Screen.width > 0 && Screen.height > 0 ? "有" : "**无表面**")
-              .Append(" · 管线=").Append(RenderPipelineName()).Append('\n');
-            if (!string.IsNullOrEmpty(LastError)) sb.Append("★ 错误：").Append(LastError).Append('\n');
-            sb.Append("地图：").Append(Safe(DescribeMaps())).Append('\n');
-            sb.Append("对局：").Append(Safe(SessionStatus)).Append('\n');
-            sb.Append("网络：").Append(Safe(NetStatus)).Append('\n');
-            sb.Append("渲染档：").Append(Safe(RenderTierApplier.LastApplied)).Append('\n');
-            sb.Append("菜单：").Append(Safe(DescribeMenuAndScare())).Append('\n');
-
-            // 按钮：黑屏时无法用鼠标，但触摸可点。放在最上方、够大。
-            float by = 8f + _diagStyle.fontSize * 6.6f;
-            var btn = new Rect(16f, by, Mathf.Min(360f, w - 16f), _diagStyle.fontSize * 2.4f);
-            var big = new GUIStyle(GUI.skin.button) { fontSize = _diagStyle.fontSize };
-            if (GUI.Button(btn, Booted ? "开始对局（进图）" : "重新启动流程"))
-            {
-                if (Booted) OnMenuStartRequested();
-                else Boot();
-            }
-
-            // 启动日志尾巴（真机没有 logcat ⇒ 这是唯一能看到 Boot 分阶段结果的地方）
-            float logTop = btn.yMax + 8f;
-            var logRect = new Rect(16f, logTop, w - 16f, rect.yMax - logTop - 8f);
-            GUILayout.BeginArea(logRect);
-            _diagScroll = GUILayout.BeginScrollView(_diagScroll);
-            GUILayout.Label("─── 启动日志（尾 40 行）───\n" + Tail(Safe(BootLog), 40), _diagStyle);
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
+            string line = $"v{Application.version} · 帧 {Ticks} · {(Booted ? "Boot ✓" : "Boot 未完成")}"
+                + (_matchStarted ? " · 已开局" : (remain >= 0 ? $" · {remain}s 后自动开局" : " · 等待开局"))
+                + $" · {Screen.width}x{Screen.height}";
+            GUI.Label(new Rect(10f, Screen.height * 0.005f, Screen.width - 20f, _diagStyle.fontSize * 1.6f), line, _diagStyle);
         }
 
         /// <summary>左上角连点 5 次开关叠层（黑屏时无反馈手势；见类注释）。</summary>

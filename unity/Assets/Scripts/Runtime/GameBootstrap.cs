@@ -471,6 +471,7 @@ namespace Whisper.Runtime
         {
             TickInteractionAndTasks();
             TickSession();
+            TickAutoStart();     // 排查构建：无操作 15 秒后自动开局（绕过"按钮点不到"这个中间环节）
 
             if (!Booted) return;
             Ticks++;
@@ -524,9 +525,20 @@ namespace Whisper.Runtime
         {
             LastError = message;
             Booted = false;
-            lines.Insert(0, "⚠ 启动失败 —— 详见下方\n\n");
+
+            // ══════════════════════════════════════════════════════════════════════════════
+            // **失败原因必须排在第一位**（2026-10-07 真机截图暴露的可用性缺陷）
+            // ══════════════════════════════════════════════════════════════════════════════
+            // 原实现把 `message`（真正的失败原因）**只放进 `LastError`**，
+            // 正文开头是"⚠ 启动失败 —— 详见下方"，结尾是**固定的三条兜底文案**
+            // "可能原因：① 着色器/资产未进包 ② Resources 路径写错 ③ 关卡 DSL 校验不通过"。
+            // 真机截图结果：七行阶段日志把真正的原因挤到**最后一行并被屏幕裁掉**，
+            // 我盯着图看了半天都没读到 —— **诊断文本把答案藏在末尾，等于没给**。
+            // ⇒ 现在第一行就是 `message`，阶段日志在下，固定文案降为一行短提示。
+            lines.Insert(0, "⚠ 启动失败 —— 原因见下一行\n\n【真正的原因】" + message
+                + "\n\n── 以下为启动阶段日志（供定位）──\n");
             lines.AppendLine();
-            lines.AppendLine("可能原因：① 着色器/资产未进包 ② Resources 路径写错 ③ 关卡 DSL 校验不通过");
+            lines.AppendLine("（兜底提示，多半无关：若原因里有 'Resources' 则查资源是否进包）");
             var body = lines.ToString();
             BootLog = body;
 

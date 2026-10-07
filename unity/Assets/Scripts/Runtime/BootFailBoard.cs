@@ -64,15 +64,17 @@ namespace Whisper.Runtime
             if (string.IsNullOrEmpty(_text)) return;
             var style = new GUIStyle(GUI.skin.label)
             {
-                fontSize = Mathf.Max(22, Screen.height / 40),
+                fontSize = Mathf.Max(18, Screen.height / 56),
                 wordWrap = true,
                 richText = false,
             };
             style.normal.textColor = new Color(1f, 0.42f, 0.36f, 1f);
 
-            float w = Screen.width * 0.94f;
-            float h = Screen.height * 0.86f;
-            var rect = new Rect(Screen.width * 0.03f, Screen.height * 0.12f, w, h);
+            // ⚠ 尺寸与位置：原为 12%~98%（86% 高）—— 真机截图实测它把阶段看板整块压住。
+            // ⇒ 收窄到 **22%~46%**，与阶段看板（48% 起）**垂直分区**，两块都不被遮。
+            float w = Screen.width * 0.96f;
+            float h = Screen.height * 0.26f;
+            var rect = new Rect(Screen.width * 0.02f, Screen.height * 0.22f, w, h);
 
             var prev = GUI.color;
             GUI.color = new Color(0f, 0f, 0f, 0.86f);

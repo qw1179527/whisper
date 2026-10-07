@@ -291,6 +291,9 @@ namespace UnityEngine
 
     public static class Debug
     {
+        /// <summary>文档：Debug.LogException(Exception) — 记录异常（保留堆栈）。</summary>
+        public static void LogException(System.Exception exception) { }
+
         public static void Log(object msg) { }
         public static void LogError(object msg) { }
         public static void LogWarning(object msg) { }
@@ -299,7 +302,8 @@ namespace UnityEngine
     public static partial class Mathf
     {
         /// <summary>文档：Mathf.PI / Mathf.Tan —— 三角函数常量与函数。</summary>
-        public const float PI = 3.14159265f;
+                public static int CeilToInt(float f) => (int)System.Math.Ceiling(f);
+public const float PI = 3.14159265f;
         public static float Tan(float f) => (float)System.Math.Tan(f);
         public static float Atan(float f) => (float)System.Math.Atan(f);
 
