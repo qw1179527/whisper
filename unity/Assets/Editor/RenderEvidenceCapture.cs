@@ -109,6 +109,7 @@ namespace Whisper.Editor
         };
 
         static GameObject _levelGo;
+        static Whisper.Gameplay.Level.LevelData _level;   // 当前关卡（探针取房间体积用）
         /// <summary>产品灯光装置实际建了几盏（`LevelBuilder.SceneLights`）；0 = 没建灯。</summary>
         static int _productLightCount;
         static string _outDir;
@@ -724,6 +725,40 @@ namespace Whisper.Editor
         }
 
         /// <summary>
+        /// 找出包含该世界坐标的房间（XZ 平面判定；找不到则取最近的一个）。
+        ///
+        /// 【为什么需要】光柱探针必须把灯放进**可见体积内**（见 RunVolumetricOnOff 的注释：
+        /// 我两次把灯放到顶棚之上/房间之外，读数都是 0.000%）。
+        /// 用**关卡数据**算，而不是猜"相机前上方"。
+        /// </summary>
+        static Whisper.Gameplay.Level.Room FindRoomOf(Whisper.Gameplay.Level.LevelData level, Vector3 p)
+        {
+            if (level == null || level.Rooms == null) return null;
+            Whisper.Gameplay.Level.Room best = null;
+            float bestD = float.MaxValue;
+            foreach (var r in level.Rooms)
+            {
+                if (r == null) continue;
+                if (r.Floor != 0) continue;                  // 取证只在一层取景
+                if (p.x >= r.MinX && p.x <= r.MaxX && p.z >= r.MinZ && p.z <= r.MaxZ)
+                {
+                    float dy = Mathf.Abs(r.CenterZ - p.z) + Mathf.Abs(r.CenterX - p.x);
+                    if (dy < bestD) { bestD = dy; best = r; }
+                }
+            }
+            if (best != null) return best;
+            foreach (var r in level.Rooms)                   // 兜底：最近的房间
+            {
+                if (r == null || r.Floor != 0) continue;
+                float dx = Mathf.Max(0f, Mathf.Max(r.MinX - p.x, p.x - r.MaxX));
+                float dz = Mathf.Max(0f, Mathf.Max(r.MinZ - p.z, p.z - r.MaxZ));
+                float d = dx * dx + dz * dz;
+                if (d < bestD) { bestD = d; best = r; }
+            }
+            return best;
+        }
+
+        /// <summary>
         /// **体积光（光柱）ON/OFF 像素证据**（目标② 的「体积光」一项）。
         ///
         /// 【为什么用"聚光灯 + 锥体网格"而不是屏幕空间体积光】
@@ -746,11 +781,39 @@ namespace Whisper.Editor
             // 第一版写死 `(4, 3, 0.9)`，实测相机在 `(13, 1.6, 0.54)` ⇒ 灯在画面外 9m，
             // 光柱当然不可见（读数 0.000%）。**光柱探针依赖取景**，这一点与分辨率/后处理探针不同。
             // 放法：相机前方 4m、上方 1.8m，朝下 60° 照向相机前方地面 ⇒ 光柱落在画面中部。
+            // ⚠⚠ **必须夹进房间体积内**（2026-10-07 第二次踩，读数原文）：
+            //   第一版 `y = cam.y + 1.8 = 3.40`，而 `morgue_ante` 顶棚 **y = 3.20**
+            //   ⇒ 聚光灯与整个锥体**埋在吊顶之上**，光柱永远不进画面（读数 0.000%）。
+            //   并且 `+fwd*4` 把灯推到 z≈4.4，而相机所在的 `morgue_ante` 只到 z=9、
+            //   灯又在 z 方向与相机几乎同侧 ⇒ 视野里也没有它。
+            // ⇒ 结论：**光柱探针的前提是"灯在可见体积内"**，这一步必须显式算，不能凭"相机前上方"直觉。
+            //
+            // 可见体积从**关卡数据**取（不猜）：找到相机所在房间（或最近的房间），
+            // 把灯放到该房间内：水平居中偏相机侧、高度取"顶棚下方 0.25m 与相机上方 1.0m 的较小者"。
             var fwd = cam.transform.forward;
-            var anchor = cam.transform.position + fwd * 4f + Vector3.up * 1.8f;
+            float ceilY = cam.transform.position.y + 1.0f;         // 兜底：相机上方 1m
+            var room = FindRoomOf(_level, cam.transform.position);
+            Vector3 anchor;
+            if (room != null)
+            {
+                const float FloorH = 3.5f;                        // 与 LevelBuilder 的层高常量一致
+                float baseY = room.Floor * FloorH;
+                ceilY = Mathf.Min(baseY + room.SizeY - 0.25f, cam.transform.position.y + 1.0f);
+                // 水平位置：相机与房间中心之间取 0.55，保证在房间内且离相机不贴脸
+                float px = Mathf.Lerp(cam.transform.position.x, room.CenterX, 0.55f);
+                float pz = Mathf.Lerp(cam.transform.position.z, room.CenterZ, 0.55f);
+                anchor = new Vector3(px, ceilY, pz);
+            }
+            else anchor = cam.transform.position + fwd * 2.0f + Vector3.up * 1.0f;
+
             var go = new GameObject("ShaftSpot");
             go.transform.position = anchor;
-            go.transform.rotation = Quaternion.LookRotation((cam.transform.position + fwd * 5f - anchor).normalized);
+            var aim = cam.transform.position + fwd * 1.5f;         // 照向相机前方稍远的地面
+            go.transform.rotation = Quaternion.LookRotation((aim - anchor).normalized);
+            Debug.Log($"[RENDER][体积光·放置] 房间={(room != null ? room.Id : "无")}"
+                + $" · 灯位({anchor.x:0.00},{anchor.y:0.00},{anchor.z:0.00})"
+                + $" · 相机({cam.transform.position.x:0.00},{cam.transform.position.y:0.00},{cam.transform.position.z:0.00})"
+                + $" · 顶棚上限y={ceilY:0.00} · 瞄准点({aim.x:0.00},{aim.y:0.00},{aim.z:0.00})");
             var spot = go.AddComponent<Light>();
             spot.type = LightType.Spot;
             spot.spotAngle = 70f;
@@ -1147,6 +1210,7 @@ namespace Whisper.Editor
             }
 
             var level = Whisper.Gameplay.Level.LevelLoader.Load(levelText.text, knownKits);
+            _level = level;   // 供探针取房间体积（光柱放置必须落在可见体积内）
             // 供 KitUsableHeight 查"房间用哪个套件"（相机取景高度按**套件实际几何**定）
             LevelCache.Current = level;
             if (_levelGo != null) UnityEngine.Object.DestroyImmediate(_levelGo);
