@@ -13,7 +13,8 @@
 # 本机设备已实测支持 32 位（`/system/bin/linker`、`app_process32`、`/system/lib` 554 个库）。
 #
 # ## 怎么切
-# `BuildConfigurator` 按环境变量 `WHISPER_DEV_MONO=1` 切后端与架构，产物名也分开
+# `BuildConfigurator` 按**标记文件 `unity/whisper-dev-mono.flag`** 切后端与架构，产物名也分开
+# （2026-10-07 改：原先用环境变量，实测它没传进 Unity 进程 ⇒ 32 分钟后才失败）
 # （`whisper-dev-mono.apk` vs `whisper-android.apk`）→ **两个包能同时存在，不会互相覆盖**。
 # 因此本工作流对出货链路**零影响**：默认值不变，出货包仍走 unity-android.yml 的 IL2CPP。
 name: build-dev-mono
@@ -61,12 +62,25 @@ jobs:
         with:
           lfs: true
 
+      # ⚠ **标记文件**，而不是环境变量。
+      # 实测（run #3，32 分钟后失败）：步骤级 `env: WHISPER_DEV_MONO=1` 只进了**容器**，
+      # 没进 Unity 进程 —— 同一轮 BuildConfigurator 打印的仍是 `IL2CPP / ARM64`。
+      # 环境变量要穿过 action → docker → xvfb-run → Unity 四层，任一层不转发就静默丢失，
+      # 而失败发生在半小时后。标记文件随 checkout 就在，且 `ls` 看得见。
+      - name: 打开发形态标记（切 Mono 后端）
+        run: |
+          cd unity
+          touch whisper-dev-mono.flag
+          echo "标记已建：$(ls -la whisper-dev-mono.flag)"
+          # 出货包与开发包**共用同一个 Library 缓存键**会互相污染：
+          # 上次失败日志里有 `Delete 22 artifact files that are no longer in use`，
+          # 说明它吃到了 IL2CPP 的增量缓存还在做删除重编。开发包用**独立键**。
       - name: 缓存 Library（与出货包共用同一前缀 → 能互相预热）
         uses: actions/cache@v4
         with:
           path: unity/Library
-          key: Library-Android-v2-${{ hashFiles('unity/Assets/**', 'unity/ProjectSettings/**') }}
-          restore-keys: Library-Android-v2-
+          key: Library-Android-Mono-v1-${{ hashFiles('unity/Assets/**', 'unity/ProjectSettings/**') }}
+          restore-keys: Library-Android-Mono-v1-
 
       - name: 构建（GameCI · Mono 后端）
         uses: game-ci/unity-builder@v4

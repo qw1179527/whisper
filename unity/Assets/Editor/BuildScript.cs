@@ -47,7 +47,11 @@ namespace Whisper.Editor
             // 产物名区分出货与开发两种形态（后端由 BuildConfigurator 按 WHISPER_DEV_MONO 决定）：
             // 分开命名是为了**两个包能同时存在** —— 出货包用于真机验收/性能，开发包用于快速迭代；
             // 若同名，后构建的会把前一个覆盖掉，验收时就分不清手上是哪个形态了。
-            bool devMono = System.Environment.GetEnvironmentVariable("WHISPER_DEV_MONO") == "1";
+            // ⚠ 与 `BuildConfigurator.ReadDevMonoFlag` **同一口径**（标记文件优先）。
+            // 两处各判一次正是上次失败的成因：BuildConfigurator 判没切、BuildScript 判切了，
+            // 于是"后端是 IL2CPP"而"文件名按 Mono 命名" ⇒ 产物名对不上、30 分钟后才报错。
+            bool devMono = System.IO.File.Exists("whisper-dev-mono.flag")
+                || System.Environment.GetEnvironmentVariable("WHISPER_DEV_MONO") == "1";
             var apk = Path.Combine(outDir, devMono ? "whisper-dev-mono.apk" : "whisper-android.apk");
 
             // 场景列表：Boot 是唯一场景，其余内容由代码装配（No-Editor 纪律）。

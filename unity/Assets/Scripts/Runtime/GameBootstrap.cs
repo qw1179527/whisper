@@ -55,7 +55,9 @@ namespace Whisper.Runtime
         /// 【怎么在真机上打开】左上角连点 5 次（黑屏时无反馈手势）——见 BootOverlay 类注释。
         /// </summary>
         [Tooltip("诊断显示总开关（HUD 小字 + 机内诊断叠层）。真机排查时开；可在左上角连点 5 次切换。")]
-        public bool ShowDiagnostics = false;
+        // ⚠ **排查构建期间默认 true**（2026-10-07 真机黑屏）。
+        // 定稿前改回 false —— 用户明确要求"去掉所有小字"。
+        public bool ShowDiagnostics = true;
         Canvas _canvas;
         Camera _camera;
         float _nextHudRefresh;

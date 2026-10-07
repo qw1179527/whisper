@@ -64,7 +64,7 @@ namespace Whisper.Editor
             //        所以开发包是 32 位、性能与出货包不等价 → **只能用于逻辑/玩法迭代**。
             //      · 本机设备已实测支持 32 位（`/system/bin/linker`、`app_process32`、`/system/lib` 554 个库）。
             //    切换用环境变量而**不是**改代码默认值：出货包的风险必须为零。
-            bool devMono = System.Environment.GetEnvironmentVariable("WHISPER_DEV_MONO") == "1";
+            bool devMono = ReadDevMonoFlag();
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android,
                 devMono ? ScriptingImplementation.Mono2x : ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures =
@@ -106,6 +106,38 @@ namespace Whisper.Editor
                 if (quiet) Debug.LogWarning("[Whisper] PlayerSettings 警告：" + p);
                 else Debug.LogWarning("[Whisper] PlayerSettings 警告（不阻断构建）：" + p);
             }
+        }
+
+        /// <summary>
+        /// 是否走 **Mono 开发形态**。
+        ///
+        /// ══════════════════════════════════════════════════════════════════════════════
+        /// ⚠ 为什么改成"文件优先、环境变量兜底"（2026-10-07，一次真失败的教训）
+        /// ══════════════════════════════════════════════════════════════════════════════
+        /// `build-dev-mono.yml` 里把 `WHISPER_DEV_MONO: '1'` 放在**步骤级 `env:`**，
+        /// 而那只是**容器**的环境变量。同一轮日志里 `BuildConfigurator` 打印的仍是
+        /// `后端/架构 IL2CPP / ARM64` ⇒ **Unity 进程没拿到这个变量** ⇒ 32 分钟后
+        /// 产物名对不上（`whisper-dev-mono.apk` 不存在）而失败。
+        ///
+        /// 环境变量要穿过 `action → docker run → xvfb-run → Unity` 四层，
+        /// 任何一层没转发就静默丢失，而**失败发生在 30 分钟后**（代价极高）。
+        /// ⇒ 改用**工作区里的标记文件**：它随 `checkout` 就在，`File.Exists` 一次即可判定，
+        ///   而且**看得见**（`ls` 就能查），不存在"转发丢失"这种看不见的失效。
+        ///
+        /// 保留环境变量读法作为兜底（本机调试时 `WHISPER_DEV_MONO=1` 仍然好用）。
+        /// </summary>
+        static bool ReadDevMonoFlag()
+        {
+            const string marker = "whisper-dev-mono.flag";
+            if (System.IO.File.Exists(marker))
+            {
+                Debug.Log($"[Whisper] 命中开发形态标记文件 `{marker}` ⇒ 切 Mono + ARMv7");
+                return true;
+            }
+            bool byEnv = System.Environment.GetEnvironmentVariable("WHISPER_DEV_MONO") == "1";
+            Debug.Log($"[Whisper] 无标记文件 `{marker}`；环境变量 WHISPER_DEV_MONO={(byEnv ? "1" : "未设/非1")}"
+                + $" ⇒ 形态 = {(byEnv ? "Mono 开发包" : "IL2CPP 出货包")}");
+            return byEnv;
         }
 
         /// <summary>CI 里从 GITHUB_RUN_NUMBER 派生版本号，保证每次构建的包可区分（排障必需）。</summary>
