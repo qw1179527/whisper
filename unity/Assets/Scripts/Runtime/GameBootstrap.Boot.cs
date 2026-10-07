@@ -46,7 +46,8 @@ namespace Whisper.Runtime
             lines.AppendLine(SessionStatus);
             BootStageBoard.SetStage("⑥ 收尾（FinishBoot）");
             FinishBoot(t0, lines);
-            BootStageBoard.SetStage("✓ 启动完成（应已显示主界面）");
+            BootStageBoard.SetStage($"✓ 启动完成（应已显示主界面）· 相机={(_camera != null ? "✓" : "**null**")}"
+                + $" · HUD={(_status != null ? "✓" : "**null**")} · 管线={(UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null ? "✓" : "null")}");
 
             // ── 排查构建：**直接进对局**（见 AutoEnterMatchOnBoot 的注释）────────────────
             // 这是"真正建世界"那段的**第一次真机执行**：几何 + 房间灯 + 玩家 + 怪物。

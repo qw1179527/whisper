@@ -23,8 +23,24 @@ namespace Whisper.Runtime
             Application.targetFrameRate = 60;   // V9 §13.4 固定 60 Tick/s 的客户端帧率基线
             // C2：uGUI 全部代码构建。注意顺序——相机与 HUD 必须在 Boot 之前就绪，
             // 否则 boot 失败时连"为什么失败"都看不见（真机黑屏事故的教训之一）。
-            BuildCamera();
-            BuildUi();
+            // ⚠ **每步单独 try/catch**（2026-10-07 真机 NRE 排查）：
+            // 原先两步裸调，任一步抛异常都会让 `_status` 永远为 null，
+            // 而 `Update()` 又直接解引用它 ⇒ **每帧 NRE**，且堆栈被 IL2CPP 内联成
+            // `GameBootstrap.Boot()/Start()` 两帧假象，我因此找错了一轮。
+            // 现在：哪一步失败、失败原因，都直接进阶段看板（不靠猜、不靠 logcat）。
+            try { BuildCamera(); BootStageBoard.SetStage("Awake：相机已建"); }
+            catch (System.Exception e)
+            {
+                BootStageBoard.SetError("Awake/BuildCamera 失败\n" + e.GetType().FullName + ": " + e.Message);
+                Debug.LogException(e);
+            }
+            try { BuildUi(); BootStageBoard.SetStage($"Awake：UI 已建（_status={( _status != null ? "有" : "**null**")}）"); }
+            catch (System.Exception e)
+            {
+                BootStageBoard.SetError("Awake/BuildUi 失败（这会让 `_status` 为 null ⇒ Update 每帧 NRE）\n"
+                    + e.GetType().FullName + ": " + e.Message);
+                Debug.LogException(e);
+            }
         }
 
         void Start()

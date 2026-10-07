@@ -65,6 +65,9 @@ namespace Whisper.Runtime
         //   排查期必须让它自动执行，否则一直卡在"等玩家点按钮"这个中间环节。
         //   `false` 时行为与改动前**逐字一致**（只多一个 if）。
         public bool DiagnosticDirectEnterMatch = true;
+
+        /// <summary>`_status` 缺失只报一次（否则每帧刷屏，把堆栈搅乱 —— 真机实测过）。</summary>
+        bool _statusMissingReported;
         Canvas _canvas;
         Camera _camera;
         float _nextHudRefresh;
@@ -416,8 +419,20 @@ namespace Whisper.Runtime
         {
             Booted = true;
             BootMs = t0.Elapsed.TotalMilliseconds;
-            _status.color = HexToColor(DesignTokens.ColorPaper);
-            _status.text = lines.ToString();
+            // ⚠ `_status` 可能为 null（`BuildUi` 失败时）——与 `Fail()` 里刚补的守卫同类。
+            // 我在 `Fail()` 补了 `if (_status != null)` 却漏了这里，正是"同一类洞只补一处"。
+            // 排查构建里补上**可见的诊断**：看板直接告诉我们"HUD 文本没建出来"。
+            if (_status != null)
+            {
+                _status.color = HexToColor(DesignTokens.ColorPaper);
+                _status.text = lines.ToString();
+            }
+            else
+            {
+                BootStageBoard.SetError("FinishBoot：`_status` 为 null —— HUD 文本没建出来（BuildUi 失败）"
+                    + "\n这会让 Update() 每帧 NRE（堆栈看起来像 Start/Boot，实际是 Update）");
+                Debug.LogError("[Whisper] FinishBoot 时 _status 为 null —— BuildUi 没建出 HUD 文本");
+            }
             BootLog = lines.ToString();
             // 【为什么要把门/温度写进这一行】这些数值以前**只进 HUD 文本、不进日志**，
             // 于是"开局到底开了几扇门""温度系统有没有装配"在真机上**无法核验**——
@@ -473,55 +488,6 @@ namespace Whisper.Runtime
         /// <summary>
         /// 本局的鬼是否带「刺骨寒温」证据。取**任意一只**怪即可 —— 本作同一局只有一种鬼种
 
-        /// <summary>Play 循环：Tick 心跳 + 状态刷新 + 温度系统推进。</summary>
-        void Update()
-        {
-            TickInteractionAndTasks();
-            TickSession();
-            TickAutoStart();     // 排查构建：无操作 15 秒后自动开局（绕过"按钮点不到"这个中间环节）
-
-            if (!Booted) return;
-            Ticks++;
-
-            // 温度系统每帧推进（用真实 dt，不用 0.5s 的 HUD 节流 —— 温度是连续量，
-            // 按 HUD 节流推进会让降温速率随帧率/刷新间隔漂移）。
-            if (_temperature != null)
-            {
-                UpdateGhostRoomForTemperature();
-                _temperature.Tick(Time.deltaTime);
-            }
-
-            if (Time.unscaledTime < _nextHudRefresh) return;
-            _nextHudRefresh = Time.unscaledTime + 0.5f;
-            // 【用户要求：去除所有小字，不留字体】关闭时**连写入都不做**，并把容器整个隐藏。
-            // 这比"清空文本"彻底：空 Text 仍占位、仍可能留描边/阴影残影。
-            if (!ShowDiagnostics)
-            {
-                if (_status != null && _status.gameObject.activeSelf) _status.gameObject.SetActive(false);
-                return;
-            }
-            if (_status != null && !_status.gameObject.activeSelf) _status.gameObject.SetActive(true);
-            _status.text = string.Format(
-                "Project Whisper · 运行中\nTick {0} · {1} fps · tickRate={2}\n{3}\n关卡 {4}：房间 {5} · 走廊 {6}"
-                + "\n几何着色器 {7} · 相机 {8} · Boot {9:0} ms"
-                + "\n{10}\n{11}\n{12}\n{13}\n{14}",
-                Ticks, (int)(1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f)),
-                Services.HasNet ? Services.Net.TickRate : 0,
-                DescribeServices(),
-                Level != null ? Level.LevelId : "-",
-                Level != null ? Level.Rooms.Count : 0,
-                Level != null ? Level.Corridors.Count : 0,
-                LevelBuilder.GeometryShader != null ? "✓" : "✗",
-                _camera != null ? "✓" : "✗",
-                BootMs,
-                _player != null ? _player.Describe() : "玩家：—",
-                _monsters != null ? _monsters.Describe() : "怪物：—",
-                _objectives != null ? _objectives.OneLine() : "本局任务：—",
-                DescribeTemperature(),
-                // 【真机取证通道】玩法层状态追加在诊断末尾（**不覆盖**任何既有行）。
-                // 判据：理智数字随时间变化 = Tick 真在跑，而不是只编译过。
-                SessionStatus);
-        }
 
         /// <summary>
         /// Boot 失败路径。真机事故教训：此前失败只是"把错误写进一行不起眼的文本"，
