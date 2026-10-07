@@ -742,9 +742,15 @@ namespace Whisper.Editor
             // ── 造一盏聚光灯：放在走廊上方、朝下偏前 —— 让"光柱"落在**看得见的几何**上 ──
             // 位置不是随便取的：`corridor_main/eye` 取景在 (0,~1.6,0.9) 附近看向 +X，
             // 所以灯放在相机前方偏上，光柱才会出现在画面里（而不是在身后）。
+            // ⚠ **按相机实测位姿放灯**，不写死坐标。
+            // 第一版写死 `(4, 3, 0.9)`，实测相机在 `(13, 1.6, 0.54)` ⇒ 灯在画面外 9m，
+            // 光柱当然不可见（读数 0.000%）。**光柱探针依赖取景**，这一点与分辨率/后处理探针不同。
+            // 放法：相机前方 4m、上方 1.8m，朝下 60° 照向相机前方地面 ⇒ 光柱落在画面中部。
+            var fwd = cam.transform.forward;
+            var anchor = cam.transform.position + fwd * 4f + Vector3.up * 1.8f;
             var go = new GameObject("ShaftSpot");
-            go.transform.position = new Vector3(4.0f, 3.0f, 0.9f);
-            go.transform.rotation = Quaternion.Euler(62f, 90f, 0f);   // 朝下偏 +X
+            go.transform.position = anchor;
+            go.transform.rotation = Quaternion.LookRotation((cam.transform.position + fwd * 5f - anchor).normalized);
             var spot = go.AddComponent<Light>();
             spot.type = LightType.Spot;
             spot.spotAngle = 70f;
