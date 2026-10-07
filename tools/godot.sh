@@ -31,6 +31,13 @@
 # ⇒ 必须装 **glibc 的 .NET 8 runtime** 到 rootfs：`/usr/share/dotnet`（已装 8.0.11）。
 # 这是本链路第三个"宿主工具是 bionic、Godot 在 glibc 里"的坑（前两个：JDK、Android SDK 工具）。
 #
+# ⚠ **第五次跨环境坑：libssl**
+# .NET 的加密栈硬依赖 `libssl`，而 proot 里报：
+#   `No usable version of libssl was found` → `Aborted`（SIGABRT，dotnet publish 直接死）
+# 而 rootfs **有** `libssl.so.3`（真实 ELF，8 月的文件）⇒ 不是缺件，是**解析不到**。
+# 根因：上面为 Java 设的 `LD_LIBRARY_PATH` **只含 JDK 扩展的 lib（bionic 库）**，
+#   把 glibc 的默认搜索路径挤掉了。⇒ 必须把 `/usr/lib/aarch64-linux-gnu` 等补回去。
+#
 # ⚠ **第四次跨环境坑：CoreCLR 的 GC 堆预留**
 # 装好 glibc .NET 后仍失败，报：
 #   `GC heap initialization failed with error 0x8007000E`（= E_OUTOFMEMORY）
@@ -71,7 +78,7 @@ exec "$PREFIX/bin/proot" --link2symlink -0 -r "$ROOTFS" \
     PATH="$JAVA_HOME_R/bin:$ANDROID_EXT/bin:/usr/share/dotnet:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     LANG=C.UTF-8 TERM=xterm \
     JAVA_HOME="$JAVA_HOME_R" \
-    LD_LIBRARY_PATH="$EXT/lib" \
+    LD_LIBRARY_PATH="$EXT/lib:/usr/lib/aarch64-linux-gnu:/usr/lib:/lib/aarch64-linux-gnu:/lib" \
     ANDROID_HOME="$ANDROID_EXT" \
     DOTNET_ROOT=/usr/share/dotnet \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
