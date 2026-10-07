@@ -49,6 +49,7 @@ Shader "Whisper/LitPbr"
         [MainColor] _Color ("主色（albedo）", Color) = (1, 1, 1, 1)
         [MainTexture] _MainTex ("反照率贴图（可空）", 2D) = "white" {}
         _WhisperAmbient ("环境项（0=纯黑，0.22=默认）", Range(0, 1)) = 0.22
+        _ShadowDebug ("阴影诊断（0=正常 1=强制无阴影 2=显式坐标）", Range(0, 2)) = 0
 
         // ── PBR 参数 ──
         _Metallic ("金属度（0=非金属 1=金属）", Range(0, 1)) = 0.0
@@ -130,6 +131,7 @@ Shader "Whisper/LitPbr"
                 half4  _Color;
                 float4 _MainTex_ST;
                 float  _WhisperAmbient;
+                float  _ShadowDebug;
                 float  _Metallic;
                 float  _Glossiness;
                 float4 _BumpMap_ST;
@@ -223,7 +225,25 @@ Shader "Whisper/LitPbr"
 
                 // ── ⑥ 主光（带阴影）──
                 // ⚠ 主光被关掉时方向是零向量 → normalize = NaN → 整图全黑（Built-in 版踩过，迁移别丢）
-                Light mainLight = GetMainLight(IN.shadowCoord);
+                // ── 【2026-10-06 阴影诊断开关】──────────────────────────────────────────
+                // 实测事实：主光 `shadows=Soft`、全局 `_MAIN_LIGHT_SHADOWS_CASCADE=True`，
+                // 但取证的三条阴影对照（分辨率/开-关/仅主光）**全是 0.000%**。
+                // 关键矛盾：**全局** `_MAIN_LIGHT_SHADOWS=False` 而 `_MAIN_LIGHT_SHADOWS_CASCADE=True`，
+                // 而 URP 的 `GetShadowCoord` 里是 `#if defined(_MAIN_LIGHT_SHADOWS_CASCADE)`。
+                // ⇒ 怀疑：`_MAIN_LIGHT_SHADOWS` 那条变体在本工程**从未被启用**，
+                //   于是我一直在测一条**没被编译进去的路径**。
+                // 为一次判定，加一个**只用于取证**的调试开关：
+                //   _ShadowDebug = 0 → 正常 `GetMainLight(IN.shadowCoord)`
+                //   _ShadowDebug = 1 → 强制无阴影（shadowAttenuation 恒 1）
+                //   _ShadowDebug = 2 → 走 `half4(1,1,1,1)` 的显式阴影坐标路径
+                // 三者同机位各渲一张 ⇒ 一次分辨"阴影链没编进去"与"坐标无效"。
+                Light mainLight;
+                if (_ShadowDebug > 1.5)
+                    mainLight = GetMainLight(GetShadowCoord(IN.positionWS), IN.positionWS);
+                else
+                    mainLight = GetMainLight(IN.shadowCoord);
+                if (_ShadowDebug > 0.5 && _ShadowDebug < 1.5)
+                    mainLight.shadowAttenuation = 1.0;
                 float3 lp = mainLight.direction;
                 float3 l = (dot(lp, lp) > 1e-6) ? normalize(lp) : float3(0.0, 1.0, 0.0);
                 half3 h = normalize(l + v);

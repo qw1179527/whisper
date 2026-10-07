@@ -756,6 +756,56 @@ namespace Whisper.Editor
                         + " —— 着色器因此不做阴影采样（`shadowAttenuation` 恒为 1）");
             }
 
+            // ── A5：用**着色器内的诊断开关**一次判定阴影链断在哪一环 ────────────────
+            // 【为什么】全局 `_MAIN_LIGHT_SHADOWS=False` 而 `_MAIN_LIGHT_SHADOWS_CASCADE=True`，
+            // 而 URP 的 `GetShadowCoord` 是 `#if defined(_MAIN_LIGHT_SHADOWS_CASCADE)`。
+            // 三种可能必须分开，且**一次运行内可分开**（着色器已加 `_ShadowDebug`）：
+            //   0 = 正常路径 · 1 = 强制无阴影 · 2 = 显式 `GetShadowCoord(pos, positionWS)` 路径
+            // 判读：
+            //   `0 vs 1` 有差异 ⇒ 阴影链是通的（那问题在别处）
+            //   `0 vs 1` 无差异、而 `1 vs 2` 有差异 ⇒ **正常路径的变体没编进去**，显式路径可用
+            //   三者两两无差异 ⇒ 阴影数据本身就没进画面（查 URP 侧）
+            {
+                var mats = new System.Collections.Generic.List<Material>();
+                var allR3 = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+                foreach (var r in allR3)
+                {
+                    var m = r != null ? r.sharedMaterial : null;
+                    if (m != null && m.HasProperty("_ShadowDebug") && !mats.Contains(m)) mats.Add(m);
+                }
+                if (mats.Count == 0)
+                {
+                    Debug.LogWarning("[RENDER][阴影诊断] 没有材质带 _ShadowDebug —— 跳过");
+                }
+                else
+                {
+                    var saved = new System.Collections.Generic.List<(Material m, float v)>();
+                    foreach (var m in mats) { saved.Add((m, m.GetFloat("_ShadowDebug"))); }
+                    Shot a0, a1, a2;
+                    foreach (var m in mats) m.SetFloat("_ShadowDebug", 0f);
+                    a0 = RenderTo(cam, Path.Combine(outDir, "shadow_Dbg0_normal.png"), null);
+                    foreach (var m in mats) m.SetFloat("_ShadowDebug", 1f);
+                    a1 = RenderTo(cam, Path.Combine(outDir, "shadow_Dbg1_off.png"), null);
+                    foreach (var m in mats) m.SetFloat("_ShadowDebug", 2f);
+                    a2 = RenderTo(cam, Path.Combine(outDir, "shadow_Dbg2_explicit.png"), null);
+                    written += 3;
+                    foreach (var (m, v) in saved) m.SetFloat("_ShadowDebug", v);   // 务必还原
+                    double d01 = ChangedPct(a0.pixels, a1.pixels);
+                    double d12 = ChangedPct(a1.pixels, a2.pixels);
+                    double d02 = ChangedPct(a0.pixels, a2.pixels);
+                    Debug.Log($"[RENDER][阴影诊断] 正常 vs 强制无阴影 {d01:0.000}% · 强制无阴影 vs 显式坐标 {d12:0.000}% · 正常 vs 显式 {d02:0.000}%"
+                        + $"（亮度 {a0.mean:0.0}/{a1.mean:0.0}/{a2.mean:0.0}）");
+                    if (d01 < 0.05 && d12 < 0.05 && d02 < 0.05)
+                        problems.Add("【阴影判据不成立·诊断】正常/强制无阴影/显式坐标**三者两两无差异**"
+                            + " —— 阴影数据根本没进画面（URP 侧未产生主光阴影）");
+                    else if (d01 < 0.05 && d12 >= 0.05)
+                        problems.Add("【阴影判据不成立·诊断】正常路径与'强制无阴影'一致，而'显式坐标'不同"
+                            + " —— **正常路径的阴影变体没编进包**（需改用显式坐标或修 keyword 变体）");
+                    else if (d01 >= 0.05)
+                        Debug.Log("[RENDER][阴影诊断] 正常路径与'强制无阴影'**有差异** ⇒ 阴影链是通的");
+                }
+            }
+
             // A2：材质是否带 shadow 关键字（变体是否编进包）
             {
                 var mats = new System.Collections.Generic.HashSet<string>();
