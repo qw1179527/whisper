@@ -53,5 +53,10 @@
     <Compile Include="../../unity/Assets/Scripts/Net/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Audio/*.cs" />
     <Compile Include="../../unity/Assets/Scripts/Backend/*.cs" />
+    <!-- RenderTierApplier **不能**进本工程：它引用 UnityEngine（Application/QualitySettings/Camera）。
+         本工程的口径是"只收不引用 UnityEngine 的源文件"（见文件头）——
+         我一度把它加进来，T1 立刻 CS0246，说明这条口径是真的在拦人，不是写着好看的。
+         ⇒ 它由 tools/unity-syntax-check.sh（Roslyn + Unity 桩）覆盖编译；
+           它的**键一致性**由 data/config.json 与本文件的静态对账保证。 -->
   </ItemGroup>
 </Project>

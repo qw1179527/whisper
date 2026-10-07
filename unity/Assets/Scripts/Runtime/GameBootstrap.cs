@@ -141,6 +141,16 @@ namespace Whisper.Runtime
                 //（473 行，**晚于**关卡加载）里建 → 接线静默失败（0.1.79 真机 HUD 抓到）。
                 EnsureConfig();
                 lines.AppendLine($"配置已载入 · tickRate={GameConfig.GetInt("network.tickRate", 60)} · 怪物 {CountMonsters()} 种");
+
+                // ── **把 render 段真正应用到引擎**（2026-10-07）────────────────────────
+                // 此前 `render.tiers`（两档 × 约 22 个旋钮）与 `frameRates` **从未被读过**：
+                //   `Application.targetFrameRate` 全仓 0 处、`renderScale` 0 处。
+                // ⇒ 帧率、分辨率缩放、各向异性过滤这些旋钮一直是"配了但没生效"。
+                // 放在配置载入之后、关卡之前：此时 cfg 可用，且早于任何渲染设置被消费。
+                EnsureConfig();   // 是 void（只为建 reader）⇒ 必须先调、再传 _cfg
+                int applied = _cfg != null ? RenderTierApplier.Apply(_cfg) : 0;
+                lines.AppendLine($"渲染档已应用：{RenderTierApplier.LastApplied}"
+                    + (applied == 0 ? "  ⚠ **0 项** —— 配置没读到，渲染设置全部是硬编码默认值" : ""));
                 return true;
             }
             catch (System.Exception ex) { Fail(lines, $"配置表解析失败（{ex.GetType().Name}）：{ex.Message}"); return false; }

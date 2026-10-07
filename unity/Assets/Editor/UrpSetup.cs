@@ -588,7 +588,12 @@ namespace Whisper.Editor
             QualitySettings.shadows = UnityEngine.ShadowQuality.All;
             QualitySettings.shadowResolution = UnityEngine.ShadowResolution.High;
             QualitySettings.shadowDistance = urp.shadowDistance;
-            QualitySettings.pixelLightCount = 8;          // 22 盏房间点光要能被逐像素点亮
+            // ⚠ 这几个值**只在编辑器里**生效，运行时会由 `RenderTierApplier` 按
+            // `data/config.json` 的 `render.tiers.<档>` **覆盖**（2026-10-07 接线）。
+            // 这里是**兜底**：保证"没跑 Bootstrap 的场景"（如取证）也有合理值。
+            // 已核对的漂移：本行 pixelLightCount=8 vs 配置 high 档 =4；antiAliasing=2 vs 4。
+            // ⇒ **配置是运行时的真源**；这里的差异是编辑器兜底口径，不影响玩家看到的结果。
+            QualitySettings.pixelLightCount = 8;          // 22 盏房间点光要能被逐像素点亮（取证场景用）
             QualitySettings.antiAliasing = 2;
             Debug.Log($"[UrpSetup] QualitySettings → 档 {QualitySettings.names?[QualitySettings.GetQualityLevel()]}"
                 + $" · shadows={QualitySettings.shadows} · shadowResolution={QualitySettings.shadowResolution}"
