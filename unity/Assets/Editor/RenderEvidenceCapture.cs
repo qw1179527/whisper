@@ -695,7 +695,7 @@ namespace Whisper.Editor
                     double d = ChangedPct(on.pixels, off.pixels);
                     double eOff = EdgeEnergy(off.pixels), eOn = EdgeEnergy(on.pixels);
                     Debug.Log($"[RENDER][抗锯齿·MSAA] 1x vs 4x 变化 {d:0.000}%"
-                        + $"（亮度 {on.mean:0.0} vs {off.mean:0.0} · 边缘能量 {eOn:0.2f} vs {eOff:0.2f}）");
+                        + $"（亮度 {on.mean:0.0} vs {off.mean:0.0} · 边缘能量 {eOn:0.00} vs {eOff:0.00}）");
                     index.AppendLine(string.Join(",", "aa", "corridor_main", "Msaa4",
                         "aa_Msaa4.png", on.mean.ToString("0.00", CultureInfo.InvariantCulture),
                         on.std.ToString("0.00", CultureInfo.InvariantCulture), on.colors.ToString(CultureInfo.InvariantCulture),
@@ -704,7 +704,7 @@ namespace Whisper.Editor
                         problems.Add($"【抗锯齿判据不成立·MSAA】1x vs 4x 只变化 {d:0.000}%（<0.05%）"
                             + " —— MSAA 对渲染没有实际作用");
                     else if (eOn >= eOff)
-                        problems.Add($"【抗锯齿判据不成立·MSAA】开了 4x 后**边缘能量没下降**（{eOn:0.2f} vs {eOff:0.2f}）"
+                        problems.Add($"【抗锯齿判据不成立·MSAA】开了 4x 后**边缘能量没下降**（{eOn:0.00} vs {eOff:0.00}）"
                             + " —— 像素变了但锯齿没被削（方向不对，可能是别的东西在动）");
                     else Debug.Log($"[RENDER][抗锯齿·MSAA] 边缘能量下降 {(1 - eOn / System.Math.Max(eOff, 1e-3)) * 100:0.0}% ⇒ 锯齿确被削");
                 }
@@ -1572,7 +1572,22 @@ namespace Whisper.Editor
         /// </summary>
         static Shot RenderTo(Camera cam, string path, Volume volume)
         {
-            var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32);
+            // ── 【2026-10-07 实测抓到的旁路】RT 的 antiAliasing **必须与管线设置一致** ──────
+            // 症状：`msaaSampleCount` 1 vs 4 的对照读出 **0.000%**（连边缘能量都逐位相同）。
+            // 根因：这里用 `GetTemporary(w, h, depth, format)` 建 RT —— 该重载**不传 antiAliasing**，
+            //   RT 自己就是 1x；URP 尊重 RT 的设置 ⇒ **管线上的 msaaSampleCount 被完全旁路**。
+            // ⇒ 读数 0.000% 不是"MSAA 无效"，而是"我的取证把 MSAA 关掉了"。
+            //   （与"资源核验读错实例""手电参数与产品不同"是同一类错误：**取证自身改变了被测对象**。）
+            // 修：按 URP Asset 的 `msaaSampleCount` 建 RT，让取证**如实转发**管线设置。
+            int msaa = 1;
+            try
+            {
+                var urpNow = GraphicsSettings.currentRenderPipeline;
+                var mp = urpNow != null ? urpNow.GetType().GetProperty("msaaSampleCount") : null;
+                if (mp != null) msaa = Mathf.Clamp((int)mp.GetValue(urpNow), 1, 8);
+            }
+            catch { msaa = 1; }
+            var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, msaa);
             var prevRt = cam.targetTexture;
             cam.targetTexture = rt;
             // 【诊断】把**实测**相机位姿打进日志：位置/朝向/远近裁剪面。

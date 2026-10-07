@@ -882,6 +882,9 @@ namespace UnityEngine
     }
 
     /// <summary>文档：Physics — 全局物理查询（射线拾取）。</summary>
+    /// <summary>文档：RenderTextureReadWrite — 颜色空间读写模式。</summary>
+    public enum RenderTextureReadWrite { Default = 0, Linear = 1, sRGB = 2 }
+
     public static class Physics
     {
         /// <summary>文档：Physics.Raycast(Ray ray, out RaycastHit hitInfo, float maxDistance)。</summary>
@@ -965,6 +968,9 @@ namespace UnityEngine
         public static RenderTexture GetTemporary(int width, int height) => null;
         public static RenderTexture GetTemporary(int width, int height, int depthBuffer) => null;
         public static RenderTexture GetTemporary(int width, int height, int depthBuffer, RenderTextureFormat format) => null;
+        /// <summary>文档：RenderTexture.GetTemporary(int, int, int, RenderTextureFormat, RenderTextureReadWrite, int antiAliasing)。
+        /// 【为什么补】取证的 RT 必须按管线的 msaaSampleCount 建，否则 MSAA 被旁路（实测 0.000%）。</summary>
+        public static RenderTexture GetTemporary(int width, int height, int depthBuffer, RenderTextureFormat format, RenderTextureReadWrite readWrite, int antiAliasing) => null;
         /// <summary>文档：RenderTexture.ReleaseTemporary(RenderTexture temp)。</summary>
         public static void ReleaseTemporary(RenderTexture temp) { }
     }
