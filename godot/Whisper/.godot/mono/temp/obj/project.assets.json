@@ -20,19 +20,24 @@
             "related": ".xml"
           }
         }
-      },
-      "GodotSharpEditor/4.4.0": {
+      }
+    },
+    "net8.0/android-arm64": {
+      "Godot.SourceGenerators/4.4.0": {
         "type": "package",
-        "dependencies": {
-          "GodotSharp": "4.4.0"
-        },
+        "build": {
+          "build/Godot.SourceGenerators.props": {}
+        }
+      },
+      "GodotSharp/4.4.0": {
+        "type": "package",
         "compile": {
-          "lib/net8.0/GodotSharpEditor.dll": {
+          "lib/net8.0/GodotSharp.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net8.0/GodotSharpEditor.dll": {
+          "lib/net8.0/GodotSharp.dll": {
             "related": ".xml"
           }
         }
@@ -63,29 +68,16 @@
         "lib/net8.0/GodotSharp.dll",
         "lib/net8.0/GodotSharp.xml"
       ]
-    },
-    "GodotSharpEditor/4.4.0": {
-      "sha512": "Is67Q7U+ZqkTb012fi6vfFxekLGdWsV6XIJ1CjQ+mYGWH0oMU91XfvNrBQS7VK/Qa9RQcSTUyq+LISVKQdssVg==",
-      "type": "package",
-      "path": "godotsharpeditor/4.4.0",
-      "files": [
-        ".nupkg.metadata",
-        "godotsharpeditor.4.4.0.nupkg.sha512",
-        "godotsharpeditor.nuspec",
-        "lib/net8.0/GodotSharpEditor.dll",
-        "lib/net8.0/GodotSharpEditor.xml"
-      ]
     }
   },
   "projectFileDependencyGroups": {
     "net8.0": [
       "Godot.SourceGenerators >= 4.4.0",
-      "GodotSharp >= 4.4.0",
-      "GodotSharpEditor >= 4.4.0"
+      "GodotSharp >= 4.4.0"
     ]
   },
   "packageFolders": {
-    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/": {}
+    "/root/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
@@ -93,12 +85,12 @@
       "projectUniqueName": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/Whisper.csproj",
       "projectName": "Whisper",
       "projectPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/Whisper.csproj",
-      "packagesPath": "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/",
+      "packagesPath": "/root/.nuget/packages/",
       "outputPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/.godot/mono/temp/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/nuget.config",
-        "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/NuGet/NuGet.Config"
+        "/root/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
@@ -116,6 +108,11 @@
         "warnAsError": [
           "NU1605"
         ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
       }
     },
     "frameworks": {
@@ -127,10 +124,6 @@
             "version": "[4.4.0, )"
           },
           "GodotSharp": {
-            "target": "Package",
-            "version": "[4.4.0, )"
-          },
-          "GodotSharpEditor": {
             "target": "Package",
             "version": "[4.4.0, )"
           }
@@ -148,12 +141,8 @@
         "warn": true,
         "downloadDependencies": [
           {
-            "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[8.0.31, 8.0.31]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Ref",
-            "version": "[8.0.31, 8.0.31]"
+            "name": "Microsoft.NETCore.App.Runtime.Mono.android-arm64",
+            "version": "[8.0.11, 8.0.11]"
           }
         ],
         "frameworkReferences": {
@@ -161,8 +150,24 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/native/dotnet/root/sdk/8.0.131/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/8.0.404/PortableRuntimeIdentifierGraph.json"
+      }
+    },
+    "runtimes": {
+      "android-arm64": {
+        "#import": []
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1101",
+      "level": "Error",
+      "message": "Unable to find package Microsoft.NETCore.App.Runtime.Mono.android-arm64. No packages exist with this id in source(s): godot-local",
+      "libraryId": "Microsoft.NETCore.App.Runtime.Mono.android-arm64",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
 }

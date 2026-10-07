@@ -1,0 +1,7 @@
+{
+  "//": "MSBuild 项目 SDK 的离线解析（2026-10-07）。",
+  "//why": "Godot 导出时 MSBuild 报 `MSB4236: The SDK 'Godot.NET.Sdk/4.4.0' specified could not be found` —— nuget 的 SDK 解析器在本机不可靠（离线/代理环境）。msbuild-sdks 是 MSBuild 官方的 SDK 版本固定机制：在这里显式给出包名→版本，MSBuild 直接去本地包源取。",
+  "msbuild-sdks": {
+    "Godot.NET.Sdk": "4.4.0"
+  }
+}

@@ -31,7 +31,31 @@
 # ⇒ 必须装 **glibc 的 .NET 8 runtime** 到 rootfs：`/usr/share/dotnet`（已装 8.0.11）。
 # 这是本链路第三个"宿主工具是 bionic、Godot 在 glibc 里"的坑（前两个：JDK、Android SDK 工具）。
 #
-# ⚠ **第五次跨环境坑：libssl**
+# ⚠ **第六次跨环境坑：JDK 扩展的 `libz.so.1` 遮蔽了 glibc 的**
+# 现象（Godot 导出日志原文）：
+#   `/usr/share/dotnet/.../libSystem.IO.Compression.Native.so: cannot open shared object file`
+#   `SDK resolver "Microsoft.DotNet.MSBuildWorkloadSdkResolver" returned null`
+#   → `error MSB4236: The SDK 'Godot.NET.Sdk/4.4.0' specified could not be found.`
+# 因果链：NuGet 的 SDK 解析器要用 **IO.Compression**（解压 nupkg）→ 它依赖 **libz** →
+#   而 `LD_LIBRARY_PATH` 里 **JDK 扩展的 `lib/` 排在最前**，那里是 **bionic 的 `libz.so.1`** →
+#   glibc 进程加载 bionic 的 libz 失败 ⇒ 压缩库起不来 ⇒ 解析器返回 null ⇒ 找不到 SDK。
+# ⇒ **glibc 的库路径必须排在扩展 lib 之前**（JDK 自身有 rpath，不依赖 LD_LIBRARY_PATH）。
+# 这一条与前面"libz 找不到"是同一个库的**两个相反方向**：
+#   放太前 → 遮蔽 glibc 的；不放了 → Java 找不到。最终顺序：glibc 优先，扩展垫底。
+#
+# ⚠ **第五次跨环境坑：libssl —— 最终解法是把 OpenSSL 1.1 放在最前面**
+# .NET 8 的 native shim **硬要 OpenSSL 1.1 的符号**（strings 查到的原文）：
+#   `Cannot get required symbol CMAC_CTX_copy from libssl`
+#   `Cannot get required symbol HMAC_CTX_copy from libssl`
+#   `Cannot get required symbol EC_POINT_get_affine_coordinates_GFp from libssl`
+#   `Cannot get required symbol OBJ_ln2nid from libssl`
+# 而这些符号**在 OpenSSL 3 已被移除**；rootfs 是 Ubuntu 26.04 + OpenSSL 4 ⇒ 落差最大。
+# 我按顺序排除过：文件缺失(❌有) → LD_LIBRARY_PATH(❌) → 兼容名(❌) →
+#   CLR_OPENSSL_VERSION_OVERRIDE(❌) → dlopen 失败(❌**能成功**，Python ctypes 实测) → 符号(✅)
+# ⇒ **`/opt/ssl11` 放 OpenSSL 1.1 的 libssl/libcrypto，并置于 LD_LIBRARY_PATH 最前**。
+#   它只给 .NET 用，**不动系统的 OpenSSL 3/4**（其他程序仍走系统路径）。
+#
+# ⚠ **第五次坑的原始记录：libssl 缺失**
 # .NET 的加密栈硬依赖 `libssl`，而 proot 里报：
 #   `No usable version of libssl was found` → `Aborted`（SIGABRT，dotnet publish 直接死）
 # 而 rootfs **有** `libssl.so.3`（真实 ELF，8 月的文件）⇒ 不是缺件，是**解析不到**。
@@ -78,14 +102,16 @@ exec "$PREFIX/bin/proot" --link2symlink -0 -r "$ROOTFS" \
     PATH="$JAVA_HOME_R/bin:$ANDROID_EXT/bin:/usr/share/dotnet:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     LANG=C.UTF-8 TERM=xterm \
     JAVA_HOME="$JAVA_HOME_R" \
-    LD_LIBRARY_PATH="$EXT/lib:/usr/lib/aarch64-linux-gnu:/usr/lib:/lib/aarch64-linux-gnu:/lib" \
+    LD_LIBRARY_PATH="/opt/ssl11:/usr/lib/aarch64-linux-gnu:/usr/lib:/lib/aarch64-linux-gnu:/lib:$EXT/lib" \
     ANDROID_HOME="$ANDROID_EXT" \
     DOTNET_ROOT=/usr/share/dotnet \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1 \
     DOTNET_gcServer=0 \
     DOTNET_gcConcurrent=0 \
-    DOTNET_GCHeapHardLimit=0x10000000 \
-    DOTNET_GCConserveMemory=9 \
+    DOTNET_GCHeapHardLimit=0x20000000 \
+    DOTNET_GCConserveMemory=5 \
+    DOTNET_TieredPGO=0 \
+    DOTNET_ReadyToRun=0 \
     DOTNET_TieredCompilation=1 \
   "$GODOT_BIN" "$@"

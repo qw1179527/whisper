@@ -1,6 +1,7 @@
 ea4bc82a6ad023ab7ee23ee620429895
-::res://::1791370234
+::res://::1791373907
 export_presets.cfg::TextFile/TextFile::-1::1791370256::0::1::::<><><>0<>0<><>::
+global.json::JSON/JSON::-1::1791373907::0::1::::<><><>0<>0<><>::
 ::res://Assets/::1791367148
 ::res://Scenes/::1791367657
 Main.tscn::PackedScene/PackedScene::5021306628024503584::1791367657::0::1::::<><><>0<>0<><>::res://Scripts/Runtime/MainProbe.cs
@@ -71,7 +72,7 @@ VoiceBandClassifier.cs::CSharpScript/CSharpScript::3592982075190085106::17913671
 VoiceCalibrator.cs::CSharpScript/CSharpScript::302871378315764562::1791367149::0::1::::<><><>0<>0<><>::
 VoiceMath.cs::CSharpScript/CSharpScript::112793458083011244::1791367149::0::1::::<><><>0<>0<><>::
 ::res://Scripts/Runtime/::1791369241
-MainProbe.cs::CSharpScript/CSharpScript::3872554376736833851::1791369366::0::1::::<>Node3D<><>0<>0<><>::
+MainProbe.cs::CSharpScript/CSharpScript::3872554376736833851::1791369366::0::1::::<><><>0<>0<><>::
 ::res://tools/::1791373493
 diag.gd::GDScript/GDScript::2983425041185740718::1791370246::0::1::::<>SceneTree<><>0<>0<><>::
 DiagDotnet.cs::CSharpScript/CSharpScript::3527711526089571824::1791370234::0::1::::<><><>0<>0<><>::

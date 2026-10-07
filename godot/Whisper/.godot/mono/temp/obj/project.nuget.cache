@@ -1,14 +1,21 @@
 {
   "version": 2,
-  "dgSpecHash": "sQgtPFzWI6ikFOCN7+N6A/lhcvenC4ncXoILHX7s9hWdzqQLM9zD1ewKAu/vdHq4ehwjysmoE7DssVQkTry6wQ==",
-  "success": true,
+  "dgSpecHash": "2QVTo/d/22o=",
+  "success": false,
   "projectFilePath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/Whisper.csproj",
   "expectedPackageFiles": [
-    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/godot.sourcegenerators/4.4.0/godot.sourcegenerators.4.4.0.nupkg.sha512",
-    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/godotsharp/4.4.0/godotsharp.4.4.0.nupkg.sha512",
-    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/godotsharpeditor/4.4.0/godotsharpeditor.4.4.0.nupkg.sha512",
-    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.netcore.app.ref/8.0.31/microsoft.netcore.app.ref.8.0.31.nupkg.sha512",
-    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.31/microsoft.aspnetcore.app.ref.8.0.31.nupkg.sha512"
+    "/root/.nuget/packages/godot.sourcegenerators/4.4.0/godot.sourcegenerators.4.4.0.nupkg.sha512",
+    "/root/.nuget/packages/godotsharp/4.4.0/godotsharp.4.4.0.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1101",
+      "level": "Error",
+      "message": "Unable to find package Microsoft.NETCore.App.Runtime.Mono.android-arm64. No packages exist with this id in source(s): godot-local",
+      "libraryId": "Microsoft.NETCore.App.Runtime.Mono.android-arm64",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
 }
