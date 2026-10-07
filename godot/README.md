@@ -93,3 +93,39 @@ Godot 的 C# 支持要靠 `hostfxr` 加载 .NET。而：
 
 装法（拿到后执行）：解到 rootfs 的 `/usr/share/dotnet`，
 并给 Godot 传 `DOTNET_ROOT=/usr/share/dotnet` + 把 `/usr/share/dotnet` 加进 `PATH`。
+
+---
+
+## ✅ 运行时验证通过（2026-10-07）
+
+```bash
+tools/godot.sh --headless --path .../godot/Whisper --quit-after 90
+```
+输出（原文）：
+```
+[Whisper] Godot 4.4-stable (official) · 引擎无关核心探针
+  ✓ 关卡 asylum_v1：房间 15 · 走廊 12 · 事件 3
+    套件清单 22 个 · 撤离点 entrance_safe
+  ✓ 套件 morgue.glb：部件 33 · 顶点 792 · 三角形 396
+```
+
+⇒ **搬过来的核心在 Godot 运行时里真的可用**：
+`LevelLoader` 解析并校验了真实关卡 JSON，`GlbReaderPure` 解析了真实 GLB。
+这不只是"能编译"，是**运行时跑通**。
+
+## 打通运行时又踩了 3 个坑（全部记在这里）
+
+| # | 现象 | 真因 | 修法 |
+|---|---|---|---|
+| 8 | `Unable to load .NET runtime, specifically hostfxr` | 宿主 .NET 是 **bionic**，Godot 在 glibc 里 | 装 glibc 的 .NET 8 runtime 到 rootfs `/usr/share/dotnet` |
+| 9 | `GC heap initialization failed with error 0x8007000E`（=E_OUTOFMEMORY），而内存充足 | CoreCLR 默认预留的 GC 区域在 proot 下映射失败 | `DOTNET_GCHeapHardLimit=0x10000000` + 关 server/concurrent GC |
+| 10 | `Failed to load project assembly` | 我为了"零 nuget"绕开了 `Godot.NET.Sdk`（只 HintPath 引用 `GodotSharp.dll`）。**编译能过，但 SDK 还负责产物命名与放置** | 回到官方 `Godot.NET.Sdk/4.4.0` + `nuget.config` 指向 mono 版**自带的 nupkgs**（离线可用） |
+
+### 坑 #10 的教训（值得单独记）
+**"能编过"与"能加载"是两件事。** 我用 `Microsoft.NET.Sdk` + `HintPath` 让编译通过，
+产物也在 `bin/Debug/net8.0/`，但 Godot 运行时报 `Failed to load project assembly` ——
+因为 `Godot.NET.Sdk` 不只是引用程序集，它还管产物形态（`GodotSharp.dll` 随产物、`.deps.json`、目录约定）。
+
+而**离线也不用妥协**：mono 版把 `Godot.NET.Sdk.4.4.0.nupkg` / `GodotSharp.4.4.0.nupkg` /
+`Godot.SourceGenerators.4.4.0.nupkg` 全放在 `GodotSharp/Tools/nupkgs/` 里，
+`nuget.config` 指过去即可 —— **零联网还原**。

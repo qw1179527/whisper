@@ -1,36 +1,22 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Godot.NET.Sdk/4.4.0">
   <!--
     Godot 4.4 端 · 引擎无关核心 + Godot 渲染层
     ══════════════════════════════════════════════════════════════════════════════
-    为什么**不用** `Sdk="Godot.NET.Sdk/4.4.0"`
+    为什么最终回到官方的 `Godot.NET.Sdk`
     ──────────────────────────────────────────────────────────────────────────────
-    `Godot.NET.Sdk` 要走 nuget 还原，而本机（Termux/bionic + proot）**没有验证过 nuget 可达**。
-    但 mono 版编辑器**自带 API 程序集**：
-        tmp/godot/mono/GodotSharp/Api/Release/GodotSharp.dll
-    ⇒ 直接 `Reference + HintPath` 引用它，**零 nuget 依赖**。
-    （既然编辑器就在本机，引用它的程序集比从网上拿 SDK 更可控、也更快。）
-
-    ⚠ 用 HintPath 的代价：将来编辑器版本一变，这个相对路径要同步改。
-       改动点集中在本文件，且路径写死为仓库内相对路径（可复核）。
+    我先试了"零 nuget"的写法（`Microsoft.NET.Sdk` + `HintPath` 直接引用 `GodotSharp.dll`）：
+    编译通过，但**运行时 Godot 报 `Failed to load project assembly`** ——
+    因为 `Godot.NET.Sdk` 不只是"引用程序集"，它还负责**产物命名与放置**
+    （`GodotSharp.dll` 随产物、`.deps.json`、以及 Godot 期望的目录形态）。
+    绕开它 ⇒ 编译能过、运行起不来。**"能编过"与"能加载"是两件事。**
+    ⇒ 改用官方 SDK，并用 `nuget.config` 把包源指向 **mono 版自带的 nupkgs**（离线可用）。
   -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <RootNamespace>Whisper</RootNamespace>
     <AssemblyName>Whisper</AssemblyName>
-    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
-    <!-- Godot 的 API 程序集带 XML 文档，关掉它带来的 1591 噪声 -->
-    <NoWarn>$(NoWarn);1591;CS0436</NoWarn>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="GodotSharp">
-      <HintPath>../../tmp/godot/mono/GodotSharp/Api/Release/GodotSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="GodotSharpEditor">
-      <HintPath>../../tmp/godot/mono/GodotSharp/Api/Release/GodotSharpEditor.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
 </Project>
