@@ -1,9 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "kaklz9vkAkpa9J+7lcCD05JrQL2GVN5mXGOneLOkMmrzwQ//GGVmDAgpSH36oCrNpPh5/1qK31tWkoYDFuh/sw==",
+  "dgSpecHash": "5IBnsFvrg6eXXj9BG54biaEVRiNYsKHUry/Y1K045BLBa32kkT7dVKa6w3T4Bmudrj7S8CblUh/cVXM9U6zdKg==",
   "success": true,
   "projectFilePath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/VerifyKits.csproj",
   "expectedPackageFiles": [
+    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/godot.sourcegenerators/4.4.0/godot.sourcegenerators.4.4.0.nupkg.sha512",
+    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/godotsharp/4.4.0/godotsharp.4.4.0.nupkg.sha512",
+    "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/godotsharpeditor/4.4.0/godotsharpeditor.4.4.0.nupkg.sha512",
     "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.netcore.app.ref/8.0.31/microsoft.netcore.app.ref.8.0.31.nupkg.sha512",
     "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.31/microsoft.aspnetcore.app.ref.8.0.31.nupkg.sha512",
     "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/microsoft.netcore.app.host.linux-bionic-arm64/8.0.31/microsoft.netcore.app.host.linux-bionic-arm64.8.0.31.nupkg.sha512"

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("verify-kits")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a48268efc96b52516aa5883d1e0ed6fd2f008988")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9468a72db9b01a7b5b8c1e546f80889e6c4713b7")]
 [assembly: System.Reflection.AssemblyProductAttribute("verify-kits")]
 [assembly: System.Reflection.AssemblyTitleAttribute("verify-kits")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -80,6 +80,18 @@ namespace Whisper.Gameplay.Level
             public string Generator = "";
             /// <summary>是否含 BIN chunk（有顶点数据必然有）。</summary>
             public bool HasBin;
+
+            // ── 包围盒（局部坐标）────────────────────────────────────────────────
+            // 【为什么需要】摆房间时要把套件对齐到房间地面：Unity 侧是
+            //   房间根节点 = (CenterX, Floor*3.5, CenterZ)，套件部件按**局部坐标原样**摆进去。
+            //   要在 Godot 里复刻同样口径，就必须知道套件自己的包围盒（尤其 yMin 是否贴 0）。
+            // ⚠ 只累加 POSITION，**不做节点变换** —— 真实套件的节点多为单位变换（实测），
+            //   但**如实标注**：若某个 GLB 有非单位节点变换，这里的包围盒会偏。
+            public bool HasBounds;
+            public float MinX, MinY, MinZ, MaxX, MaxY, MaxZ;
+            public float SizeX => MaxX - MinX;
+            public float SizeY => MaxY - MinY;
+            public float SizeZ => MaxZ - MinZ;
         }
 
         /// <summary>
@@ -98,6 +110,7 @@ namespace Whisper.Gameplay.Level
 
             var m = new Model();
             string json = null;
+            byte[] binData = null;   // BIN chunk（POSITION 数据在里面）
             int p = 12;
             // 遍历 chunk（JSON 与 BIN 各一个；顺序按规范是 JSON 在前，但不假设）
             while (p + 8 <= bytes.Length)
@@ -107,7 +120,7 @@ namespace Whisper.Gameplay.Level
                 int data = p + 8;
                 if (len > (uint)(bytes.Length - data)) { reason = $"chunk 声明长度 {len} 越界"; return false; }
                 if (type == ChunkJson) json = Encoding.UTF8.GetString(bytes, data, (int)len);
-                else if (type == ChunkBin) m.HasBin = true;
+                else if (type == ChunkBin) { m.HasBin = true; binData = new byte[len]; Array.Copy(bytes, data, binData, 0, (int)len); }
                 p = data + (int)len;
                 // chunk 按 4 字节对齐
                 p = (p + 3) & ~3;
@@ -117,9 +130,11 @@ namespace Whisper.Gameplay.Level
             var root = MiniJson.AsMap(MiniJson.Parse(json));
             if (root == null) { reason = "JSON 解析结果不是对象"; return false; }
 
-            // accessors：索引 → count（只关心 count）
+            // accessors：索引 → count / type / bufferView / byteOffset（后两项用于读 POSITION）
             var accCount = new Dictionary<long, long>();
             var accType = new Dictionary<long, string>();
+            var accView = new Dictionary<long, long>();
+            var accOff = new Dictionary<long, long>();
             if (MiniJson.Get(root, "accessors") is List<object> accessors)
             {
                 for (int i = 0; i < accessors.Count; i++)
@@ -128,6 +143,20 @@ namespace Whisper.Gameplay.Level
                     if (a == null) continue;
                     accCount[i] = MiniJson.Get(a, "count") is long c ? c : 0L;
                     accType[i] = MiniJson.Get(a, "type") as string ?? "";
+                    accView[i] = MiniJson.Get(a, "bufferView") is long bv ? bv : -1L;
+                    accOff[i] = MiniJson.Get(a, "byteOffset") is long bo ? bo : 0L;
+                }
+            }
+
+            // bufferViews：索引 → (byteOffset, byteLength) —— 用来定位 POSITION 在 BIN 里的位置
+            var viewOff = new Dictionary<long, long>();
+            if (MiniJson.Get(root, "bufferViews") is List<object> views)
+            {
+                for (int i = 0; i < views.Count; i++)
+                {
+                    var v = MiniJson.AsMap(views[i]);
+                    if (v == null) continue;
+                    viewOff[i] = MiniJson.Get(v, "byteOffset") is long o ? o : 0L;
                 }
             }
 
@@ -144,12 +173,16 @@ namespace Whisper.Gameplay.Level
                         if (prim == null) continue;
                         var primModel = new Primitive();
 
+                        // ⚠ `posIdx` 必须在**外层**声明：它后面还要用于读包围盒。
+                        //   我第一版把它写在 `if (... out var posIdx ...)` 里 ⇒ 作用域只在 if 内 ⇒
+                        //   后面用时报 `CS0165: Use of unassigned local variable 'posIdx'`。
                         long verts = 0;
+                        long posIdx = -1;
                         if (MiniJson.Get(prim, "attributes") is Dictionary<string, object> attrs
-                            && attrs.TryGetValue("POSITION", out var posIdx) && posIdx is long pi
-                            && accCount.TryGetValue(pi, out var pc))
+                            && attrs.TryGetValue("POSITION", out var posRaw) && posRaw is long pi)
                         {
-                            verts = pc;
+                            posIdx = pi;
+                            if (accCount.TryGetValue(pi, out var pc)) verts = pc;
                         }
                         primModel.VertexCount = (int)verts;
 
@@ -158,6 +191,31 @@ namespace Whisper.Gameplay.Level
                         else
                             primModel.TriangleCount = (int)(verts / 3);   // 非索引网格
                         m.Primitives.Add(primModel);
+
+                        // ── 累加 POSITION 到包围盒（只认 VEC3 + 有 BIN + 有 bufferView）──────
+                        if (binData != null && posIdx >= 0
+                            && accType.TryGetValue(posIdx, out var pType) && pType == "VEC3"
+                            && accView.TryGetValue(posIdx, out var vIdx) && vIdx >= 0
+                            && viewOff.TryGetValue(vIdx, out var vOff))
+                        {
+                            long baseOff = vOff + accOff[posIdx];
+                            long cnt = accCount[posIdx];
+                            for (long k = 0; k < cnt; k++)
+                            {
+                                long o = baseOff + k * 12;      // VEC3 float32 = 12 字节
+                                if (o + 12 > binData.Length) break;
+                                float x = BitConverter.ToSingle(binData, (int)o);
+                                float y = BitConverter.ToSingle(binData, (int)(o + 4));
+                                float z = BitConverter.ToSingle(binData, (int)(o + 8));
+                                if (!m.HasBounds) { m.MinX = m.MaxX = x; m.MinY = m.MaxY = y; m.MinZ = m.MaxZ = z; m.HasBounds = true; }
+                                else
+                                {
+                                    if (x < m.MinX) m.MinX = x; if (x > m.MaxX) m.MaxX = x;
+                                    if (y < m.MinY) m.MinY = y; if (y > m.MaxY) m.MaxY = y;
+                                    if (z < m.MinZ) m.MinZ = z; if (z > m.MaxZ) m.MaxZ = z;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -172,8 +230,9 @@ namespace Whisper.Gameplay.Level
         {
             if (m == null) return "(未解析)";
             return string.Format(CultureInfo.InvariantCulture,
-                "部件 {0} · 顶点 {1} · 三角形 {2}{3}", m.Primitives.Count, m.VertexCount, m.TriangleCount,
-                m.HasBin ? "" : " · **无 BIN chunk（几何数据缺失）**");
+                "部件 {0} · 顶点 {1} · 三角形 {2}{3}{4}", m.Primitives.Count, m.VertexCount, m.TriangleCount,
+                m.HasBin ? "" : " · **无 BIN chunk（几何数据缺失）**",
+                m.HasBounds ? string.Format(CultureInfo.InvariantCulture, " · 包围盒 X[{0:0.00},{1:0.00}] Y[{2:0.00},{3:0.00}] Z[{4:0.00},{5:0.00}]", m.MinX, m.MaxX, m.MinY, m.MaxY, m.MinZ, m.MaxZ) : " · (无 POSITION 数据)");
         }
 
         static uint ReadU32(byte[] b, int off)

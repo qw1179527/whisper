@@ -8,19 +8,20 @@
       "version": "1.0.0",
       "restore": {
         "projectUniqueName": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/Whisper.csproj",
-        "projectName": "Whisper.Core.Logic",
+        "projectName": "Whisper",
         "projectPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/Whisper.csproj",
         "packagesPath": "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/packages/",
-        "outputPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/obj/",
+        "outputPath": "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/.godot/mono/temp/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
+          "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/Whisper/nuget.config",
           "/data/user/0/app.dsh.mobile/files/dsh-home/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "https://api.nuget.org/v3/index.json": {}
+          "/data/user/0/app.dsh.mobile/files/dsh-home/whisper/tmp/godot/mono/GodotSharp/Tools/nupkgs": {}
         },
         "frameworks": {
           "net8.0": {
@@ -37,6 +38,20 @@
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
+          "dependencies": {
+            "Godot.SourceGenerators": {
+              "target": "Package",
+              "version": "[4.4.0, )"
+            },
+            "GodotSharp": {
+              "target": "Package",
+              "version": "[4.4.0, )"
+            },
+            "GodotSharpEditor": {
+              "target": "Package",
+              "version": "[4.4.0, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

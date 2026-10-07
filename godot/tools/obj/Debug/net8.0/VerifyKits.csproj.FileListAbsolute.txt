@@ -3,8 +3,6 @@
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/verify-kits.runtimeconfig.json
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/verify-kits.dll
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/verify-kits.pdb
-/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/Whisper.Core.Logic.dll
-/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/Whisper.Core.Logic.pdb
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/obj/Debug/net8.0/VerifyKits.csproj.AssemblyReference.cache
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/obj/Debug/net8.0/VerifyKits.GeneratedMSBuildEditorConfig.editorconfig
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/obj/Debug/net8.0/VerifyKits.AssemblyInfoInputs.cache
@@ -17,3 +15,7 @@
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/obj/Debug/net8.0/verify-kits.pdb
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/obj/Debug/net8.0/VerifyKits.genruntimeconfig.cache
 /data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/obj/Debug/net8.0/ref/verify-kits.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/GodotSharp.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/GodotSharpEditor.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/Whisper.dll
+/data/user/0/app.dsh.mobile/files/dsh-home/whisper/godot/tools/bin/Debug/net8.0/Whisper.pdb
