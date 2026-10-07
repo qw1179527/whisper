@@ -1,5 +1,20 @@
 using UnityEngine;
+using UnityEngine.UI;                  // Text（HUD 状态文本）
+using Whisper.Core;                    // Services（接口容器）—— 拆文件时漏了这条，真实构建报 CS0103
+using Whisper.Gameplay.Config;         // GameConfigReader
+using Whisper.Gameplay.Level;          // LevelBuilder / LevelData
 
+// ⚠ **拆 partial 文件必须把 using 一起搬**（2026-10-07 真实构建抓到的）
+// 我把 `Update()` 移到本文件时只搬了方法体，漏了这些 using ⇒
+//   `Assets/Scripts/Runtime/GameBootstrap.Hud.cs(76,17): error CS0103: The name 'Services' does not exist`
+//   `Assets/Scripts/Runtime/GameBootstrap.Hud.cs(81,17): error CS0103: The name 'LevelBuilder' does not exist`
+// ⇒ **两个出包工作流同时失败**（Mono #11 与 IL2CPP #88）。
+//
+// 而本机门禁 `unity-syntax-check.sh` **没拦住**：它把 CS0103 归类为
+// "Unity 缺失导致的允许错误"（本机桩里确实没有部分 Unity 类型）而放行 ——
+// 于是"本机 21 步全绿"与"真实构建失败"同时成立。
+// **教训：本机语法门禁的"允许错误"白名单会掩盖真实错误；partial 拆分后要么本机全量编译，
+// 要么至少核对每个新文件的 using 与原文件一致。**
 namespace Whisper.Runtime
 {
     /// <summary>

@@ -71,6 +71,21 @@ var errors = comp.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.E
 // 这条是踩出来的：CS0117「DesignTokens does not contain a definition for 'ColorConcrete'」
 // 曾被"允许表"整体放过——允许表按错误码一刀切，会把项目自身的笔误一并放行。
 // 判据用诊断消息里是否出现本项目命名空间前缀，比按错误码猜可靠。
+// ── 项目源码里声明过的全部类型名（供 CS0103 判据用；见 TouchesProjectCode 的注释）──
+var projectTypeNames = new HashSet<string>(StringComparer.Ordinal);
+foreach (var tree in trees)   // trees: 本工程的全部语法树（目标 + 上下文）
+{
+    var root = tree.GetRoot();
+    foreach (var node in root.DescendantNodes())
+    {
+        if (node is Microsoft.CodeAnalysis.CSharp.Syntax.BaseTypeDeclarationSyntax bt)
+            projectTypeNames.Add(bt.Identifier.ValueText);
+        else if (node is Microsoft.CodeAnalysis.CSharp.Syntax.EnumDeclarationSyntax en)
+            projectTypeNames.Add(en.Identifier.ValueText);
+    }
+}
+Console.WriteLine($"[unity-syntax] 项目声明类型名 {projectTypeNames.Count} 个（CS0103 判据用）");
+
 bool TouchesProjectCode(Diagnostic d)
 {
     // 判据（踩了三次才定下来，越简单越可靠）：
@@ -102,7 +117,24 @@ bool TouchesProjectCode(Diagnostic d)
             || System.Text.RegularExpressions.Regex.IsMatch(text, $@"\b[A-Za-z_]\w*(?:<[^>]*>)?(?:\[\])?\s+{name}\s*[=;,)]")
             || System.Text.RegularExpressions.Regex.IsMatch(text, $@"\b{name}\s*=[^=]");
         if (declaredInFile) return true;   // 本文件声明过却"不存在" → 作用域/拼写错误，真错误
-        return false;                      // 本文件没声明 → 大概率是 Unity 静态成员
+
+        // ══════════════════════════════════════════════════════════════════════════════
+        // 【假绿修复 · 2026-10-07 真实构建事故】**本项目其它文件声明过的名字**也判红
+        // ══════════════════════════════════════════════════════════════════════════════
+        // 事故原文（两个出包工作流同时失败）：
+        //   Assets/Scripts/Runtime/GameBootstrap.Hud.cs(76,17): error CS0103: The name 'Services' does not exist
+        //   Assets/Scripts/Runtime/GameBootstrap.Hud.cs(81,17): error CS0103: The name 'LevelBuilder' does not exist
+        // 原因：我把 `Update()` 拆进新 partial 文件时**漏搬 using**。
+        // 而本门禁把 CS0103 当"Unity 缺失"放行（判据只看"本文件是否声明过该名字"），
+        // `Services` / `LevelBuilder` 都是**别处声明的类型** ⇒ 漏判 ⇒ 本机 21 步全绿而真实构建失败。
+        //
+        // 新判据：**若缺失的名字出现在"本项目全部源文件里声明过的类型名"集合中**，
+        //   那它显然是本项目的东西（Unity 的静态成员不会在我们的源码里被声明）⇒ 判红。
+        // 这与上面那条"本文件声明过"是同一思路，只是把范围从**一个文件**扩到**整个项目** ——
+        // 而那正是 partial 拆分 / 跨文件引用的失效模式。
+        if (projectTypeNames.Contains(m.Groups[1].Value)) return true;
+
+        return false;                      // 项目里也没有 → 大概率是 Unity 静态成员
     }
     // 只保留**明确指向某个被引用符号**的错误码。
     return d.Id == "CS0117" ||   // 类型不含该成员（项目类型笔误的主信号）
@@ -113,6 +145,7 @@ bool TouchesProjectCode(Diagnostic d)
            d.Id == "CS0111" ||   // 重复成员定义
            d.Id == "CS7036";     // 缺少必需参数
 }
+
 
 var projectErrors = errors.Where(TouchesProjectCode).ToList();
 var real = errors.Where(e => !allowed.Contains(e.Id)).Concat(projectErrors).Distinct().ToList();
