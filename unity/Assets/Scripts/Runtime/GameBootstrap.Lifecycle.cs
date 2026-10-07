@@ -61,9 +61,24 @@ namespace Whisper.Runtime
             // 未捕获异常既不完成、也不进 Fail ⇒ 屏幕全黑、无任何提示，只能靠猜。
             // 而这个 try/catch 把它变成屏幕上可读的类型 + 消息 + 堆栈首行。
             BootStageBoard.SetStage("Start() 进入，即将调用 Boot()");
-            // 把 Inspector 上的排查开关同步到 Boot 逻辑（"一个字段一处声明"：
-            // 声明在 Api 侧供 Inspector 序列化，Boot 侧只读这个副本，避免两处各有一个默认值）
-            AutoEnterMatchOnBoot = DiagnosticDirectEnterMatch;
+            // ══════════════════════════════════════════════════════════════════════════════
+            // **不读任何序列化字段**（2026-10-07 真机截图 0.1.13 暴露）
+            // ══════════════════════════════════════════════════════════════════════════════
+            // 现象：`Boot()` 正常返回、阶段看板停在 `⑥ 收尾`，**⑦ 从来没出现** ⇒
+            // `if (AutoEnterMatchOnBoot && Booted)` 里的前者为 **false**，
+            // 尽管 `DiagnosticDirectEnterMatch` 在 C# 里的初始化就是 `true`。
+            //
+            // 唯一能解释的是：**该公开字段被 MonoBehaviour 序列化覆盖成了 false**。
+            // `unity/Assets/Scenes/Boot.unity` 里确实没有这个字段的显式值，
+            // 但"实例是否带该字段的序列化状态"**我在本机无法验证**（本机没有 Unity）。
+            // ⇒ 我不再赌它：**直接无条件置真**（这是排查构建，本就是要它自动进局的）。
+            //
+            // 顺带把两个标志的**实测值**报进阶段看板 —— 这样"是字段被覆盖"这个判断
+            // 也能被真机读数证实或否证，而不是我第二次猜。
+            AutoEnterMatchOnBoot = true;
+            BootStageBoard.SetStage($"Start：AutoEnterMatchOnBoot={AutoEnterMatchOnBoot}"
+                + $" · DiagnosticDirectEnterMatch={DiagnosticDirectEnterMatch}"
+                + $" · ShowDiagnostics={ShowDiagnostics}");
             try
             {
                 Boot();
