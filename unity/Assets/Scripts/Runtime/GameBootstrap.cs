@@ -44,6 +44,17 @@ namespace Whisper.Runtime
         /// （V9 §19.5：改数值不碰代码）。
         /// 返回 false = 该图未实现或不在注册表 —— **不静默换图**（换错图比报错更糟）。
         /// </summary>
+        /// <summary>
+        /// **诊断显示总开关**（默认关）。开启后同时显示：
+        ///   · HUD 状态小字（`Update` 里的 `_status` 文本）
+        ///   · **机内诊断叠层**（`GameBootstrap.BootOverlay.cs` 的 `OnGUI`：
+        ///     启动日志/错误/管线名/地图列表 + 一个"开始对局"按钮）
+        /// 【为什么合并成一个开关】真机黑屏时两处都要看（小字给运行态、叠层给启动日志）；
+        /// 分成两个开关会让"开了这个没开那个"变成新的排查成本。
+        /// 【为什么默认关】用户要求去掉所有小字；诊断信息只在排查时需要。
+        /// 【怎么在真机上打开】左上角连点 5 次（黑屏时无反馈手势）——见 BootOverlay 类注释。
+        /// </summary>
+        [Tooltip("诊断显示总开关（HUD 小字 + 机内诊断叠层）。真机排查时开；可在左上角连点 5 次切换。")]
         public bool ShowDiagnostics = false;
         Canvas _canvas;
         Camera _camera;

@@ -318,6 +318,14 @@
     "LightType.Point": {
       "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/LightType.html",
       "note": "灯类型枚举（点光/平行光/聚光）—— 诊断场景实际有几盏灯要用"
+    },
+    "EditorApplication.ExecuteMenuItem": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/EditorApplication.ExecuteMenuItem.html",
+      "note": "执行菜单项。用于「File/Save Project」把 ProjectSettings/*.asset 写盘 —— 真机黑屏排查：GraphicsSettings.defaultRenderPipeline 是运行期赋值，不落盘则 APK 用 Built-in"
+    },
+    "AssetDatabase.LoadAllAssetsAtPath": {
+      "doc": "https://docs.unity3d.com/6000.3/Documentation/ScriptReference/AssetDatabase.LoadAllAssetsAtPath.html",
+      "note": "取路径下全部资产（含 ProjectSettings/*.asset）。用来**读回盘上**的 m_CustomRenderPipeline 核对落盘，而不是只信赋值语句跑过"
     }
   }
 }

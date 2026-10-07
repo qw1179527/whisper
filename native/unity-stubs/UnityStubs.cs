@@ -11,6 +11,20 @@ using System.Collections.Generic;
 
 namespace UnityEngine
 {
+    /// <summary>文档：RuntimeInitializeLoadType — 运行时初始化时机（启动探针依赖 AfterSceneLoad）。</summary>
+    public enum RuntimeInitializeLoadType { AfterSceneLoad = 0, BeforeSceneLoad = 1, AfterAssembliesLoaded = 2, BeforeSplashScreen = 3, SubsystemRegistration = 4 }
+
+    /// <summary>文档：RuntimeInitializeOnLoadMethodAttribute — 无需场景引用即可挂载启动代码。</summary>
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    public sealed class RuntimeInitializeOnLoadMethodAttribute : System.Attribute
+    {
+        public RuntimeInitializeOnLoadMethodAttribute() { }
+        public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType t) { }
+    }
+
+    /// <summary>文档：RuntimePlatform — 运行平台枚举（诊断叠层显示用）。</summary>
+    public enum RuntimePlatform { OSXEditor = 0, WindowsPlayer = 2, Android = 11, IPhonePlayer = 8 }
+
     public partial struct Vector2
     {
         public float x, y;
@@ -73,6 +87,9 @@ namespace UnityEngine
 
     public partial class Object
     {
+        /// <summary>文档：Object.DontDestroyOnLoad(Object) — 跨场景保留。</summary>
+        public static void DontDestroyOnLoad(Object target) { }
+
         public string name { get; set; }
         public static void Destroy(Object o) { }
         public static void DestroyImmediate(Object o) { }
@@ -254,6 +271,11 @@ namespace UnityEngine
 
     public static partial class Application
     {
+        /// <summary>文档：Application.version — 应用版本号（读 ProjectSettings.bundleVersion）。</summary>
+        public static string version => "0.0.0";
+        /// <summary>文档：Application.platform — 当前运行平台。</summary>
+        public static RuntimePlatform platform => RuntimePlatform.Android;
+
         public static int targetFrameRate { get; set; }
         public static string unityVersion => "stub";
         /// <summary>文档：Application.runInBackground — 失焦时是否继续运行。</summary>
@@ -395,6 +417,14 @@ namespace UnityEngine.Events
 namespace UnityEngine.SceneManagement
 {
     public struct Scene { public string name => null; public bool IsValid() => true; }
+
+    /// <summary>文档：SceneManager.GetActiveScene / LoadScene — 场景查询与切换。</summary>
+    public static class SceneManager
+    {
+        public static Scene GetActiveScene() => default;
+        public static void LoadScene(string sceneName) { }
+        public static void LoadScene(int sceneBuildIndex) { }
+    }
 }
 
 namespace UnityEditor
@@ -890,6 +920,49 @@ namespace UnityEngine
     /// <summary>文档：RenderTextureReadWrite — 颜色空间读写模式。</summary>
     public enum RenderTextureReadWrite { Default = 0, Linear = 1, sRGB = 2 }
 
+    /// <summary>
+    /// 文档：GUI / GUILayout / GUIStyle / GUISkin / GUIContent / GUIUtility。
+    /// 【为什么补这一组】机内诊断叠层（`GameBootstrap.BootOverlay.cs` 的 `OnGUI`）用了它们；
+    /// 不补会留下 **16 条 CS0103 被"允许"** —— 而"被允许的错误"越多，
+    /// 真正的新错误就越容易藏在里面（本项目已经因此漏过东西）。
+    /// </summary>
+    public static class GUI
+    {
+        public static Color color { get; set; }
+        public static GUISkin skin { get; set; }
+        public static void DrawTexture(Rect r, Texture t) { }
+        public static bool Button(Rect r, string text) => false;
+        public static void Label(Rect r, string text) { }
+        public static void Label(Rect r, string text, GUIStyle style) { }
+        public static void Box(Rect r, string text) { }
+    }
+
+    public static class GUILayout
+    {
+        public static void BeginArea(Rect r) { }
+        public static void EndArea() { }
+        public static Vector2 BeginScrollView(Vector2 pos) => pos;
+        public static void EndScrollView() { }
+        public static void Label(string text) { }
+        public static void Label(string text, GUIStyle style) { }
+        public static bool Button(string text) => false;
+        public static bool Button(string text, GUIStyle style) => false;
+    }
+
+    public class GUIStyle
+    {
+        public GUIStyle() { }
+        public GUIStyle(GUIStyle other) { }
+        public int fontSize { get; set; }
+        public bool richText { get; set; }
+        public bool wordWrap { get; set; }
+        public GUIStyleState normal { get; set; } = new GUIStyleState();
+    }
+
+    public class GUIStyleState { public Color textColor { get; set; } }
+
+    public class GUISkin { public GUIStyle label { get; set; } = new GUIStyle(); public GUIStyle button { get; set; } = new GUIStyle(); }
+
     public static class Physics
     {
         /// <summary>文档：Physics.Raycast(Ray ray, out RaycastHit hitInfo, float maxDistance)。</summary>
@@ -1356,6 +1429,10 @@ namespace UnityEditor
         public static bool isPlaying { get; set; }
         public static bool isPlayingOrWillChangePlaymode => false;
         public static bool isCompiling => false;
+        /// <summary>文档：EditorApplication.SaveAssets() — 把 Assets/ 下与 ProjectSettings 的改动写盘。</summary>
+        public static void SaveAssets() { }
+        /// <summary>文档：EditorApplication.ExecuteMenuItem(string) — 执行菜单项（"File/Save Project" 用于写 ProjectSettings）。</summary>
+        public static void ExecuteMenuItem(string menuItemPath) { }
     }
 
     /// <summary>文档：AssetDatabase — 资产数据库（取证脚本改文件后要 Refresh 才生效）。</summary>
@@ -1365,6 +1442,8 @@ namespace UnityEditor
         public static void Refresh() { }
         public static void Refresh(ImportAssetOptions options) { }
         public static void SaveAssets() { }
+        /// <summary>文档：AssetDatabase.LoadAllAssetsAtPath(string) — 取该路径下全部资产（含 ProjectSettings/*.asset）。</summary>
+        public static UnityEngine.Object[] LoadAllAssetsAtPath(string assetPath) => System.Array.Empty<UnityEngine.Object>();
         public static void ImportAsset(string path) { }
         public static void ImportAsset(string path, ImportAssetOptions options) { }
 

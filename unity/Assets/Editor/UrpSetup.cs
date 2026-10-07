@@ -153,6 +153,38 @@ namespace Whisper.Editor
             GraphicsSettings.defaultRenderPipeline = urp;
             QualitySettings.renderPipeline = urp;
 
+            // ══════════════════════════════════════════════════════════════════════════════
+            // **必须落盘**（2026-10-07 真机黑屏排查）
+            // ══════════════════════════════════════════════════════════════════════════════
+            // 上面两行只是**运行期**赋值。而**打包时读的是 `ProjectSettings/GraphicsSettings.asset`
+            // 与 `QualitySettings.asset` 这两个文件** —— 若它们没被写盘，APK 里的默认管线仍是
+            // Built-in，URP 着色器在 Built-in 下不兼容 ⇒ 真机画面必然不对（黑屏/品红）。
+            //
+            // 实测支持：仓库里 `unity/ProjectSettings/GraphicsSettings.asset` 的
+            //   `m_CustomRenderPipeline: {fileID: 0}`  —— **就是没落盘**。
+            // 而这个赋值此前**没有显式保存过**（`AssetDatabase.SaveAssets()` 只保存 Assets/ 下的资产，
+            // 不写 ProjectSettings/*.asset）。⇒ 属于本项目典型的"运行期设了、持久层没有"。
+            //
+            // ⇒ 显式标记脏 + 保存 + 刷新。`SaveAssets` 之后再 `Refresh` 让改动对后续步骤可见。
+            EditorApplication.ExecuteMenuItem("File/Save Project");   // 兜底：把 ProjectSettings 整体写盘
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            // 判决点：**读回盘上的序列化字段**核对（不信"我赋值了"，只信"盘上是这个值"）
+            var gsAsset = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
+            var gsSo = gsAsset != null && gsAsset.Length > 0 ? new SerializedObject(gsAsset[0]) : null;
+            var drp = gsSo?.FindProperty("m_CustomRenderPipeline");
+            if (drp != null)
+            {
+                bool onDiskOk = drp.objectReferenceValue != null;
+                Debug.Log($"[UrpSetup] 盘上 GraphicsSettings.m_CustomRenderPipeline = "
+                    + (onDiskOk ? $"{(drp.objectReferenceValue as UnityEngine.Object)?.name} ✓" : "**null（打包会用 Built-in！）**"));
+                if (!onDiskOk)
+                    Debug.LogError("[UrpSetup] ✗ 盘上的默认渲染管线仍是 null —— 打包出的 APK 会用 Built-in，"
+                        + "而本工程着色器是 URP 专用 ⇒ 真机画面必然不对（这是真机黑屏的头号嫌疑）");
+            }
+            else Debug.LogWarning("[UrpSetup] 读不到 GraphicsSettings.m_CustomRenderPipeline 字段，无法核对落盘");
+
             // ── ④ 判决点：currentRenderPipeline 是唯一可信的"生效"证据 ──
             var active = GraphicsSettings.currentRenderPipeline;
             if (active == null)
